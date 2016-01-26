@@ -1,0 +1,7 @@
+applications:
+- name: pz-ingest
+  host: pz-ingest
+  memory: 512M
+  instances: 1
+  timeout: 80
+  path: pz-ingest.jar
