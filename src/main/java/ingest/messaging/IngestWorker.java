@@ -11,19 +11,21 @@ import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
+import model.job.Job;
 import model.job.metadata.ResourceMetadata;
 import model.job.type.IngestJob;
-import model.request.PiazzaJobRequest;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.errors.WakeupException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.MongoException;
 
 /**
  * Main listener class for Ingest Jobs. Handles an incoming Ingest Job request
@@ -35,6 +37,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Component
 public class IngestWorker {
+	@Autowired
+	private PersistMetadata metadataPersist;
 	@Value("${kafka.host}")
 	private String KAFKA_HOST;
 	@Value("${kafka.port}")
@@ -45,7 +49,6 @@ public class IngestWorker {
 	private Consumer<String, String> consumer;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 	private Inspector inspector = new Inspector();
-	private PersistMetadata metadataPersist = new PersistMetadata();
 
 	/**
 	 * 
@@ -61,7 +64,7 @@ public class IngestWorker {
 		// Initialize the Kafka consumer/producer
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 		consumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-
+		// Listen for events
 		listen();
 	}
 
@@ -75,30 +78,37 @@ public class IngestWorker {
 				ConsumerRecords<String, String> consumerRecords = consumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					System.out.println("Relaying Message " + consumerRecord.topic() + " with key "
+					System.out.println("Processing Ingest Message " + consumerRecord.topic() + " with key "
 							+ consumerRecord.key());
 					// Wrap the JobRequest in the Job object
 					try {
 						ObjectMapper mapper = new ObjectMapper();
-						PiazzaJobRequest jobRequest = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
+						Job job = mapper.readValue(consumerRecord.value(), Job.class);
 						// Process Ingest Jobs
-						if (jobRequest.jobType instanceof IngestJob) {
+						if (job.jobType instanceof IngestJob) {
 							// Process the Job based on its information and
 							// retrieve any available metadata
-							ResourceMetadata metadata = inspector.inspect((IngestJob) jobRequest.jobType);
+							ResourceMetadata metadata = inspector.inspect((IngestJob) job.jobType);
 							// Store the Metadata in the MongoDB metadata
 							// collection
 							metadataPersist.insertMetadata(metadata);
 							// If applicable, store the spatial information in
 							// the Piazza databases.
-							
+							// TODO:
 						}
 					} catch (IOException jsonException) {
 						System.out.println("Error Parsing Ingest Job Message.");
 						jsonException.printStackTrace();
+					} catch (MongoException mongoException) {
+						System.out.println("Error committing Metadata object to Mongo Collections: "
+								+ mongoException.getMessage());
+						mongoException.printStackTrace();
+					} catch (Exception exception) {
+						System.out.println("An unexpected error occurred while processing the Job Message: "
+								+ exception.getMessage());
+						exception.printStackTrace();
 					}
 				}
-
 			}
 		} catch (WakeupException exception) {
 			// Ignore exception if closing

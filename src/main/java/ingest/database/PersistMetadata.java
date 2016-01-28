@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoException;
 
 /**
  * Helper class to interact with and access the Mongo instance.
@@ -77,7 +78,7 @@ public class PersistMetadata {
 	 * @param metadata
 	 *            The metadata information to insert.
 	 */
-	public void insertMetadata(ResourceMetadata metadata) {
+	public void insertMetadata(ResourceMetadata metadata) throws MongoException {
 		getResourceCollection().insert(metadata);
 	}
 }

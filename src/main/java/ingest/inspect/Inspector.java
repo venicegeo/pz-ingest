@@ -24,8 +24,11 @@ public class Inspector {
 	 */
 	public ResourceMetadata inspect(IngestJob job) {
 		// Pass off the Job to the appropriate inspectors
-		ResourceMetadata metadata;
-		if (job.getMetadata().filePath.isEmpty() == false) {
+		ResourceMetadata metadata = job.getMetadata();
+		if (metadata == null) {
+			metadata = new ResourceMetadata();
+			System.out.println("Data ingested without User-defined metadata definition.");
+		} else if ((metadata.filePath != null) && (metadata.filePath.isEmpty() == false)) {
 			metadata = fileInspector.inspect(job);
 		} else {
 			metadata = remoteResourceInspector.inspect(job);

@@ -13,6 +13,8 @@ import model.job.type.IngestJob;
  */
 public class RemoteResourceInspector {
 	public ResourceMetadata inspect(IngestJob job) {
-		return null;
+
+		// TODO: Return something
+		return job.getMetadata();
 	}
 }
