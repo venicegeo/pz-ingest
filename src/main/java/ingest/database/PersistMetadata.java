@@ -5,14 +5,12 @@ import java.net.UnknownHostException;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import model.job.Job;
+import model.job.metadata.ResourceMetadata;
 
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 
@@ -23,7 +21,7 @@ import com.mongodb.MongoClient;
  * 
  */
 @Component
-public class MongoAccessor {
+public class PersistMetadata {
 	@Value("${mongo.host}")
 	private String DATABASE_HOST;
 	@Value("${mongo.port}")
@@ -34,7 +32,7 @@ public class MongoAccessor {
 	private String RESOURCE_COLLECTION_NAME;
 	private MongoClient mongoClient;
 
-	public MongoAccessor() {
+	public PersistMetadata() {
 	}
 
 	@PostConstruct
@@ -66,11 +64,20 @@ public class MongoAccessor {
 	 * 
 	 * @return
 	 */
-	public JacksonDBCollection<Job, String> getResourceCollection() {
+	public JacksonDBCollection<ResourceMetadata, String> getResourceCollection() {
 		// MongoJack does not support the latest Mongo API yet. TODO: Check if
 		// they plan to.
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
-		// return JacksonDBCollection.wrap(collection, Job.class, String.class);
-		return null; // TODO: Return whatever
+		return JacksonDBCollection.wrap(collection, ResourceMetadata.class, String.class);
+	}
+
+	/**
+	 * Inserts the Metadata object into the resource collection.
+	 * 
+	 * @param metadata
+	 *            The metadata information to insert.
+	 */
+	public void insertMetadata(ResourceMetadata metadata) {
+		getResourceCollection().insert(metadata);
 	}
 }

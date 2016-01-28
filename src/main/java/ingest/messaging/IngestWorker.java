@@ -1,5 +1,8 @@
 package ingest.messaging;
 
+import ingest.database.PersistMetadata;
+import ingest.inspect.Inspector;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -8,6 +11,8 @@ import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
+import model.job.metadata.ResourceMetadata;
+import model.job.type.IngestJob;
 import model.request.PiazzaJobRequest;
 
 import org.apache.kafka.clients.consumer.Consumer;
@@ -29,8 +34,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * 
  */
 @Component
-public class IngestListener {
-	private static final String INGEST_JOB_TYPE = "ingest";
+public class IngestWorker {
 	@Value("${kafka.host}")
 	private String KAFKA_HOST;
 	@Value("${kafka.port}")
@@ -40,11 +44,13 @@ public class IngestListener {
 	private Producer<String, String> producer;
 	private Consumer<String, String> consumer;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
+	private Inspector inspector = new Inspector();
+	private PersistMetadata metadataPersist = new PersistMetadata();
 
 	/**
 	 * 
 	 */
-	public IngestListener() {
+	public IngestWorker() {
 	}
 
 	/**
@@ -76,8 +82,15 @@ public class IngestListener {
 						ObjectMapper mapper = new ObjectMapper();
 						PiazzaJobRequest jobRequest = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
 						// Process Ingest Jobs
-						if (jobRequest.jobType.getType() == INGEST_JOB_TYPE) {
-							// Process the Job based on its information.
+						if (jobRequest.jobType instanceof IngestJob) {
+							// Process the Job based on its information and
+							// retrieve any available metadata
+							ResourceMetadata metadata = inspector.inspect((IngestJob) jobRequest.jobType);
+							// Store the Metadata in the MongoDB metadata
+							// collection
+							metadataPersist.insertMetadata(metadata);
+							// If applicable, store the spatial information in
+							// the Piazza databases.
 							
 						}
 					} catch (IOException jsonException) {
