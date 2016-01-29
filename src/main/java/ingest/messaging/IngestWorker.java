@@ -12,8 +12,10 @@ import javax.annotation.PostConstruct;
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import model.job.Job;
+import model.job.JobProgress;
 import model.job.metadata.ResourceMetadata;
 import model.job.type.IngestJob;
+import model.status.StatusUpdate;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -86,15 +88,27 @@ public class IngestWorker {
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);
 						// Process Ingest Jobs
 						if (job.jobType instanceof IngestJob) {
+							// Update Status on Handling
+							JobProgress jobProgress = new JobProgress(0);
+							StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
+							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
 							// Process the Job based on its information and
 							// retrieve any available metadata
 							ResourceMetadata metadata = inspector.inspect((IngestJob) job.jobType);
+
 							// Store the Metadata in the MongoDB metadata
 							// collection
 							metadataPersist.insertMetadata(metadata);
+
 							// If applicable, store the spatial information in
 							// the Piazza databases.
-							// TODO:
+							// TODO: Database stuff
+
+							// Update Status when Complete
+							jobProgress.percentComplete = 100;
+							statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 						}
 					} catch (IOException jsonException) {
 						System.out.println("Error Parsing Ingest Job Message.");
