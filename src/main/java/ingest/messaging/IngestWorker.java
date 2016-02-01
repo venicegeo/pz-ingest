@@ -39,6 +39,7 @@ import com.mongodb.MongoException;
  */
 @Component
 public class IngestWorker {
+	private static final String INGEST_TOPIC_NAME = "ingest";
 	@Autowired
 	private PersistMetadata metadataPersist;
 	@Value("${kafka.host}")
@@ -53,7 +54,7 @@ public class IngestWorker {
 	private Inspector inspector = new Inspector();
 
 	/**
-	 * 
+	 * Worker class that listens for and processes Ingestion messages.
 	 */
 	public IngestWorker() {
 	}
@@ -75,7 +76,7 @@ public class IngestWorker {
 	 */
 	public void listen() {
 		try {
-			consumer.subscribe(Arrays.asList(JobMessageFactory.CREATE_JOB_TOPIC_NAME));
+			consumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
 			while (!closed.get()) {
 				ConsumerRecords<String, String> consumerRecords = consumer.poll(1000);
 				// Handle new Messages on this topic.
@@ -86,30 +87,28 @@ public class IngestWorker {
 					try {
 						ObjectMapper mapper = new ObjectMapper();
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);
-						// Process Ingest Jobs
-						if (job.jobType instanceof IngestJob) {
-							// Update Status on Handling
-							JobProgress jobProgress = new JobProgress(0);
-							StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
-							// Process the Job based on its information and
-							// retrieve any available metadata
-							ResourceMetadata metadata = inspector.inspect((IngestJob) job.jobType);
+						// Update Status on Handling
+						JobProgress jobProgress = new JobProgress(0);
+						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
+						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
-							// Store the Metadata in the MongoDB metadata
-							// collection
-							metadataPersist.insertMetadata(metadata);
+						// Process the Job based on its information and
+						// retrieve any available metadata
+						ResourceMetadata metadata = inspector.inspect((IngestJob) job.jobType);
 
-							// If applicable, store the spatial information in
-							// the Piazza databases.
-							// TODO: Database stuff
+						// Store the Metadata in the MongoDB metadata
+						// collection
+						metadataPersist.insertMetadata(metadata);
 
-							// Update Status when Complete
-							jobProgress.percentComplete = 100;
-							statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
-							producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-						}
+						// If applicable, store the spatial information in
+						// the Piazza databases.
+						// TODO: Database stuff
+
+						// Update Status when Complete
+						jobProgress.percentComplete = 100;
+						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (IOException jsonException) {
 						System.out.println("Error Parsing Ingest Job Message.");
 						jsonException.printStackTrace();
