@@ -83,7 +83,6 @@ public class IngestWorker {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					System.out.println("Processing Ingest Message " + consumerRecord.topic() + " with key "
 							+ consumerRecord.key());
-					// Wrap the JobRequest in the Job object
 					try {
 						ObjectMapper mapper = new ObjectMapper();
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);

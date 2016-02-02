@@ -5,15 +5,29 @@ VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
-	config.vm.box = "ubuntu/precise64"
-	config.vm.hostname = "ingest.dev"
-	config.vm.provision :shell, path: "ig-bootstrap.sh"
-	config.vm.network :private_network, ip:"192.168.23.24"
-	config.vm.network "forwarded_port", guest: 8084, host: 8084
-	config.vm.synced_folder "../", "/vagrant/ingest"
-	config.vm.provider "virtualbox" do |vb|
-      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-	  vb.customize ["modifyvm", :id, "--memory", "512"]
+	config.vm.define "ig" do |ig|
+		ig.vm.box = "ubuntu/precise64"
+		ig.vm.hostname = "ingest.dev"
+		ig.vm.provision :shell, path: "ig-bootstrap.sh"
+		ig.vm.network :private_network, ip:"192.168.23.24"
+		ig.vm.network "forwarded_port", guest: 8084, host: 8084
+		ig.vm.synced_folder "../", "/vagrant/ingest"
+		ig.vm.provider "virtualbox" do |vb|
+	      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+		  vb.customize ["modifyvm", :id, "--memory", "512"]
+		end
+	end
+
+	config.vm.define "postgis" do |postgis|
+	    postgis.vm.box = "ubuntu/precise64"
+	    postgis.vm.hostname = "postgis.dev"
+	    postgis.vm.provision :shell, path: "postgis-bootstrap.sh"
+	    postgis.vm.network :private_network, ip:"192.168.23.25"
+	    postgis.vm.synced_folder "../", "/vagrant/jobmanager"
+	    postgis.vm.provider "virtualbox" do |vb|
+          vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+	      vb.customize ["modifyvm", :id, "--memory", "512"]
+	    end
 	end
 
 end
