@@ -1,6 +1,10 @@
 package ingest.inspect;
 
+import ingest.database.PersistMetadata;
 import model.data.DataResource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Inspects the incoming data in Job Request for information for the Ingest.
@@ -9,7 +13,11 @@ import model.data.DataResource;
  * @author Patrick.Doody
  * 
  */
+@Component
 public class Inspector {
+	@Autowired
+	private PersistMetadata metadataPersist;
+
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
 	 * 
@@ -18,7 +26,7 @@ public class Inspector {
 	 * @param host
 	 *            True if Piazza should host the resource, false if not
 	 */
-	public DataResource inspect(DataResource dataResource, boolean host) {
+	public void inspect(DataResource dataResource, boolean host) {
 		// Inspect the resource based on the type it is, and add any metadata if
 		// possible.
 		try {
@@ -30,10 +38,11 @@ public class Inspector {
 			exception.printStackTrace();
 		}
 
-		// Store
+		// Store the metadata in the Resources collection
+		metadataPersist.insertData(dataResource);
 
-		// Return the Data Resource
-		return dataResource;
+		// Persist any spatial/file data if necessary
+		// TODO: 
 	}
 
 	/**
