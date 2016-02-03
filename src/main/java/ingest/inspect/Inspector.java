@@ -1,7 +1,6 @@
 package ingest.inspect;
 
-import model.job.metadata.ResourceMetadata;
-import model.job.type.IngestJob;
+import model.data.DataResource;
 
 /**
  * Inspects the incoming data in Job Request for information for the Ingest.
@@ -11,32 +10,52 @@ import model.job.type.IngestJob;
  * 
  */
 public class Inspector {
-	private FileInspector fileInspector = new FileInspector();
-	private RemoteResourceInspector remoteResourceInspector = new RemoteResourceInspector();
-
 	/**
-	 * Inspects the Ingest Job and parses out metadata information, filling in
-	 * additional metadata when able.
+	 * Inspects the DataResource passed into the Piazza system.
 	 * 
-	 * @param job
-	 *            The ingestion Job information
-	 * @return The metadata for the job, populated as much as possible
+	 * @param dataResource
+	 *            The Data resource to be ingested
+	 * @param host
+	 *            True if Piazza should host the resource, false if not
 	 */
-	public ResourceMetadata inspect(IngestJob job) {
-		// Pass off the Job to the appropriate inspectors
-		ResourceMetadata metadata = job.getMetadata();
-		if (metadata == null) {
-			metadata = new ResourceMetadata();
-			System.out.println("Data ingested without User-defined metadata definition.");
-		} else if ((metadata.filePath != null) && (metadata.filePath.isEmpty() == false)) {
-			metadata = fileInspector.inspect(job);
-		} else {
-			metadata = remoteResourceInspector.inspect(job);
+	public DataResource inspect(DataResource dataResource, boolean host) {
+		// Inspect the resource based on the type it is, and add any metadata if
+		// possible.
+		try {
+			InspectorType inspector = getInspector(dataResource);
+			dataResource = inspector.inspect(dataResource);
+		} catch (Exception exception) {
+			// If it could not be inspected, then the existing metadata is the
+			// only thing that will be entered into the system.
+			exception.printStackTrace();
 		}
 
-		// Attempt to add any metadata information possible
+		// Store
 
-		// Return metadata
-		return metadata;
+		// Return the Data Resource
+		return dataResource;
+	}
+
+	/**
+	 * Small factory method that returns the InspectorType that is applicable
+	 * for the DataResource based on the type of data it is. For a data format
+	 * like a Shapefile, GeoTIFF, or External WFS to be parsed, an Inspector
+	 * must be defined to do that work here.
+	 * 
+	 * @param dataResource
+	 *            The Data to inspect
+	 * @return The inspector capable of inspecting the data
+	 */
+	private InspectorType getInspector(DataResource dataResource) throws Exception {
+		switch (dataResource.getResourceType().getType()) {
+		case "shapefile":
+			return new ShapefileInspector();
+		case "text":
+			return new TextInspector();
+		case "wfs":
+			return new WfsInspector();
+		}
+		throw new Exception("An Inspector was not found for the following data type: "
+				+ dataResource.getResourceType().getType());
 	}
 }

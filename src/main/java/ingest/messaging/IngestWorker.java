@@ -11,9 +11,9 @@ import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
+import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;
-import model.job.metadata.ResourceMetadata;
 import model.job.type.IngestJob;
 import model.status.StatusUpdate;
 
@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
@@ -84,41 +85,36 @@ public class IngestWorker {
 					System.out.println("Processing Ingest Message " + consumerRecord.topic() + " with key "
 							+ consumerRecord.key());
 					try {
+						// Parse the Job from the Kafka Message
 						ObjectMapper mapper = new ObjectMapper();
 						Job job = mapper.readValue(consumerRecord.value(), Job.class);
+						IngestJob ingestJob = (IngestJob) job.getJobType();
+						// Get the description of the Data to be ingested
+						DataResource dataResource = ingestJob.getData();
 
 						// Update Status on Handling
 						JobProgress jobProgress = new JobProgress(0);
 						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
-						// Process the Job based on its information and
-						// retrieve any available metadata
-						ResourceMetadata metadata = inspector.inspect((IngestJob) job.jobType);
-
-						// Store the Metadata in the MongoDB metadata
-						// collection
-						metadataPersist.insertMetadata(metadata);
-
-						// If applicable, store the spatial information in
-						// the Piazza databases.
-						// TODO: Database stuff
+						// Inspect processes the Data item
+						inspector.inspect(dataResource, ingestJob.getHost());
 
 						// Update Status when Complete
 						jobProgress.percentComplete = 100;
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (IOException jsonException) {
+						handleException(consumerRecord.key(), jsonException);
 						System.out.println("Error Parsing Ingest Job Message.");
-						jsonException.printStackTrace();
 					} catch (MongoException mongoException) {
+						handleException(consumerRecord.key(), mongoException);
 						System.out.println("Error committing Metadata object to Mongo Collections: "
 								+ mongoException.getMessage());
-						mongoException.printStackTrace();
 					} catch (Exception exception) {
+						handleException(consumerRecord.key(), exception);
 						System.out.println("An unexpected error occurred while processing the Job Message: "
 								+ exception.getMessage());
-						exception.printStackTrace();
 					}
 				}
 			}
@@ -129,6 +125,25 @@ public class IngestWorker {
 			}
 		} finally {
 			consumer.close();
+		}
+	}
+
+	/**
+	 * Handles the common exception actions that should be taken upon errors
+	 * encountered during the inspection/parsing/loading process. Sends the
+	 * error message to Kafka that this Job has errored out.
+	 * 
+	 * @param jobId
+	 * @param exception
+	 */
+	private void handleException(String jobId, Exception exception) {
+		exception.printStackTrace();
+		try {
+			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, new StatusUpdate(StatusUpdate.STATUS_ERROR)));
+		} catch (JsonProcessingException jsonException) {
+			System.out.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
+					+ jsonException.getMessage());
+			jsonException.printStackTrace();
 		}
 	}
 }

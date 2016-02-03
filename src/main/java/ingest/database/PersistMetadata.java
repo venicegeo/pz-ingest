@@ -5,7 +5,7 @@ import java.net.UnknownHostException;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import model.job.metadata.ResourceMetadata;
+import model.data.DataResource;
 
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,11 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 
 /**
- * Helper class to interact with and access the Mongo instance.
+ * Helper class to interact with and access the Mongo instance, which handles
+ * storing the DataResource information. This contains the metadata on the
+ * ingested data, the locations, URLs and paths, and other important metadata.
+ * This is not the data itself. Storing of the spatial data is handled via
+ * PostGIS, S3, or other stores.
  * 
  * @author Patrick.Doody
  * 
@@ -61,24 +65,24 @@ public class PersistMetadata {
 	}
 
 	/**
-	 * Gets a reference to the MongoDB's Resource Collection.
+	 * Gets the Mongo Collection of all data currently referenced within Piazza.
 	 * 
-	 * @return
+	 * @return Mongo collection for DataResources
 	 */
-	public JacksonDBCollection<ResourceMetadata, String> getResourceCollection() {
-		// MongoJack does not support the latest Mongo API yet. TODO: Check if
-		// they plan to.
+	public JacksonDBCollection<DataResource, String> getResourceCollection() {
 		DBCollection collection = mongoClient.getDB(DATABASE_NAME).getCollection(RESOURCE_COLLECTION_NAME);
-		return JacksonDBCollection.wrap(collection, ResourceMetadata.class, String.class);
+		return JacksonDBCollection.wrap(collection, DataResource.class, String.class);
 	}
 
 	/**
-	 * Inserts the Metadata object into the resource collection.
+	 * Inserts the DataResource into the Mongo Resource collection.
 	 * 
-	 * @param metadata
-	 *            The metadata information to insert.
+	 * @param dataResource
+	 *            The data to insert.
+	 * @throws MongoException
+	 *             Error while inserting into database
 	 */
-	public void insertMetadata(ResourceMetadata metadata) throws MongoException {
-		getResourceCollection().insert(metadata);
+	public void insertData(DataResource dataResource) throws MongoException {
+		getResourceCollection().insert(dataResource);
 	}
 }
