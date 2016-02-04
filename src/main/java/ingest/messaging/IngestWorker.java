@@ -5,6 +5,7 @@ import ingest.inspect.Inspector;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
@@ -43,6 +44,8 @@ public class IngestWorker {
 	private static final String INGEST_TOPIC_NAME = "ingest";
 	@Autowired
 	private PersistMetadata metadataPersist;
+	@Autowired
+	private Inspector inspector;
 	@Value("${kafka.host}")
 	private String KAFKA_HOST;
 	@Value("${kafka.port}")
@@ -52,7 +55,6 @@ public class IngestWorker {
 	private Producer<String, String> producer;
 	private Consumer<String, String> consumer;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
-	private Inspector inspector = new Inspector();
 
 	/**
 	 * Worker class that listens for and processes Ingestion messages.
@@ -92,6 +94,10 @@ public class IngestWorker {
 						// Get the description of the Data to be ingested
 						DataResource dataResource = ingestJob.getData();
 
+						// Assign a Resource ID to the incoming DataResource.
+						String dataId = UUID.randomUUID().toString();
+						dataResource.setDataId(dataId);
+
 						// Update Status on Handling
 						JobProgress jobProgress = new JobProgress(0);
 						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
@@ -104,6 +110,9 @@ public class IngestWorker {
 						// Update Status when Complete
 						jobProgress.percentComplete = 100;
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+						// The result of this Job was creating a resource at the
+						// specified ID.
+						statusUpdate.setResult(dataId);
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (IOException jsonException) {
 						handleException(consumerRecord.key(), jsonException);
