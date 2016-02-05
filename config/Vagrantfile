@@ -23,6 +23,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 	    postgis.vm.hostname = "postgis.dev"
 	    postgis.vm.provision :shell, path: "postgis-bootstrap.sh"
 	    postgis.vm.network :private_network, ip:"192.168.23.25"
+		postgis.vm.network "forwarded_port", guest: 5432, host: 5432
 	    postgis.vm.synced_folder "../", "/vagrant/jobmanager"
 	    postgis.vm.provider "virtualbox" do |vb|
           vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
