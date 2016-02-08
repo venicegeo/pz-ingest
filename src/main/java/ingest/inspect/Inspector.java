@@ -2,6 +2,8 @@ package ingest.inspect;
 
 import ingest.database.PersistMetadata;
 import model.data.DataResource;
+import model.data.type.PostGISResource;
+import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
 import model.data.type.TextResource;
 import model.data.type.WfsResource;
@@ -45,7 +47,7 @@ public class Inspector {
 		metadataPersist.insertData(dataResource);
 
 		// Persist any spatial/file data if necessary
-		// TODO: 
+		// TODO:
 	}
 
 	/**
@@ -66,6 +68,10 @@ public class Inspector {
 			return new TextInspector();
 		case WfsResource.type:
 			return new WfsInspector();
+		case RasterResource.type:
+			return null;
+		case PostGISResource.type:
+			return null;
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
 				+ dataResource.getDataType().getType());
