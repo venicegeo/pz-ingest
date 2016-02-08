@@ -2,6 +2,9 @@ package ingest.inspect;
 
 import ingest.database.PersistMetadata;
 import model.data.DataResource;
+import model.data.type.ShapefileResource;
+import model.data.type.TextResource;
+import model.data.type.WfsResource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -56,15 +59,15 @@ public class Inspector {
 	 * @return The inspector capable of inspecting the data
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
-		switch (dataResource.getResourceType().getType()) {
-		case "shapefile":
+		switch (dataResource.getDataType().getType()) {
+		case ShapefileResource.type:
 			return new ShapefileInspector();
-		case "text":
+		case TextResource.type:
 			return new TextInspector();
-		case "wfs":
+		case WfsResource.type:
 			return new WfsInspector();
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
-				+ dataResource.getResourceType().getType());
+				+ dataResource.getDataType().getType());
 	}
 }

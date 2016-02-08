@@ -25,6 +25,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -70,13 +71,19 @@ public class IngestWorker {
 		// Initialize the Kafka consumer/producer
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 		consumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-		// Listen for events
-		listen();
+		// Listen for events TODO: Talk to Sonny about moving to @Async method
+		Thread pollThread = new Thread() {
+			public void run() {
+				listen();
+			}
+		};
+		pollThread.start();
 	}
 
 	/**
 	 * Begins listening for events.
 	 */
+	@Async
 	public void listen() {
 		try {
 			consumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
@@ -95,8 +102,10 @@ public class IngestWorker {
 						DataResource dataResource = ingestJob.getData();
 
 						// Assign a Resource ID to the incoming DataResource.
-						String dataId = UUID.randomUUID().toString();
-						dataResource.setDataId(dataId);
+						if (dataResource.getDataId() == null) {
+							String dataId = UUID.randomUUID().toString();
+							dataResource.setDataId(dataId);
+						}
 
 						// Update Status on Handling
 						JobProgress jobProgress = new JobProgress(0);
@@ -112,7 +121,7 @@ public class IngestWorker {
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 						// The result of this Job was creating a resource at the
 						// specified ID.
-						statusUpdate.setResult(dataId);
+						statusUpdate.setResult(dataResource.getDataId());
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 					} catch (IOException jsonException) {
 						handleException(consumerRecord.key(), jsonException);
