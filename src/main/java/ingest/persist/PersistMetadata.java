@@ -1,4 +1,4 @@
-package ingest.database;
+package ingest.persist;
 
 import java.net.UnknownHostException;
 

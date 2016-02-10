@@ -20,5 +20,5 @@ public interface InspectorType {
 	 * @return The input data, with additional metadata fields populated as
 	 *         discovered through this process
 	 */
-	public DataResource inspect(DataResource dataResource);
+	public DataResource inspect(DataResource dataResource) throws Exception;
 }

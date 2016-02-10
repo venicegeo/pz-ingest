@@ -1,7 +1,7 @@
 package ingest.messaging;
 
-import ingest.database.PersistMetadata;
 import ingest.inspect.Inspector;
+import ingest.persist.PersistMetadata;
 
 import java.io.IOException;
 import java.util.Arrays;

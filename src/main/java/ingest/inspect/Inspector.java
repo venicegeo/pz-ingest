@@ -1,6 +1,6 @@
 package ingest.inspect;
 
-import ingest.database.PersistMetadata;
+import ingest.persist.PersistMetadata;
 import model.data.DataResource;
 import model.data.type.PostGISResource;
 import model.data.type.RasterResource;
@@ -33,21 +33,19 @@ public class Inspector {
 	 */
 	public void inspect(DataResource dataResource, boolean host) {
 		// Inspect the resource based on the type it is, and add any metadata if
-		// possible.
+		// possible. If hosted, the Inspector will handle this as well.
 		try {
 			InspectorType inspector = getInspector(dataResource);
 			dataResource = inspector.inspect(dataResource);
 		} catch (Exception exception) {
 			// If it could not be inspected, then the existing metadata is the
 			// only thing that will be entered into the system.
+			System.out.println("Error Inspecting Data: " + exception.getMessage());
 			exception.printStackTrace();
 		}
 
 		// Store the metadata in the Resources collection
 		metadataPersist.insertData(dataResource);
-
-		// Persist any spatial/file data if necessary
-		// TODO:
 	}
 
 	/**
@@ -69,9 +67,7 @@ public class Inspector {
 		case WfsResource.type:
 			return new WfsInspector();
 		case RasterResource.type:
-			return null;
 		case PostGISResource.type:
-			return null;
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
 				+ dataResource.getDataType().getType());
