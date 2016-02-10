@@ -15,14 +15,13 @@
  **/
 package ingest.inspect;
 
-import ingest.persist.ResourceAccessor;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import model.data.DataResource;
+import model.data.type.ShapefileResource;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
@@ -72,7 +71,8 @@ public class ShapefileInspector implements InspectorType {
 	 */
 	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(DataResource dataResource)
 			throws IOException {
-		File shapeFile = ResourceAccessor.getFileFromDataResource(dataResource);
+		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
+		File shapeFile = shapefileResource.getLocation().getFile();
 		Map<String, Object> map = new HashMap<String, Object>();
 		map.put("url", shapeFile.toURI().toURL());
 		DataStore dataStore = DataStoreFinder.getDataStore(map);
