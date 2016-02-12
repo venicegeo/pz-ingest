@@ -67,8 +67,7 @@ public class ShapefileInspector implements InspectorType {
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
 		
-		//load the data...from zip to postgis
-		//dataResource.getDataId()
+		//load the shape file to postgis
 		loadLayerstoPostGIS(dataResource);
 		
 		return dataResource;
