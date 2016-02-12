@@ -30,6 +30,7 @@ import messaging.job.KafkaClientFactory;
 import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;
+import model.job.result.type.DataResult;
 import model.job.type.IngestJob;
 import model.status.StatusUpdate;
 
@@ -136,8 +137,12 @@ public class IngestWorker {
 						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 						// The result of this Job was creating a resource at the
 						// specified ID.
-						statusUpdate.setResult(dataResource.getDataId());
+						statusUpdate.setResult(new DataResult(dataResource.getDataId()));
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+						// Console Logging
+						System.out.println("Job successfully Ingested, Data Created for Resource "
+								+ dataResource.getDataId());
 					} catch (IOException jsonException) {
 						handleException(consumerRecord.key(), jsonException);
 						System.out.println("Error Parsing Ingest Job Message.");
