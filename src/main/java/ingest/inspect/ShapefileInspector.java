@@ -83,7 +83,7 @@ public class ShapefileInspector implements InspectorType {
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
 		
-		//process and persist shape file
+		// Process and persist shape file
 		persistShapeFile(dataResource);
 		
 		return dataResource;
@@ -109,8 +109,8 @@ public class ShapefileInspector implements InspectorType {
 	}
 	
 	/**
-	 * Loads the layer(s) from provided shape file ZIP to POSTGIS DB
-	 * 	by extracting the zip, finding the shape file, and loading as a new layer
+	 * Loads the layer from provided shape file ZIP to POSTGIS
+	 * 	by extracting the zip, finding the shape file, and loading it as a new layer with unique name
 	 * 
 	 * @param dataResource
 	 *            The DataResource
@@ -121,18 +121,18 @@ public class ShapefileInspector implements InspectorType {
 				.append("port='" + POSTGRES_PORT + "' ").append("user='" + POSTGRES_USER + "' ")
 				.append("dbname='" + POSTGRES_DB_NAME + "' ").append("password='" + POSTGRES_PASSWORD + "'").toString();
 
-		String shapeFileExplodedFolder = SHAPEFILE_EXPLODED_PATH + dataResource.getDataId();
+		String shapeFileLocation = SHAPEFILE_EXPLODED_PATH + dataResource.getDataId();
 		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
 		File shapeFile = shapefileResource.getLocation().getFile();
 
-		// extracting zip to temp folder
-		extractZip(shapeFile.getAbsolutePath(), shapeFileExplodedFolder);
+		// Extract zip to temporary folder
+		extractZip(shapeFile.getAbsolutePath(), shapeFileLocation);
 
-		// load shapefile layers to postgis
-		loadShapeFileToPostGIS(POSTGIS_LOGIN, shapeFileExplodedFolder, dataResource.getDataId());
+		// Load shapefile layer to PostGIS
+		loadShapeFileToPostGIS(POSTGIS_LOGIN, shapeFileLocation, dataResource.getDataId());
 
-		// erase extracted directory
-		deleteDirectoryRecursive(new File(shapeFileExplodedFolder));
+		// Erase extracted directory
+		deleteDirectoryRecursive(new File(shapeFileLocation));
 	}
 	
 	/**
@@ -153,20 +153,19 @@ public class ShapefileInspector implements InspectorType {
 		ogr.RegisterAll();
 
 		// Open data source to PostGIS with write access, 1 = write
-		DataSource postgisSource = ogr.Open(login, 1);
+		DataSource postGisSource = ogr.Open(login, 1);
 
 		// Open data source to shape file with read access, 0 = read
 		Driver shapeFileDriver = ogr.GetDriverByName("ESRI Shapefile");
-		DataSource fileSource = shapeFileDriver.Open(shapeFilePath + File.separator + findShapeFileName(shapeFilePath), 0);
+		DataSource shapeFileSource = shapeFileDriver.Open(shapeFilePath + File.separator + findShapeFileName(shapeFilePath), 0);
 
-		// Load shape file layer to postgis, should contain only single layer
-		Layer shapeFileLayer = fileSource.GetLayer(0);
-		String newLayerName = shapeFileLayer.GetName() + "_" + dataResourceId;
-		postgisSource.CopyLayer(shapeFileLayer, newLayerName);
+		// Load shape file layer to PostGIS, should contain only single layer
+		Layer shapeFileLayer = shapeFileSource.GetLayer(0);
+		postGisSource.CopyLayer(shapeFileLayer, shapeFileLayer.GetName() + "_" + dataResourceId);
 		
-		// close ogr sources
-		fileSource.delete();
-		postgisSource.delete();
+		// Close ogr sources
+		shapeFileSource.delete();
+		postGisSource.delete();
 	}
 	
 	
@@ -211,22 +210,22 @@ public class ShapefileInspector implements InspectorType {
 
 		byte[] buffer = new byte[1024];
 		try {
-			// create output directory
+			// Create output directory
 			File directory = new File(extractPath);
 			if (!directory.exists()) {
 				directory.mkdir();
 			}
 
-			// stream from zip content
+			// Stream from zip content
 			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
 
-			// get initial file list entry
+			// Get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
 				File newFile = new File(extractPath + File.separator + fileName);
 
-				// create all non existing folders
+				// Create all non existing folders
 				new File(newFile.getParent()).mkdirs();
 				FileOutputStream outputStream = new FileOutputStream(newFile);
 
