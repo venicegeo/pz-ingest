@@ -95,6 +95,7 @@ public class ShapefileInspector implements InspectorType {
 	
 	/**
 	 * Loads the layer(s) from provided shape file ZIP to POSTGIS DB
+	 * 	by extracting the zip, finding the shape file, and loading as a new layer
 	 * 
 	 * @param dataResource
 	 *            The DataResource
@@ -135,7 +136,7 @@ public class ShapefileInspector implements InspectorType {
 	
 		
 	/**
-	 * Loads the layer(s) from provided shape file ZIP to POSTGIS DB
+	 * Loads the layer(s) from provided shape file to POSTGIS DB
 	 * 
 	 * @param login
 	 *            Postgis login info
