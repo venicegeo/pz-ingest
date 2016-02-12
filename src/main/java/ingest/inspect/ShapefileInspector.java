@@ -39,6 +39,9 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.springframework.beans.factory.annotation.Value;
+
+import com.mongodb.MongoClient;
 
 /**
  * Inspects a Shapefile, populating any essential metadata from the file itself.
@@ -50,6 +53,19 @@ import org.opengis.feature.simple.SimpleFeatureType;
  * 
  */
 public class ShapefileInspector implements InspectorType {
+	
+	@Value("${postgres.host}")
+	private String POSTGRES_HOST;
+	@Value("${postgres.port}")
+	private String POSTGRES_PORT;
+	@Value("${postgres.db.name}")
+	private String POSTGRES_DB_NAME;
+	@Value("${postgres.user}")
+	private String POSTGRES_USER;
+	@Value("${postgres.password}")
+	private String POSTGRES_PASSWORD;
+	@Value("${shapefile.explode.path}")
+	private String SHAPEFILE_EXPLODED_PATH;	
 
 	@Override
 	public DataResource inspect(DataResource dataResource) throws Exception {
@@ -67,8 +83,8 @@ public class ShapefileInspector implements InspectorType {
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
 		
-		//load the shape file to postgis
-		loadLayerstoPostGIS(dataResource);
+		//process and persist shape file
+		persistShapeFile(dataResource);
 		
 		return dataResource;
 	}
@@ -98,44 +114,29 @@ public class ShapefileInspector implements InspectorType {
 	 * 
 	 * @param dataResource
 	 *            The DataResource
+	 * @throws Exception 
 	 */
-	private void loadLayerstoPostGIS(DataResource dataResource) {
-		/*
-		//connect the shape file location to pipes below for later use
+	private void persistShapeFile(DataResource dataResource) throws Exception {
+		final String POSTGIS_LOGIN = new StringBuilder().append("PG: ").append("host='" + POSTGRES_HOST + "' ")
+				.append("port='" + POSTGRES_PORT + "' ").append("user='" + POSTGRES_USER + "' ")
+				.append("dbname='" + POSTGRES_DB_NAME + "' ").append("password='" + POSTGRES_PASSWORD + "'").toString();
+
+		String shapeFileExplodedFolder = SHAPEFILE_EXPLODED_PATH + dataResource.getDataId();
 		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
 		File shapeFile = shapefileResource.getLocation().getFile();
-		*/
-		
-		final String fileExtension = "shp";
-		final String ZIP_PATH = "C:\\temp\\SheltersShp.zip";
-		final String UNZIP_PATH = "C:\\temp\\unzipDirectory";
-		final String POSTGIS_LOGIN = "PG: host='postgis.dev' port='5432' user='piazza' dbname='piazza' password='piazza'";
 
-		// extracting zip to temporary folder
-		boolean extracted = extractZip(ZIP_PATH, UNZIP_PATH);
+		// extracting zip to temp folder
+		extractZip(shapeFile.getAbsolutePath(), shapeFileExplodedFolder);
 
-		// obtain shape file name from unzipped folder
-		String shapeFileName = findOneFileNameWithMatchingExtension_FromDirectory(UNZIP_PATH, fileExtension);
+		// load shapefile layers to postgis
+		loadShapeFileToPostGIS(POSTGIS_LOGIN, shapeFileExplodedFolder, dataResource.getDataId());
 
-		if (extracted && shapeFileName != null) {
-			try {
-				loadShapeFileToPostGIS(POSTGIS_LOGIN, UNZIP_PATH, shapeFileName, dataResource.getDataId());
-			} catch (Exception e) {
-				System.err.println("Something went wrong while loading shape file(s) to postgis. " + e.getMessage());
-			}
-
-			// erase unzipped directory
-			System.out.println("\nCleanup of extracted shapefile zip...");
-			deleteDirectoryRecursive(new File(UNZIP_PATH));
-
-		} else {
-			System.err.println("Unable to find shp file from extracted folder: " + UNZIP_PATH);
-		}
+		// erase extracted directory
+		deleteDirectoryRecursive(new File(shapeFileExplodedFolder));
 	}
 	
-		
 	/**
-	 * Loads the layer(s) from provided shape file to POSTGIS DB
+	 * Loads the layer from shape file to POSTGIS
 	 * 
 	 * @param login
 	 *            Postgis login info
@@ -145,35 +146,24 @@ public class ShapefileInspector implements InspectorType {
 	 *            Full name of shape file. eg: shapefile.shp
 	 * @param dataResourceId
 	 *            Id from datasource to be used in layer name for uniqueness 
+	 * @throws Exception 
 	 */
-	private void loadShapeFileToPostGIS(String login, String shapeFilePath, String fileName, String dataResourceId) {
-
+	private void loadShapeFileToPostGIS(String login, String shapeFilePath, String dataResourceId) throws Exception {
 		// Register all known configured OGR drivers
 		ogr.RegisterAll();
 
 		// Open data source to PostGIS with write access, 1 = write
 		DataSource postgisSource = ogr.Open(login, 1);
 
-		// Open data source to shape file with read access, 0 = read only
+		// Open data source to shape file with read access, 0 = read
 		Driver shapeFileDriver = ogr.GetDriverByName("ESRI Shapefile");
-		DataSource fileSource = shapeFileDriver.Open(shapeFilePath + File.separator + fileName, 0);
+		DataSource fileSource = shapeFileDriver.Open(shapeFilePath + File.separator + findShapeFileName(shapeFilePath), 0);
 
-		// options for copying layers
-		Vector<String> options = new Vector<String>();
-		options.add("OVERWRITE=YES");
-
-		// Load layer(s) from shape file to postgis, shape file should contain
-		// only 1 layer
-		for (int layerIndex = 0; layerIndex < fileSource.GetLayerCount(); layerIndex++) {
-
-			Layer shapeFileLayer = fileSource.GetLayer(layerIndex);
-			String newLayerName = shapeFileLayer.GetName() + "_" + dataResourceId;
-
-			postgisSource.CopyLayer(shapeFileLayer, newLayerName, options);
-			System.out.println("loaded layer \"" + shapeFileLayer.GetName() + "\" to \""
-					+ postgisSource.GetDriver().getName() + "\"");
-		}
-
+		// Load shape file layer to postgis, should contain only single layer
+		Layer shapeFileLayer = fileSource.GetLayer(0);
+		String newLayerName = shapeFileLayer.GetName() + "_" + dataResourceId;
+		postgisSource.CopyLayer(shapeFileLayer, newLayerName);
+		
 		// close ogr sources
 		fileSource.delete();
 		postgisSource.delete();
@@ -190,56 +180,53 @@ public class ShapefileInspector implements InspectorType {
 	 *            File extension to match name
 	 * 
 	 * @return File name found in the directory
+	 * @throws Exception 
 	 * 
 	 */
-	private String findOneFileNameWithMatchingExtension_FromDirectory(String directoryPath, String fileExtension) {
+	private String findShapeFileName(String directoryPath) throws Exception {
 		File[] files = new File(directoryPath).listFiles();
 		for (int index = 0; index < files.length; index++) {
 			String fileName = files[index].getName();
-
-			if (fileName.toLowerCase().endsWith("." + fileExtension))
+			if (fileName.toLowerCase().endsWith("." + "shp"))
 				return fileName;
 		}
 
-		return null;
+		throw new Exception("No shape file was found inside unzipped directory: " + directoryPath);
 	}
 
 	/**
 	 * 
-	 * Unzip the given zip file into output directory
+	 * Unzip the given zip into output directory
 	 * 
-	 * @param zipSource
-	 *            Input zip file path
-	 * @param extractDirectory
+	 * @param zipPath
+	 *            Zip file full path
+	 * @param extractPath
 	 *            Extracted zip output directory
 	 * 
 	 * @return boolean if successful
+	 * @throws Exception 
 	 * 
 	 */
-	private boolean extractZip(String zipSource, String extractDirectory) {
+	private void extractZip(String zipPath, String extractPath) throws Exception {
 
-		System.out.println("\nExtracting zip: " + zipSource);
 		byte[] buffer = new byte[1024];
 		try {
-
 			// create output directory
-			File directory = new File(extractDirectory);
+			File directory = new File(extractPath);
 			if (!directory.exists()) {
 				directory.mkdir();
 			}
 
 			// stream from zip content
-			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipSource));
+			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
 
 			// get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
-				File newFile = new File(extractDirectory + File.separator + fileName);
-				System.out.println("file extracted: " + newFile.getAbsoluteFile());
+				File newFile = new File(extractPath + File.separator + fileName);
 
 				// create all non existing folders
-				// or will trigger FileNotFoundException for compressed folder
 				new File(newFile.getParent()).mkdirs();
 				FileOutputStream outputStream = new FileOutputStream(newFile);
 
@@ -254,16 +241,10 @@ public class ShapefileInspector implements InspectorType {
 
 			zipInputStream.closeEntry();
 			zipInputStream.close();
-
-			System.out.println("Done\n");
 		} catch (IOException ex) {
 			ex.printStackTrace();
-			System.err.println("Unable to extract zip: " + zipSource);
-
-			return false;
+			throw new Exception ("Unable to extract zip: " + zipPath + " to path " + extractPath);
 		}
-
-		return true;
 	}
 	
 	/**
@@ -274,9 +255,10 @@ public class ShapefileInspector implements InspectorType {
 	 *            Directory to be deleted
 	 * 
 	 * @return boolean if successful
+	 * @throws Exception 
 	 * 
 	 */
-	private boolean deleteDirectoryRecursive(File directory) {
+	private boolean deleteDirectoryRecursive(File directory) throws Exception {
 		boolean result = false;
 
 		if (directory.isDirectory()) {
@@ -287,13 +269,14 @@ public class ShapefileInspector implements InspectorType {
 					deleteDirectoryRecursive(files[i]);
 				}
 
-				System.out.println("deleting file: " + files[i].getName() + " --deleted: " + files[i].delete());
+				if (!files[i].delete())
+					throw new Exception(
+							"Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
 			}
 
 			result = directory.delete();
 		}
 
-		System.out.println("done...");
 		return result;
 	}
 
