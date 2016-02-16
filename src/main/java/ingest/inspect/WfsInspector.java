@@ -29,6 +29,8 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /**
  * Inspects a remote WFS URL and parses out the relevant information for it.
@@ -36,8 +38,22 @@ import org.opengis.feature.simple.SimpleFeatureType;
  * @author Patrick.Doody
  * 
  */
+@Component
 public class WfsInspector implements InspectorType {
-	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&version=%s";
+	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&VERSION=%s";
+	private static final String POSTGRES_DATASTORE_TYPE = "postgres";
+	@Value("${postgres.host}")
+	private String POSTGRES_HOST;
+	@Value("${postgres.port}")
+	private String POSTGRES_PORT;
+	@Value("${postgres.db.name}")
+	private String POSTGRES_DB_NAME;
+	@Value("${postgres.user}")
+	private String POSTGRES_USER;
+	@Value("${postgres.password}")
+	private String POSTGRES_PASSWORD;
+	@Value("${postgres.schema}")
+	private String POSTGRES_SCHEMA;
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
@@ -56,8 +72,40 @@ public class WfsInspector implements InspectorType {
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
 
+		// If this Data Source is to be hosted within the Piazza PostGIS, then
+		// copy that data as a new table in the database.
+		if (host) {
+			copyWfsToPostGis(dataResource);
+		}
+
 		// Return the Populated Metadata
 		return dataResource;
+	}
+
+	/**
+	 * Copies the WFS Resource into a new Piazza PostGIS table.
+	 * 
+	 * @param dataResource
+	 *            The WFS Data Resource to copy.
+	 */
+	private void copyWfsToPostGis(DataResource dataResource) throws Exception {
+		// Create a Connection to the Piazza PostGIS Database for writing.
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("dbtype", POSTGRES_DATASTORE_TYPE);
+		params.put("host", POSTGRES_HOST);
+		params.put("port", POSTGRES_PORT);
+		params.put("schema", POSTGRES_SCHEMA);
+		params.put("database", POSTGRES_DB_NAME);
+		params.put("user", POSTGRES_USER);
+		params.put("passwd", POSTGRES_PASSWORD);
+		DataStore postGisStore = DataStoreFinder.getDataStore(params);
+
+		// Create the Schema in the Data Store
+
+		// Commit the Features to the Data Store
+
+		// Update the Metadata of the DataResource to the new PostGIS table, and
+		// treat as a PostGIS Resource type.
 	}
 
 	/**

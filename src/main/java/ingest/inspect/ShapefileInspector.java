@@ -41,6 +41,7 @@ import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /**
  * Inspects a Shapefile, populating any essential metadata from the file itself.
@@ -51,6 +52,7 @@ import org.springframework.beans.factory.annotation.Value;
  * @author Patrick.Doody
  * 
  */
+@Component
 public class ShapefileInspector implements InspectorType {
 	private static final String POSTGIS_LOGIN_TEMPLATE = "PG: host='%s' port='%s' user='%s' dbname='%s' password='%s'";
 	@Value("${postgres.host}")
@@ -126,7 +128,8 @@ public class ShapefileInspector implements InspectorType {
 	 */
 	private void persistShapeFile(File zipFile, DataResource dataResource) throws Exception {
 		// DB Connection String
-		String postGisLogin = String.format(POSTGIS_LOGIN_TEMPLATE, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB_NAME, POSTGRES_PASSWORD);
+		String postGisLogin = String.format(POSTGIS_LOGIN_TEMPLATE, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER,
+				POSTGRES_DB_NAME, POSTGRES_PASSWORD);
 
 		String shapeFileLocation = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
 

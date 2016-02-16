@@ -17,12 +17,15 @@ package ingest.inspect;
 
 import model.data.DataResource;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Inspects raw text input.
  * 
  * @author Patrick.Doody
  * 
  */
+@Component
 public class TextInspector implements InspectorType {
 
 	@Override

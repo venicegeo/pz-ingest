@@ -37,6 +37,9 @@ import org.springframework.stereotype.Component;
 public class Inspector {
 	@Autowired
 	private PersistMetadata metadataPersist;
+	private ShapefileInspector shapefileInspector;
+	private TextInspector textInspector;
+	private WfsInspector wfsInspector;
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -76,11 +79,11 @@ public class Inspector {
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
 		switch (dataResource.getDataType().getType()) {
 		case ShapefileResource.type:
-			return new ShapefileInspector();
+			return shapefileInspector;
 		case TextResource.type:
-			return new TextInspector();
+			return textInspector;
 		case WfsResource.type:
-			return new WfsInspector();
+			return wfsInspector;
 		case RasterResource.type:
 		case PostGISResource.type:
 		}
