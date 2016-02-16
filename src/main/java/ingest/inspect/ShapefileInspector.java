@@ -67,7 +67,7 @@ public class ShapefileInspector implements InspectorType {
 	private String SHAPEFILE_TEMP_PATH;
 
 	@Override
-	public DataResource inspect(DataResource dataResource) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
 		File shapefileZip = new File(String.format("%s.%s.%s", SHAPEFILE_TEMP_PATH, dataResource.getDataId(), "zip"));
 		InputStream shapefileStream = ((ShapefileResource) dataResource.getDataType()).getLocation().getFile();

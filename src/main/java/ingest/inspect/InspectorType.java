@@ -32,8 +32,11 @@ public interface InspectorType {
 	 * 
 	 * @param dataResource
 	 *            The Data to inspect
+	 * @param host
+	 *            True if the data should be hosted in Piazza, false if the data
+	 *            should reside wherever it currently resides.
 	 * @return The input data, with additional metadata fields populated as
 	 *         discovered through this process
 	 */
-	public DataResource inspect(DataResource dataResource) throws Exception;
+	public DataResource inspect(DataResource dataResource, boolean host) throws Exception;
 }

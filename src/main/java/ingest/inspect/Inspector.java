@@ -51,7 +51,7 @@ public class Inspector {
 		// possible. If hosted, the Inspector will handle this as well.
 		try {
 			InspectorType inspector = getInspector(dataResource);
-			dataResource = inspector.inspect(dataResource);
+			dataResource = inspector.inspect(dataResource, host);
 		} catch (Exception exception) {
 			// If it could not be inspected, then the existing metadata is the
 			// only thing that will be entered into the system.

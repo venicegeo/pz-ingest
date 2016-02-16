@@ -26,7 +26,10 @@ import model.data.DataResource;
 public class WfsInspector implements InspectorType {
 
 	@Override
-	public DataResource inspect(DataResource dataResource) {
+	public DataResource inspect(DataResource dataResource, boolean host) {
+		// Create Data Store for the WFS
+		
+		// Return the Populated Metadata
 		return dataResource;
 	}
 

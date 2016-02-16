@@ -26,7 +26,7 @@ import model.data.DataResource;
 public class TextInspector implements InspectorType {
 
 	@Override
-	public DataResource inspect(DataResource dataResource) {
+	public DataResource inspect(DataResource dataResource, boolean host) {
 		// TODO: What is there to inspect for a Text resource?
 		return dataResource;
 	}
