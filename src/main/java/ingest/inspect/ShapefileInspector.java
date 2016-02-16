@@ -21,12 +21,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
-import model.data.type.ShapefileResource;
 
 import org.gdal.ogr.DataSource;
 import org.gdal.ogr.Driver;
@@ -41,8 +39,6 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
 
-import com.mongodb.MongoClient;
-
 /**
  * Inspects a Shapefile, populating any essential metadata from the file itself.
  * At the very least, the spatial metadata such as CRS/EPSG must be found in
@@ -53,7 +49,7 @@ import com.mongodb.MongoClient;
  * 
  */
 public class ShapefileInspector implements InspectorType {
-	
+
 	@Value("${postgres.host}")
 	private String POSTGRES_HOST;
 	@Value("${postgres.port}")
@@ -64,13 +60,16 @@ public class ShapefileInspector implements InspectorType {
 	private String POSTGRES_USER;
 	@Value("${postgres.password}")
 	private String POSTGRES_PASSWORD;
-	@Value("${shapefile.explode.path}")
-	private String SHAPEFILE_EXPLODED_PATH;	
+	@Value("${shapefile.temp.path}")
+	private String SHAPEFILE_TEMP_PATH;
 
 	@Override
 	public DataResource inspect(DataResource dataResource) throws Exception {
+		// Get the Shapefile and write it to disk for temporary use.
+		File shapefileZip = new File(String.format("%s.%s.%s", SHAPEFILE_TEMP_PATH, dataResource.getDataId(), "zip"));
+
 		// Get the Store information from GeoTools for accessing the Shapefile
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(dataResource);
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefileZip);
 
 		// Get the Bounding Box, set the Metadata
 		ReferencedEnvelope envelope = featureSource.getBounds();
@@ -82,51 +81,53 @@ public class ShapefileInspector implements InspectorType {
 		// Get the SRS and EPSG codes
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
-		
+
 		// Process and persist shape file
-		persistShapeFile(dataResource);
-		
+		persistShapeFile(shapefileZip, dataResource);
+
+		// Clean up the temporary Shapefile
+		shapefileZip.delete();
+
+		// Return the populated metadata
 		return dataResource;
 	}
 
 	/**
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
-	 * @param dataResource
-	 *            The DataResource
+	 * @param zipFile
+	 *            The zipped up Shapefile
 	 * @return The GeoTools Shapefile Data Store Feature Source
 	 */
-	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(DataResource dataResource)
-			throws IOException {
-		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
-		File shapeFile = shapefileResource.getLocation().getFile();
+	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(File zipFile) throws IOException {
 		Map<String, Object> map = new HashMap<String, Object>();
-		map.put("url", shapeFile.toURI().toURL());
+		map.put("url", zipFile.toURI().toURL());
 		DataStore dataStore = DataStoreFinder.getDataStore(map);
 		String typeName = dataStore.getTypeNames()[0];
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);
 		return featureSource;
 	}
-	
+
 	/**
-	 * Loads the layer from provided shape file ZIP to POSTGIS
-	 * 	by extracting the zip, finding the shape file, and loading it as a new layer with unique name
+	 * Loads the layer from provided shape file ZIP to POSTGIS by extracting the
+	 * zip, finding the shape file, and loading it as a new layer with unique
+	 * name
 	 * 
+	 * @param zipFile
+	 *            The zip file of the Shapefile contents
 	 * @param dataResource
 	 *            The DataResource
-	 * @throws Exception 
+	 * @throws Exception
 	 */
-	private void persistShapeFile(DataResource dataResource) throws Exception {
+	private void persistShapeFile(File zipFile, DataResource dataResource) throws Exception {
 		final String POSTGIS_LOGIN = new StringBuilder().append("PG: ").append("host='" + POSTGRES_HOST + "' ")
 				.append("port='" + POSTGRES_PORT + "' ").append("user='" + POSTGRES_USER + "' ")
 				.append("dbname='" + POSTGRES_DB_NAME + "' ").append("password='" + POSTGRES_PASSWORD + "'").toString();
 
-		String shapeFileLocation = SHAPEFILE_EXPLODED_PATH + dataResource.getDataId();
-		ShapefileResource shapefileResource = (ShapefileResource) dataResource.getDataType();
-		File shapeFile = shapefileResource.getLocation().getFile();
+		String shapeFileLocation = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
 
 		// Extract zip to temporary folder
-		extractZip(shapeFile.getAbsolutePath(), shapeFileLocation);
+		extractZip(zipFile.getAbsolutePath(), shapeFileLocation);
 
 		// Load shapefile layer to PostGIS
 		loadShapeFileToPostGIS(POSTGIS_LOGIN, shapeFileLocation, dataResource.getDataId());
@@ -134,7 +135,7 @@ public class ShapefileInspector implements InspectorType {
 		// Erase extracted directory
 		deleteDirectoryRecursive(new File(shapeFileLocation));
 	}
-	
+
 	/**
 	 * Loads the layer from shape file to POSTGIS
 	 * 
@@ -145,8 +146,8 @@ public class ShapefileInspector implements InspectorType {
 	 * @param fileName
 	 *            Full name of shape file. eg: shapefile.shp
 	 * @param dataResourceId
-	 *            Id from datasource to be used in layer name for uniqueness 
-	 * @throws Exception 
+	 *            Id from datasource to be used in layer name for uniqueness
+	 * @throws Exception
 	 */
 	private void loadShapeFileToPostGIS(String login, String shapeFilePath, String dataResourceId) throws Exception {
 		// Register all known configured OGR drivers
@@ -157,21 +158,22 @@ public class ShapefileInspector implements InspectorType {
 
 		// Open data source to shape file with read access, 0 = read
 		Driver shapeFileDriver = ogr.GetDriverByName("ESRI Shapefile");
-		DataSource shapeFileSource = shapeFileDriver.Open(shapeFilePath + File.separator + findShapeFileName(shapeFilePath), 0);
+		DataSource shapeFileSource = shapeFileDriver.Open(shapeFilePath + File.separator
+				+ findShapeFileName(shapeFilePath), 0);
 
 		// Load shape file layer to PostGIS, should contain only single layer
 		Layer shapeFileLayer = shapeFileSource.GetLayer(0);
 		postGisSource.CopyLayer(shapeFileLayer, shapeFileLayer.GetName() + "_" + dataResourceId);
-		
+
 		// Close ogr sources
 		shapeFileSource.delete();
 		postGisSource.delete();
 	}
-	
-	
+
 	/**
 	 * 
-	 * Searches directory file list for the first matching file extension and returns the name (non-recursive)
+	 * Searches directory file list for the first matching file extension and
+	 * returns the name (non-recursive)
 	 * 
 	 * @param directoryPath
 	 *            Folder path to search
@@ -179,7 +181,7 @@ public class ShapefileInspector implements InspectorType {
 	 *            File extension to match name
 	 * 
 	 * @return File name found in the directory
-	 * @throws Exception 
+	 * @throws Exception
 	 * 
 	 */
 	private String findShapeFileName(String directoryPath) throws Exception {
@@ -203,11 +205,10 @@ public class ShapefileInspector implements InspectorType {
 	 *            Extracted zip output directory
 	 * 
 	 * @return boolean if successful
-	 * @throws Exception 
+	 * @throws Exception
 	 * 
 	 */
 	private void extractZip(String zipPath, String extractPath) throws Exception {
-
 		byte[] buffer = new byte[1024];
 		try {
 			// Create output directory
@@ -242,10 +243,10 @@ public class ShapefileInspector implements InspectorType {
 			zipInputStream.close();
 		} catch (IOException ex) {
 			ex.printStackTrace();
-			throw new Exception ("Unable to extract zip: " + zipPath + " to path " + extractPath);
+			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
 		}
 	}
-	
+
 	/**
 	 * 
 	 * Recursive deletion of directory
@@ -254,7 +255,7 @@ public class ShapefileInspector implements InspectorType {
 	 *            Directory to be deleted
 	 * 
 	 * @return boolean if successful
-	 * @throws Exception 
+	 * @throws Exception
 	 * 
 	 */
 	private boolean deleteDirectoryRecursive(File directory) throws Exception {
@@ -269,8 +270,8 @@ public class ShapefileInspector implements InspectorType {
 				}
 
 				if (!files[i].delete())
-					throw new Exception(
-							"Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
+					throw new Exception("Unable to delete file " + files[i].getName() + " from "
+							+ directory.getAbsolutePath());
 			}
 
 			result = directory.delete();
