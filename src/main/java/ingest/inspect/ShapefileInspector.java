@@ -52,7 +52,7 @@ import org.springframework.beans.factory.annotation.Value;
  * 
  */
 public class ShapefileInspector implements InspectorType {
-
+	private static final String POSTGIS_LOGIN_TEMPLATE = "PG: host='%s' port='%s' user='%s' dbname='%s' password='%s'";
 	@Value("${postgres.host}")
 	private String POSTGRES_HOST;
 	@Value("${postgres.port}")
@@ -125,9 +125,8 @@ public class ShapefileInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	private void persistShapeFile(File zipFile, DataResource dataResource) throws Exception {
-		final String POSTGIS_LOGIN = new StringBuilder().append("PG: ").append("host='" + POSTGRES_HOST + "' ")
-				.append("port='" + POSTGRES_PORT + "' ").append("user='" + POSTGRES_USER + "' ")
-				.append("dbname='" + POSTGRES_DB_NAME + "' ").append("password='" + POSTGRES_PASSWORD + "'").toString();
+		// DB Connection String
+		String postGisLogin = String.format(POSTGIS_LOGIN_TEMPLATE, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB_NAME, POSTGRES_PASSWORD);
 
 		String shapeFileLocation = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
 
@@ -135,7 +134,7 @@ public class ShapefileInspector implements InspectorType {
 		extractZip(zipFile.getAbsolutePath(), shapeFileLocation);
 
 		// Load shapefile layer to PostGIS
-		loadShapeFileToPostGIS(POSTGIS_LOGIN, shapeFileLocation, dataResource.getDataId());
+		loadShapeFileToPostGIS(postGisLogin, shapeFileLocation, dataResource.getDataId());
 
 		// Erase extracted directory
 		deleteDirectoryRecursive(new File(shapeFileLocation));
