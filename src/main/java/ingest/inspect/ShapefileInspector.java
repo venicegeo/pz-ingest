@@ -19,13 +19,16 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
+import model.data.type.ShapefileResource;
 
+import org.apache.commons.io.FileUtils;
 import org.gdal.ogr.DataSource;
 import org.gdal.ogr.Driver;
 import org.gdal.ogr.Layer;
@@ -67,6 +70,8 @@ public class ShapefileInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
 		File shapefileZip = new File(String.format("%s.%s.%s", SHAPEFILE_TEMP_PATH, dataResource.getDataId(), "zip"));
+		InputStream shapefileStream = ((ShapefileResource) dataResource.getDataType()).getLocation().getFile();
+		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Get the Store information from GeoTools for accessing the Shapefile
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefileZip);
