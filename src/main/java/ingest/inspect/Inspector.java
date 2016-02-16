@@ -37,8 +37,11 @@ import org.springframework.stereotype.Component;
 public class Inspector {
 	@Autowired
 	private PersistMetadata metadataPersist;
+	@Autowired
 	private ShapefileInspector shapefileInspector;
+	@Autowired
 	private TextInspector textInspector;
+	@Autowired
 	private WfsInspector wfsInspector;
 
 	/**
