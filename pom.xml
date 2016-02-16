@@ -73,6 +73,12 @@
 			<version>2.1.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.gdal</groupId>
+			<artifactId>gdal</artifactId>
+			<version>1.11.2</version>
+		</dependency>
+
 	</dependencies>
 
 	<properties>
