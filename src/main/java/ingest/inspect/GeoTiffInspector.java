@@ -41,7 +41,7 @@ public class GeoTiffInspector implements InspectorType {
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 
-		// Gather metadata
+		// Gather GeoTIFF relevant metadata
 		GridCoverage2D coverage = getGridCoverage(dataResource);
 		CoordinateReferenceSystem coordinateReferenceSystem = coverage.getCoordinateReferenceSystem();
 		double[] upperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
@@ -62,10 +62,10 @@ public class GeoTiffInspector implements InspectorType {
 	}
 	
 	/**
-	 * Gets the GridCoverage2D for the geotiff file.
+	 * Gets the GridCoverage2D for the GeoTIFF file.
 	 * 
 	 * @param dataResource
-	 *            The DataResource to gather tiff info from
+	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
 	private GridCoverage2D getGridCoverage(DataResource dataResource) throws IOException{
