@@ -22,6 +22,7 @@ import java.util.Map;
 import model.data.DataResource;
 import model.data.type.PostGISResource;
 import model.data.type.WfsResource;
+import model.job.metadata.SpatialMetadata;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
@@ -67,16 +68,20 @@ public class WfsInspector implements InspectorType {
 		// specified Feature Type
 		FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource = getWfsFeatureSource(dataResource);
 
-		// Get the Bounding Box, set the Metadata
+		// Get the Bounding Box, populate the Spatial Metadata
+		SpatialMetadata spatialMetadata = new SpatialMetadata();
 		ReferencedEnvelope envelope = wfsFeatureSource.getBounds();
-		dataResource.getSpatialMetadata().setMinX(envelope.getMinX());
-		dataResource.getSpatialMetadata().setMinY(envelope.getMinY());
-		dataResource.getSpatialMetadata().setMaxX(envelope.getMaxX());
-		dataResource.getSpatialMetadata().setMaxY(envelope.getMaxY());
+		spatialMetadata.setMinX(envelope.getMinX());
+		spatialMetadata.setMinY(envelope.getMinY());
+		spatialMetadata.setMaxX(envelope.getMaxX());
+		spatialMetadata.setMaxY(envelope.getMaxY());
 
 		// Get the SRS and EPSG codes
-		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(wfsFeatureSource.getInfo().getCRS().toString());
-		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(wfsFeatureSource.getInfo().getCRS(), true));
+		spatialMetadata.setCoordinateReferenceSystem(wfsFeatureSource.getInfo().getCRS().toString());
+		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(wfsFeatureSource.getInfo().getCRS(), true));
+		
+		// Set the Spatial Metadata
+		dataResource.spatialMetadata = spatialMetadata;
 
 		// If this Data Source is to be hosted within the Piazza PostGIS, then
 		// copy that data as a new table in the database.

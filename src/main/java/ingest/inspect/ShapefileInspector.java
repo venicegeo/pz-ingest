@@ -27,6 +27,7 @@ import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
 import model.data.type.ShapefileResource;
+import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
 import org.geotools.data.DataStore;
@@ -88,16 +89,20 @@ public class ShapefileInspector implements InspectorType {
 		// Get the Store information from GeoTools for accessing the Shapefile
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);
 
-		// Get the Bounding Box, set the Metadata
+		// Get the Bounding Box, set the Spatial Metadata
+		SpatialMetadata spatialMetadata = new SpatialMetadata();
 		ReferencedEnvelope envelope = featureSource.getBounds();
-		dataResource.getSpatialMetadata().setMinX(envelope.getMinX());
-		dataResource.getSpatialMetadata().setMinY(envelope.getMinY());
-		dataResource.getSpatialMetadata().setMaxX(envelope.getMaxX());
-		dataResource.getSpatialMetadata().setMaxY(envelope.getMaxY());
+		spatialMetadata.setMinX(envelope.getMinX());
+		spatialMetadata.setMinY(envelope.getMinY());
+		spatialMetadata.setMaxX(envelope.getMaxX());
+		spatialMetadata.setMaxY(envelope.getMaxY());
 
 		// Get the SRS and EPSG codes
-		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
-		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
+		spatialMetadata.setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
+		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
+		
+		// Set the spatial metadata
+		dataResource.spatialMetadata = spatialMetadata;
 
 		// Process and persist shape file into the Piazza PostGIS database.
 		if (host) {
