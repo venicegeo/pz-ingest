@@ -20,11 +20,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 import model.data.DataResource;
+import model.data.type.PostGISResource;
 import model.data.type.WfsResource;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
+import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
+import org.geotools.data.Transaction;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
@@ -59,23 +64,23 @@ public class WfsInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Connect to the WFS and grab a reference to the Feature Source for the
 		// specified Feature Type
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getWfsFeatureSource(dataResource);
+		FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource = getWfsFeatureSource(dataResource);
 
 		// Get the Bounding Box, set the Metadata
-		ReferencedEnvelope envelope = featureSource.getBounds();
+		ReferencedEnvelope envelope = wfsFeatureSource.getBounds();
 		dataResource.getSpatialMetadata().setMinX(envelope.getMinX());
 		dataResource.getSpatialMetadata().setMinY(envelope.getMinY());
 		dataResource.getSpatialMetadata().setMaxX(envelope.getMaxX());
 		dataResource.getSpatialMetadata().setMaxY(envelope.getMaxY());
 
 		// Get the SRS and EPSG codes
-		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
-		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
+		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(wfsFeatureSource.getInfo().getCRS().toString());
+		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(wfsFeatureSource.getInfo().getCRS(), true));
 
 		// If this Data Source is to be hosted within the Piazza PostGIS, then
 		// copy that data as a new table in the database.
 		if (host) {
-			copyWfsToPostGis(dataResource);
+			copyWfsToPostGis(dataResource, wfsFeatureSource);
 		}
 
 		// Return the Populated Metadata
@@ -87,8 +92,11 @@ public class WfsInspector implements InspectorType {
 	 * 
 	 * @param dataResource
 	 *            The WFS Data Resource to copy.
+	 * @param featureSource
+	 *            GeoTools Feature source for WFS.
 	 */
-	private void copyWfsToPostGis(DataResource dataResource) throws Exception {
+	private void copyWfsToPostGis(DataResource dataResource,
+			FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource) throws Exception {
 		// Create a Connection to the Piazza PostGIS Database for writing.
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("dbtype", POSTGRES_DATASTORE_TYPE);
@@ -101,11 +109,34 @@ public class WfsInspector implements InspectorType {
 		DataStore postGisStore = DataStoreFinder.getDataStore(params);
 
 		// Create the Schema in the Data Store
+		postGisStore.createSchema(wfsFeatureSource.getSchema());
+		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(wfsFeatureSource
+				.getName());
 
 		// Commit the Features to the Data Store
+		Transaction transaction = new DefaultTransaction();
+		try {
+			// Get the Features from the WFS and add them to the PostGIS store
+			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
+			postGisFeatureStore.addFeatures(wfsFeatures);
+			// Commit the changes and clean up
+			transaction.commit();
+			transaction.close();
+		} catch (IOException exception) {
+			// Clean up resources
+			transaction.rollback();
+			transaction.close();
+			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
+			// Rethrow
+			throw exception;
+		}
 
 		// Update the Metadata of the DataResource to the new PostGIS table, and
 		// treat as a PostGIS Resource type.
+		PostGISResource postGisData = new PostGISResource();
+		postGisData.database = POSTGRES_DB_NAME;
+		postGisData.table = wfsFeatureSource.getName().toString();
+		dataResource.dataType = postGisData;
 	}
 
 	/**
