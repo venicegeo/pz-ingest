@@ -18,8 +18,11 @@ package ingest.inspect;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+
 import model.data.DataResource;
 import model.data.type.RasterResource;
+import model.job.metadata.SpatialMetadata;
+
 import org.apache.commons.io.FileUtils;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
@@ -48,19 +51,23 @@ public class GeoTiffInspector implements InspectorType {
 		double[] lowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
 
 		// Set the Metadata
-		dataResource.getSpatialMetadata().setMinX(lowerLeftCorner[0]);
-		dataResource.getSpatialMetadata().setMinY(lowerLeftCorner[1]);
-		dataResource.getSpatialMetadata().setMaxX(upperRightCorner[0]);
-		dataResource.getSpatialMetadata().setMaxY(upperRightCorner[1]);
+		SpatialMetadata spatialMetadata = new SpatialMetadata();
+		spatialMetadata.setMinX(lowerLeftCorner[0]);
+		spatialMetadata.setMinY(lowerLeftCorner[1]);
+		spatialMetadata.setMaxX(upperRightCorner[0]);
+		spatialMetadata.setMaxY(upperRightCorner[1]);
 
 		// Get the SRS and EPSG codes
-		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(coordinateReferenceSystem.toWKT());
-		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
+		spatialMetadata.setCoordinateReferenceSystem(coordinateReferenceSystem.toWKT());
+		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
+
+		// Set the Spatial Metadata
+		dataResource.spatialMetadata = spatialMetadata;
 
 		// Return the metadata
 		return dataResource;
 	}
-	
+
 	/**
 	 * Gets the GridCoverage2D for the GeoTIFF file.
 	 * 
@@ -68,17 +75,16 @@ public class GeoTiffInspector implements InspectorType {
 	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
-	private GridCoverage2D getGridCoverage(DataResource dataResource) throws IOException{
-		
-		File geoTiffFile = new File(String.format("%s_%s.%s", "geotiff", dataResource.getDataId(), "tif"));
-		
+	private GridCoverage2D getGridCoverage(DataResource dataResource) throws IOException {
+		File geoTiffFile = new File(String.format("%s.%s", dataResource.getDataId(), "tif"));
+
 		InputStream tiffFileStream = ((RasterResource) dataResource.getDataType()).getLocation().getFile();
 		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
-		
-		AbstractGridFormat format = GridFormatFinder.findFormat( geoTiffFile );
-		GridCoverage2DReader reader = format.getReader( geoTiffFile );
+
+		AbstractGridFormat format = GridFormatFinder.findFormat(geoTiffFile);
+		GridCoverage2DReader reader = format.getReader(geoTiffFile);
 		GridCoverage2D coverage = (GridCoverage2D) reader.read(null);
-		
+
 		return coverage;
 	}
 }

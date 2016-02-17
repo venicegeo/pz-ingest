@@ -43,6 +43,8 @@ public class Inspector {
 	private TextInspector textInspector;
 	@Autowired
 	private WfsInspector wfsInspector;
+	@Autowired
+	private GeoTiffInspector geotiffInspector;
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -87,6 +89,7 @@ public class Inspector {
 		case WfsResource.type:
 			return wfsInspector;
 		case RasterResource.type:
+			return geotiffInspector;
 		case PostGISResource.type:
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
