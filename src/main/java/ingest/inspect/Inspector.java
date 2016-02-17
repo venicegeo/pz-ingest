@@ -52,17 +52,17 @@ public class Inspector {
 	 * @param host
 	 *            True if Piazza should host the resource, false if not
 	 */
-	public void inspect(DataResource dataResource, boolean host) {
+	public void inspect(DataResource dataResource, boolean host) throws Exception {
 		// Inspect the resource based on the type it is, and add any metadata if
 		// possible. If hosted, the Inspector will handle this as well.
 		try {
 			InspectorType inspector = getInspector(dataResource);
 			dataResource = inspector.inspect(dataResource, host);
 		} catch (Exception exception) {
-			// If it could not be inspected, then the existing metadata is the
-			// only thing that will be entered into the system.
+			// If any errors occur during inspection.
 			System.out.println("Error Inspecting Data: " + exception.getMessage());
 			exception.printStackTrace();
+			throw exception;
 		}
 
 		// Store the metadata in the Resources collection
