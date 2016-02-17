@@ -61,7 +61,6 @@ public class Inspector {
 		} catch (Exception exception) {
 			// If any errors occur during inspection.
 			System.out.println("Error Inspecting Data: " + exception.getMessage());
-			exception.printStackTrace();
 			throw exception;
 		}
 
