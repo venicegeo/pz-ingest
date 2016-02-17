@@ -37,6 +37,8 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import util.GeoToolsUtil;
+
 /**
  * Inspects a remote WFS URL and parses out the relevant information for it.
  * 
@@ -46,7 +48,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class WfsInspector implements InspectorType {
 	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&VERSION=%s";
-	private static final String POSTGRES_DATASTORE_TYPE = "postgres";
 	@Value("${postgres.host}")
 	private String POSTGRES_HOST;
 	@Value("${postgres.port}")
@@ -98,20 +99,15 @@ public class WfsInspector implements InspectorType {
 	private void copyWfsToPostGis(DataResource dataResource,
 			FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource) throws Exception {
 		// Create a Connection to the Piazza PostGIS Database for writing.
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("dbtype", POSTGRES_DATASTORE_TYPE);
-		params.put("host", POSTGRES_HOST);
-		params.put("port", POSTGRES_PORT);
-		params.put("schema", POSTGRES_SCHEMA);
-		params.put("database", POSTGRES_DB_NAME);
-		params.put("user", POSTGRES_USER);
-		params.put("passwd", POSTGRES_PASSWORD);
-		DataStore postGisStore = DataStoreFinder.getDataStore(params);
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
 		// Create the Schema in the Data Store
-		postGisStore.createSchema(wfsFeatureSource.getSchema());
-		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(wfsFeatureSource
-				.getName());
+		String tableName = dataResource.getDataId();
+		SimpleFeatureType wfsSchema = wfsFeatureSource.getSchema();
+		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(wfsSchema, tableName);
+		postGisStore.createSchema(postGisSchema);
+		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
 
 		// Commit the Features to the Data Store
 		Transaction transaction = new DefaultTransaction();
@@ -132,10 +128,10 @@ public class WfsInspector implements InspectorType {
 		}
 
 		// Update the Metadata of the DataResource to the new PostGIS table, and
-		// treat as a PostGIS Resource type.
+		// treat as a PostGIS Resource type from now on.
 		PostGISResource postGisData = new PostGISResource();
 		postGisData.database = POSTGRES_DB_NAME;
-		postGisData.table = wfsFeatureSource.getName().toString();
+		postGisData.table = tableName;
 		dataResource.dataType = postGisData;
 	}
 
