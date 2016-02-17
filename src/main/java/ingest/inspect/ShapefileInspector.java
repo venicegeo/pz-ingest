@@ -29,19 +29,21 @@ import model.data.DataResource;
 import model.data.type.ShapefileResource;
 
 import org.apache.commons.io.FileUtils;
-import org.gdal.ogr.DataSource;
-import org.gdal.ogr.Driver;
-import org.gdal.ogr.Layer;
-import org.gdal.ogr.ogr;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
+import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
+import org.geotools.data.Transaction;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import util.GeoToolsUtil;
 
 /**
  * Inspects a Shapefile, populating any essential metadata from the file itself.
@@ -54,7 +56,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ShapefileInspector implements InspectorType {
-	private static final String POSTGIS_LOGIN_TEMPLATE = "PG: host='%s' port='%s' user='%s' dbname='%s' password='%s'";
 	@Value("${postgres.host}")
 	private String POSTGRES_HOST;
 	@Value("${postgres.port}")
@@ -65,6 +66,8 @@ public class ShapefileInspector implements InspectorType {
 	private String POSTGRES_USER;
 	@Value("${postgres.password}")
 	private String POSTGRES_PASSWORD;
+	@Value("${postgres.schema}")
+	private String POSTGRES_SCHEMA;
 	@Value("${shapefile.temp.path}")
 	private String SHAPEFILE_TEMP_PATH;
 
@@ -75,8 +78,15 @@ public class ShapefileInspector implements InspectorType {
 		InputStream shapefileStream = ((ShapefileResource) dataResource.getDataType()).getLocation().getFile();
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
+		// Unzip the Shapefile into a temporary directory, which will allow us
+		// to parse the Shapefile's sidecar files.
+		String extractPath = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
+		extractZip(shapefileZip.getAbsolutePath(), extractPath);
+		// Get the path to the actual *.shp file
+		String shapefilePath = findShapeFileName(extractPath);
+
 		// Get the Store information from GeoTools for accessing the Shapefile
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefileZip);
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);
 
 		// Get the Bounding Box, set the Metadata
 		ReferencedEnvelope envelope = featureSource.getBounds();
@@ -89,11 +99,15 @@ public class ShapefileInspector implements InspectorType {
 		dataResource.getSpatialMetadata().setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		dataResource.getSpatialMetadata().setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
 
-		// Process and persist shape file
-		persistShapeFile(shapefileZip, dataResource);
+		// Process and persist shape file into the Piazza PostGIS database.
+		if (host) {
+			persistShapeFile(featureSource, dataResource);
+		}
 
-		// Clean up the temporary Shapefile
+		// Clean up the temporary Shapefile, and the directory that contained
+		// the expanded contents.
 		shapefileZip.delete();
+		deleteDirectoryRecursive(new File(extractPath));
 
 		// Return the populated metadata
 		return dataResource;
@@ -102,13 +116,14 @@ public class ShapefileInspector implements InspectorType {
 	/**
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
-	 * @param zipFile
-	 *            The zipped up Shapefile
+	 * @param shapefilePath
+	 *            The String path to the *.shp shape file.
 	 * @return The GeoTools Shapefile Data Store Feature Source
 	 */
-	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(File zipFile) throws IOException {
+	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath)
+			throws IOException {
 		Map<String, Object> map = new HashMap<String, Object>();
-		map.put("url", zipFile.toURI().toURL());
+		map.put("url", shapefilePath);
 		DataStore dataStore = DataStoreFinder.getDataStore(map);
 		String typeName = dataStore.getTypeNames()[0];
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);
@@ -116,69 +131,46 @@ public class ShapefileInspector implements InspectorType {
 	}
 
 	/**
-	 * Loads the layer from provided shape file ZIP to POSTGIS by extracting the
-	 * zip, finding the shape file, and loading it as a new layer with unique
-	 * name
+	 * Loads the contents of the Shapefile into the PostGIS Database.
 	 * 
-	 * @param zipFile
-	 *            The zip file of the Shapefile contents
+	 * @param shpFeatureSource
+	 *            The GeoTools FeatureSource for the shapefile information.
 	 * @param dataResource
-	 *            The DataResource
-	 * @throws Exception
+	 *            The DataResource object with Shapefile metadata
 	 */
-	private void persistShapeFile(File zipFile, DataResource dataResource) throws Exception {
-		// DB Connection String
-		String postGisLogin = String.format(POSTGIS_LOGIN_TEMPLATE, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER,
-				POSTGRES_DB_NAME, POSTGRES_PASSWORD);
+	private void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource,
+			DataResource dataResource) throws Exception {
+		// Get the DataStore to the PostGIS database.
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 
-		String shapeFileLocation = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
+		// Create the Schema in the Data Store
+		String tableName = dataResource.getDataId();
+		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
+		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
+		postGisStore.createSchema(postGisSchema);
+		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
 
-		// Extract zip to temporary folder
-		extractZip(zipFile.getAbsolutePath(), shapeFileLocation);
-
-		// Load shapefile layer to PostGIS
-		loadShapeFileToPostGIS(postGisLogin, shapeFileLocation, dataResource.getDataId());
-
-		// Erase extracted directory
-		deleteDirectoryRecursive(new File(shapeFileLocation));
+		// Commit the Features to the Data Store
+		Transaction transaction = new DefaultTransaction();
+		try {
+			// Get the Features from the Shapefile and add to the PostGIS store
+			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) shpFeatureSource.getFeatures();
+			postGisFeatureStore.addFeatures(wfsFeatures);
+			// Commit the changes and clean up
+			transaction.commit();
+			transaction.close();
+		} catch (IOException exception) {
+			// Clean up resources
+			transaction.rollback();
+			transaction.close();
+			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
+			// Rethrow
+			throw exception;
+		}
 	}
 
 	/**
-	 * Loads the layer from shape file to POSTGIS
-	 * 
-	 * @param login
-	 *            Postgis login info
-	 * @param shapeFilePath
-	 *            ShapeFilePath to directory containing the shape file
-	 * @param fileName
-	 *            Full name of shape file. eg: shapefile.shp
-	 * @param dataResourceId
-	 *            Id from datasource to be used in layer name for uniqueness
-	 * @throws Exception
-	 */
-	private void loadShapeFileToPostGIS(String login, String shapeFilePath, String dataResourceId) throws Exception {
-		// Register all known configured OGR drivers
-		ogr.RegisterAll();
-
-		// Open data source to PostGIS with write access, 1 = write
-		DataSource postGisSource = ogr.Open(login, 1);
-
-		// Open data source to shape file with read access, 0 = read
-		Driver shapeFileDriver = ogr.GetDriverByName("ESRI Shapefile");
-		DataSource shapeFileSource = shapeFileDriver.Open(shapeFilePath + File.separator
-				+ findShapeFileName(shapeFilePath), 0);
-
-		// Load shape file layer to PostGIS, should contain only single layer
-		Layer shapeFileLayer = shapeFileSource.GetLayer(0);
-		postGisSource.CopyLayer(shapeFileLayer, shapeFileLayer.GetName() + "_" + dataResourceId);
-
-		// Close ogr sources
-		shapeFileSource.delete();
-		postGisSource.delete();
-	}
-
-	/**
-	 * 
 	 * Searches directory file list for the first matching file extension and
 	 * returns the name (non-recursive)
 	 * 
@@ -188,8 +180,6 @@ public class ShapefileInspector implements InspectorType {
 	 *            File extension to match name
 	 * 
 	 * @return File name found in the directory
-	 * @throws Exception
-	 * 
 	 */
 	private String findShapeFileName(String directoryPath) throws Exception {
 		File[] files = new File(directoryPath).listFiles();
@@ -203,7 +193,6 @@ public class ShapefileInspector implements InspectorType {
 	}
 
 	/**
-	 * 
 	 * Unzip the given zip into output directory
 	 * 
 	 * @param zipPath
@@ -212,8 +201,6 @@ public class ShapefileInspector implements InspectorType {
 	 *            Extracted zip output directory
 	 * 
 	 * @return boolean if successful
-	 * @throws Exception
-	 * 
 	 */
 	private void extractZip(String zipPath, String extractPath) throws Exception {
 		byte[] buffer = new byte[1024];
@@ -255,7 +242,6 @@ public class ShapefileInspector implements InspectorType {
 	}
 
 	/**
-	 * 
 	 * Recursive deletion of directory
 	 * 
 	 * @param File
@@ -263,7 +249,6 @@ public class ShapefileInspector implements InspectorType {
 	 * 
 	 * @return boolean if successful
 	 * @throws Exception
-	 * 
 	 */
 	private boolean deleteDirectoryRecursive(File directory) throws Exception {
 		boolean result = false;
