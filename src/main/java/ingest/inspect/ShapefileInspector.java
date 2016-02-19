@@ -26,6 +26,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
+import model.data.location.FileAccessFactory;
 import model.data.type.ShapefileResource;
 import model.job.metadata.SpatialMetadata;
 
@@ -69,22 +70,28 @@ public class ShapefileInspector implements InspectorType {
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
-	@Value("${shapefile.temp.path}")
-	private String SHAPEFILE_TEMP_PATH;
+	@Value("${data.temp.path}")
+	private String DATA_TEMP_PATH;
+	@Value("${s3.key.access:}")
+	private String AMAZONS3_ACCESS_KEY;
+	@Value("${s3.key.private:}")
+	private String AMAZONS3_PRIVATE_KEY;
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
-		File shapefileZip = new File(String.format("%s.%s.%s", SHAPEFILE_TEMP_PATH, dataResource.getDataId(), "zip"));
-		InputStream shapefileStream = ((ShapefileResource) dataResource.getDataType()).getLocation().getFile();
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream shapefileStream = fileFactory.getFile(((ShapefileResource) dataResource.getDataType())
+				.getLocation());
+		File shapefileZip = new File(String.format("%s.%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
 		// to parse the Shapefile's sidecar files.
-		String extractPath = SHAPEFILE_TEMP_PATH + dataResource.getDataId();
+		String extractPath = DATA_TEMP_PATH + dataResource.getDataId();
 		extractZip(shapefileZip.getAbsolutePath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = findShapeFileName(extractPath);
+		String shapefilePath = String.format("%s\\%s", extractPath, findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);
@@ -100,7 +107,7 @@ public class ShapefileInspector implements InspectorType {
 		// Get the SRS and EPSG codes
 		spatialMetadata.setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());
 		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true));
-		
+
 		// Set the spatial metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
@@ -122,13 +129,14 @@ public class ShapefileInspector implements InspectorType {
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
 	 * @param shapefilePath
-	 *            The String path to the *.shp shape file.
+	 *            The full string path to the expanded *.shp shape file.
 	 * @return The GeoTools Shapefile Data Store Feature Source
 	 */
 	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath)
 			throws IOException {
+		File shapefile = new File(shapefilePath);
 		Map<String, Object> map = new HashMap<String, Object>();
-		map.put("url", shapefilePath);
+		map.put("url", shapefile.toURI().toURL());
 		DataStore dataStore = DataStoreFinder.getDataStore(map);
 		String typeName = dataStore.getTypeNames()[0];
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);

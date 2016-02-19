@@ -16,10 +16,10 @@
 package ingest.inspect;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 
 import model.data.DataResource;
+import model.data.location.FileAccessFactory;
 import model.data.type.RasterResource;
 import model.job.metadata.SpatialMetadata;
 
@@ -30,6 +30,7 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,6 +41,12 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class GeoTiffInspector implements InspectorType {
+	@Value("${data.temp.path}")
+	private String DATA_TEMP_PATH;
+	@Value("${s3.key.access:}")
+	private String AMAZONS3_ACCESS_KEY;
+	@Value("${s3.key.private:}")
+	private String AMAZONS3_PRIVATE_KEY;
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
@@ -75,12 +82,14 @@ public class GeoTiffInspector implements InspectorType {
 	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
-	private GridCoverage2D getGridCoverage(DataResource dataResource) throws IOException {
-		File geoTiffFile = new File(String.format("%s.%s", dataResource.getDataId(), "tif"));
-
-		InputStream tiffFileStream = ((RasterResource) dataResource.getDataType()).getLocation().getFile();
+	private GridCoverage2D getGridCoverage(DataResource dataResource) throws Exception {
+		// Get the file from S3
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream tiffFileStream = fileFactory.getFile(((RasterResource) dataResource.getDataType()).getLocation());
+		File geoTiffFile = new File(String.format("%s\\%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "tif"));
 		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
 
+		// Read the coverage file
 		AbstractGridFormat format = GridFormatFinder.findFormat(geoTiffFile);
 		GridCoverage2DReader reader = format.getReader(geoTiffFile);
 		GridCoverage2D coverage = (GridCoverage2D) reader.read(null);
