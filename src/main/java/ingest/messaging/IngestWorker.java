@@ -31,6 +31,7 @@ import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;
 import model.job.result.type.DataResult;
+import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
 import model.status.StatusUpdate;
 
@@ -178,7 +179,9 @@ public class IngestWorker {
 	private void handleException(String jobId, Exception exception) {
 		exception.printStackTrace();
 		try {
-			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, new StatusUpdate(StatusUpdate.STATUS_ERROR)));
+			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
+			statusUpdate.setResult(new ErrorResult("Error while Ingesting the Data.", exception.getMessage()));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate));
 		} catch (JsonProcessingException jsonException) {
 			System.out.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
 					+ jsonException.getMessage());
