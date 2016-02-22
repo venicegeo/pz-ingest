@@ -23,8 +23,11 @@ import javax.annotation.PreDestroy;
 import model.data.DataResource;
 
 import org.mongojack.JacksonDBCollection;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import util.PiazzaLogger;
 
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
@@ -42,6 +45,8 @@ import com.mongodb.MongoException;
  */
 @Component
 public class PersistMetadata {
+	@Autowired
+	private PiazzaLogger logger;
 	@Value("${mongo.host}")
 	private String DATABASE_HOST;
 	@Value("${mongo.port}")
@@ -52,6 +57,9 @@ public class PersistMetadata {
 	private String RESOURCE_COLLECTION_NAME;
 	private MongoClient mongoClient;
 
+	/**
+	 * Required for Component init
+	 */
 	public PersistMetadata() {
 	}
 
@@ -60,7 +68,8 @@ public class PersistMetadata {
 		try {
 			mongoClient = new MongoClient(DATABASE_HOST, DATABASE_PORT);
 		} catch (UnknownHostException exception) {
-			System.out.println("Error connecting to MongoDB Instance.");
+			logger.log(String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 			exception.printStackTrace();
 		}
 	}

@@ -20,7 +20,6 @@ import ingest.persist.PersistMetadata;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
@@ -45,6 +44,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import util.PiazzaLogger;
+import util.UUIDFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
@@ -60,6 +62,10 @@ import com.mongodb.MongoException;
 @Component
 public class IngestWorker {
 	private static final String INGEST_TOPIC_NAME = "ingest";
+	@Autowired
+	private PiazzaLogger logger;
+	@Autowired
+	private UUIDFactory uuidFactory;
 	@Autowired
 	private PersistMetadata metadataPersist;
 	@Autowired
@@ -108,8 +114,8 @@ public class IngestWorker {
 				ConsumerRecords<String, String> consumerRecords = consumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					System.out.println("Processing Ingest Message " + consumerRecord.topic() + " with key "
-							+ consumerRecord.key());
+					logger.log(String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
+							consumerRecord.key()), PiazzaLogger.INFO);
 					try {
 						// Parse the Job from the Kafka Message
 						ObjectMapper mapper = new ObjectMapper();
@@ -120,9 +126,16 @@ public class IngestWorker {
 
 						// Assign a Resource ID to the incoming DataResource.
 						if (dataResource.getDataId() == null) {
-							String dataId = UUID.randomUUID().toString();
+							String dataId = uuidFactory.getUUID();
 							dataResource.setDataId(dataId);
 						}
+
+						// Log what we're going to Ingest
+						logger.log(
+								String.format(
+										"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
+										dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob
+												.getHost().toString(), job.getJobId()), PiazzaLogger.INFO);
 
 						// Update Status on Handling
 						JobProgress jobProgress = new JobProgress(0);
@@ -142,8 +155,9 @@ public class IngestWorker {
 						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 						// Console Logging
-						System.out.println("Job successfully Ingested, Data Created for Resource "
-								+ dataResource.getDataId());
+						logger.log(
+								String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(),
+										job.getJobId()), PiazzaLogger.INFO);
 					} catch (IOException jsonException) {
 						handleException(consumerRecord.key(), jsonException);
 						System.out.println("Error Parsing Ingest Job Message.");
@@ -159,6 +173,8 @@ public class IngestWorker {
 				}
 			}
 		} catch (WakeupException exception) {
+			logger.log(String.format("Ingest Listener Thread forcefully shut: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 			// Ignore exception if closing
 			if (!closed.get()) {
 				throw exception;
@@ -178,6 +194,9 @@ public class IngestWorker {
 	 */
 	private void handleException(String jobId, Exception exception) {
 		exception.printStackTrace();
+		logger.log(
+				String.format("An Error occurred during Data Ingestion for Job %s: %s", jobId, exception.getMessage()),
+				PiazzaLogger.ERROR);
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Ingesting the Data.", exception.getMessage()));
