@@ -79,7 +79,7 @@ public class WfsInspector implements InspectorType {
 		// Get the SRS and EPSG codes
 		spatialMetadata.setCoordinateReferenceSystem(wfsFeatureSource.getInfo().getCRS().toString());
 		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(wfsFeatureSource.getInfo().getCRS(), true));
-		
+
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
@@ -88,6 +88,9 @@ public class WfsInspector implements InspectorType {
 		if (host) {
 			copyWfsToPostGis(dataResource, wfsFeatureSource);
 		}
+
+		// Clean up Resources
+		wfsFeatureSource.getDataStore().dispose();
 
 		// Return the Populated Metadata
 		return dataResource;
@@ -130,6 +133,9 @@ public class WfsInspector implements InspectorType {
 			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
 			// Rethrow
 			throw exception;
+		} finally {
+			// Clean up the PostGIS Store
+			postGisStore.dispose();
 		}
 
 		// Update the Metadata of the DataResource to the new PostGIS table, and

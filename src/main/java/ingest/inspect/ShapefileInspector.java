@@ -120,6 +120,7 @@ public class ShapefileInspector implements InspectorType {
 		// the expanded contents.
 		shapefileZip.delete();
 		deleteDirectoryRecursive(new File(extractPath));
+		featureSource.getDataStore().dispose();
 
 		// Return the populated metadata
 		return dataResource;
@@ -180,6 +181,9 @@ public class ShapefileInspector implements InspectorType {
 			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
 			// Rethrow
 			throw exception;
+		} finally {
+			// Cleanup Data Store
+			postGisStore.dispose();
 		}
 	}
 
