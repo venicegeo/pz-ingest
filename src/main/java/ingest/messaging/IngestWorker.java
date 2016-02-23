@@ -16,16 +16,10 @@
 package ingest.messaging;
 
 import ingest.inspect.Inspector;
-import ingest.persist.PersistMetadata;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
-import messaging.job.KafkaClientFactory;
 import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;
@@ -34,15 +28,8 @@ import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
 import model.status.StatusUpdate;
 
-import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.common.errors.WakeupException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
@@ -52,135 +39,101 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
 /**
- * Main listener class for Ingest Jobs. Handles an incoming Ingest Job request
- * by indexing metadata, storing files, and updating appropriate database
- * tables.
+ * Worker class that handles a specific Ingest Job. These Runnables are managed
+ * by the ExecutorService defined in the IngestManager class.
  * 
  * @author Patrick.Doody
  * 
  */
-@Component
-public class IngestWorker {
-	private static final String INGEST_TOPIC_NAME = "ingest";
-	@Autowired
-	private PiazzaLogger logger;
-	@Autowired
-	private UUIDFactory uuidFactory;
-	@Autowired
-	private PersistMetadata metadataPersist;
-	@Autowired
-	private Inspector inspector;
-	@Value("${kafka.host}")
-	private String KAFKA_HOST;
-	@Value("${kafka.port}")
-	private String KAFKA_PORT;
-	@Value("${kafka.group}")
-	private String KAFKA_GROUP;
+public class IngestWorker implements Runnable {
+	private ConsumerRecord<String, String> consumerRecord;
 	private Producer<String, String> producer;
-	private Consumer<String, String> consumer;
-	private final AtomicBoolean closed = new AtomicBoolean(false);
+	private PiazzaLogger logger;
+	private UUIDFactory uuidFactory;
+	private Inspector inspector;
 
 	/**
-	 * Worker class that listens for and processes Ingestion messages.
-	 */
-	public IngestWorker() {
-	}
-
-	/**
+	 * Creates a new Worker Thread for the specified Kafka Message containing an
+	 * Ingest Job.
 	 * 
+	 * @param consumerRecord
+	 *            The Kafka Message containing the Job.
+	 * @param inspector
+	 *            The Inspector
+	 * @param producer
+	 *            The Kafka producer, used to send update messages
+	 * @param uuidFactory
+	 *            UUIDGen factory used to create UUIDs for Data Resource items
+	 * @param logger
+	 *            The Piazza Logger instance for logging
 	 */
-	@PostConstruct
-	public void initialize() {
-		// Initialize the Kafka consumer/producer
-		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
-		consumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-		// Listen for events TODO: Talk to Sonny about moving to @Async method
-		Thread pollThread = new Thread() {
-			public void run() {
-				listen();
-			}
-		};
-		pollThread.start();
+	public IngestWorker(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
+			Producer<String, String> producer, UUIDFactory uuidFactory, PiazzaLogger logger) {
+		this.consumerRecord = consumerRecord;
+		this.inspector = inspector;
+		this.producer = producer;
+		this.uuidFactory = uuidFactory;
+		this.logger = logger;
 	}
 
-	/**
-	 * Begins listening for events.
-	 */
-	@Async
-	public void listen() {
+	@Override
+	public void run() {
 		try {
-			consumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
-			while (!closed.get()) {
-				ConsumerRecords<String, String> consumerRecords = consumer.poll(1000);
-				// Handle new Messages on this topic.
-				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					logger.log(String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
+			// Log
+			logger.log(
+					String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
 							consumerRecord.key()), PiazzaLogger.INFO);
-					try {
-						// Parse the Job from the Kafka Message
-						ObjectMapper mapper = new ObjectMapper();
-						Job job = mapper.readValue(consumerRecord.value(), Job.class);
-						IngestJob ingestJob = (IngestJob) job.getJobType();
-						// Get the description of the Data to be ingested
-						DataResource dataResource = ingestJob.getData();
 
-						// Assign a Resource ID to the incoming DataResource.
-						if (dataResource.getDataId() == null) {
-							String dataId = uuidFactory.getUUID();
-							dataResource.setDataId(dataId);
-						}
+			// Parse the Job from the Kafka Message
+			ObjectMapper mapper = new ObjectMapper();
+			Job job = mapper.readValue(consumerRecord.value(), Job.class);
+			IngestJob ingestJob = (IngestJob) job.getJobType();
+			// Get the description of the Data to be ingested
+			DataResource dataResource = ingestJob.getData();
 
-						// Log what we're going to Ingest
-						logger.log(
-								String.format(
-										"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
-										dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob
-												.getHost().toString(), job.getJobId()), PiazzaLogger.INFO);
-
-						// Update Status on Handling
-						JobProgress jobProgress = new JobProgress(0);
-						StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-
-						// Inspect processes the Data item. Adds appropriate
-						// metadata, and stores data if requested.
-						inspector.inspect(dataResource, ingestJob.getHost());
-
-						// Update Status when Complete
-						jobProgress.percentComplete = 100;
-						statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
-						// The result of this Job was creating a resource at the
-						// specified ID.
-						statusUpdate.setResult(new DataResult(dataResource.getDataId()));
-						producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
-
-						// Console Logging
-						logger.log(
-								String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(),
-										job.getJobId()), PiazzaLogger.INFO);
-					} catch (IOException jsonException) {
-						handleException(consumerRecord.key(), jsonException);
-						System.out.println("Error Parsing Ingest Job Message.");
-					} catch (MongoException mongoException) {
-						handleException(consumerRecord.key(), mongoException);
-						System.out.println("Error committing Metadata object to Mongo Collections: "
-								+ mongoException.getMessage());
-					} catch (Exception exception) {
-						handleException(consumerRecord.key(), exception);
-						System.out.println("An unexpected error occurred while processing the Job Message: "
-								+ exception.getMessage());
-					}
-				}
+			// Assign a Resource ID to the incoming DataResource.
+			if (dataResource.getDataId() == null) {
+				String dataId = uuidFactory.getUUID();
+				dataResource.setDataId(dataId);
 			}
-		} catch (WakeupException exception) {
-			logger.log(String.format("Ingest Listener Thread forcefully shut: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
-			// Ignore exception if closing
-			if (!closed.get()) {
-				throw exception;
-			}
-		} finally {
-			consumer.close();
+
+			// Log what we're going to Ingest
+			logger.log(String.format(
+					"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
+					dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(),
+					job.getJobId()), PiazzaLogger.INFO);
+
+			// Update Status on Handling
+			JobProgress jobProgress = new JobProgress(0);
+			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
+			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+			// Inspect processes the Data item. Adds appropriate
+			// metadata, and stores data if requested.
+			inspector.inspect(dataResource, ingestJob.getHost());
+
+			// Update Status when Complete
+			jobProgress.percentComplete = 100;
+			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+			// The result of this Job was creating a resource at the
+			// specified ID.
+			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+
+			// Console Logging
+			logger.log(
+					String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
+					PiazzaLogger.INFO);
+		} catch (IOException jsonException) {
+			handleException(consumerRecord.key(), jsonException);
+			System.out.println("Error Parsing Ingest Job Message.");
+		} catch (MongoException mongoException) {
+			handleException(consumerRecord.key(), mongoException);
+			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
+		} catch (Exception exception) {
+			handleException(consumerRecord.key(), exception);
+			System.out.println("An unexpected error occurred while processing the Job Message: "
+					+ exception.getMessage());
 		}
 	}
 
@@ -207,4 +160,5 @@ public class IngestWorker {
 			jsonException.printStackTrace();
 		}
 	}
+
 }
