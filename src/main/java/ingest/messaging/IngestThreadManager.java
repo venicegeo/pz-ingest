@@ -19,13 +19,17 @@ import ingest.inspect.Inspector;
 import ingest.persist.PersistMetadata;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 
+import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 
 import org.apache.kafka.clients.consumer.Consumer;
@@ -35,7 +39,6 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
@@ -67,8 +70,8 @@ public class IngestThreadManager {
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
 	private Producer<String, String> producer;
-	private Consumer<String, String> consumer;
 	private ThreadPoolExecutor executor;
+	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
 	/**
@@ -82,57 +85,101 @@ public class IngestThreadManager {
 	 */
 	@PostConstruct
 	public void initialize() {
-		// Initialize the Kafka consumer/producer
+		// Initialize the Kafka Producer
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
-		consumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
 
-		// Initialize the Thread Pool
+		// Initialize the Thread Pool and Map of running Threads
 		executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+		runningJobs = new HashMap<String, Future<?>>();
 
-		// Start polling for Kafka Jobs. This occurs on a separate Thread so as
-		// not to block Spring.
-		Thread pollThread = new Thread() {
+		// Start polling for Kafka Jobs on the Group Consumer.. This occurs on a
+		// separate Thread so as not to block Spring.
+		Thread ingestJobsThread = new Thread() {
 			public void run() {
-				listen();
+				pollIngestJobs();
 			}
 		};
-		pollThread.start();
-	}
+		ingestJobsThread.start();
 
-	@PreDestroy
-	public void cleanup() {
-		consumer.close();
-		producer.close();
-		executor.shutdown();
+		// Start polling for Kafka Abort Jobs on the unique Consumer.
+		Thread pollAbortThread = new Thread() {
+			public void run() {
+				pollAbortJobs();
+			}
+		};
+		pollAbortThread.start();
 	}
 
 	/**
-	 * Begins listening for events.
+	 * Begins listening for Ingest Jobs.
 	 */
-	@Async
-	public void listen() {
+	public void pollIngestJobs() {
 		try {
-			consumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
+			// Callback that will be invoked when a Worker completes. This will
+			// remove the Job ID from the running Jobs list.
+			WorkerCallback callback = new WorkerCallback() {
+				@Override
+				public void onComplete(String jobId) {
+					runningJobs.remove(jobId);
+				}
+			};
+
+			// Create the General Group Consumer
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
+					KAFKA_GROUP);
+			generalConsumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
+
+			// Poll
 			while (!closed.get()) {
-				ConsumerRecords<String, String> consumerRecords = consumer.poll(1000);
+				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					// Create a new worker to process this message and add it to
 					// the thread pool.
-					IngestWorker ingestWorker = new IngestWorker(consumerRecord, inspector, producer, uuidFactory,
-							logger);
-					executor.execute(ingestWorker);
+					IngestWorker ingestWorker = new IngestWorker(consumerRecord, inspector, producer, callback,
+							uuidFactory, logger);
+					Future<?> workerFuture = executor.submit(ingestWorker);
+
+					// Keep track of all Running Jobs
+					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Ingest Listener Thread forcefully shut: %s", exception.getMessage()),
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);
-			// Ignore exception if closing
-			if (!closed.get()) {
-				throw exception;
+		}
+	}
+
+	/**
+	 * Begins listening for Abort Jobs. If a Job is owned by this component,
+	 * then it will be terminated.
+	 */
+	public void pollAbortJobs() {
+		try {
+			// Create the Unique Consumer
+			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
+					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
+			uniqueConsumer.subscribe(Arrays.asList(JobMessageFactory.ABORT_JOB_TOPIC_NAME));
+
+			// Poll
+			while (!closed.get()) {
+				ConsumerRecords<String, String> consumerRecords = uniqueConsumer.poll(1000);
+				// Handle new Messages on this topic.
+				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
+					// Determine if this Job ID is being processed by this
+					// component.
+					String jobId = consumerRecord.key();
+					if (runningJobs.containsKey(jobId)) {
+						// Cancel the Running Job
+						runningJobs.get(jobId).cancel(true);
+						// Remove it from the list of Running Jobs
+						runningJobs.remove(jobId);
+					}
+				}
 			}
-		} finally {
-			cleanup();
+		} catch (WakeupException exception) {
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 		}
 	}
 

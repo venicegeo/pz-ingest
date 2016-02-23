@@ -51,6 +51,7 @@ public class IngestWorker implements Runnable {
 	private PiazzaLogger logger;
 	private UUIDFactory uuidFactory;
 	private Inspector inspector;
+	private WorkerCallback callback;
 
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an
@@ -62,16 +63,20 @@ public class IngestWorker implements Runnable {
 	 *            The Inspector
 	 * @param producer
 	 *            The Kafka producer, used to send update messages
+	 * @param callback
+	 *            The callback that will be invoked when this Job has finished
+	 *            processing (error or success, regardless)
 	 * @param uuidFactory
 	 *            UUIDGen factory used to create UUIDs for Data Resource items
 	 * @param logger
 	 *            The Piazza Logger instance for logging
 	 */
 	public IngestWorker(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
-			Producer<String, String> producer, UUIDFactory uuidFactory, PiazzaLogger logger) {
+			Producer<String, String> producer, WorkerCallback callback, UUIDFactory uuidFactory, PiazzaLogger logger) {
 		this.consumerRecord = consumerRecord;
 		this.inspector = inspector;
 		this.producer = producer;
+		this.callback = callback;
 		this.uuidFactory = uuidFactory;
 		this.logger = logger;
 	}
@@ -134,6 +139,8 @@ public class IngestWorker implements Runnable {
 			handleException(consumerRecord.key(), exception);
 			System.out.println("An unexpected error occurred while processing the Job Message: "
 					+ exception.getMessage());
+		} finally {
+			callback.onComplete(consumerRecord.key());
 		}
 	}
 
