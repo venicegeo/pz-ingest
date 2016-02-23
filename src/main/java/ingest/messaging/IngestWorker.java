@@ -20,6 +20,7 @@ import ingest.inspect.Inspector;
 import java.io.IOException;
 
 import messaging.job.JobMessageFactory;
+import messaging.job.WorkerCallback;
 import model.data.DataResource;
 import model.job.Job;
 import model.job.JobProgress;

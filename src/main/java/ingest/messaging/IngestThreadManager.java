@@ -31,6 +31,7 @@ import javax.annotation.PostConstruct;
 
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
+import messaging.job.WorkerCallback;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
