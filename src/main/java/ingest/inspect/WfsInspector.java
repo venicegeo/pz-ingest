@@ -152,7 +152,7 @@ public class WfsInspector implements InspectorType {
 	 * @return GeoTools Feature Source that can be queried for spatial features
 	 *         and metadata
 	 */
-	private FeatureSource<SimpleFeatureType, SimpleFeature> getWfsFeatureSource(DataResource dataResource)
+	public FeatureSource<SimpleFeatureType, SimpleFeature> getWfsFeatureSource(DataResource dataResource)
 			throws IOException {
 		// Form the Get Capabilities URL
 		WfsResource wfsResource = (WfsResource) dataResource.getDataType();
