@@ -1,0 +1,9 @@
+{
+   "source": "%s",
+   "function":"info",
+   "options": {
+       "boundary": false,
+       "metadata": true,
+       "schema": false
+   }
+}
