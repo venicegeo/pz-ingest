@@ -160,6 +160,8 @@ public class ShapefileInspector implements InspectorType {
 
 		// Create the Schema in the Data Store
 		String tableName = dataResource.getDataId();
+		// Associate the Table name with the Shapefile Resource
+		((ShapefileResource) dataResource.getDataType()).setDatabaseTableName(tableName);
 		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
