@@ -15,6 +15,7 @@
  **/
 package ingest.messaging;
 
+import ingest.event.IngestEvent;
 import ingest.inspect.Inspector;
 
 import java.io.IOException;
@@ -31,6 +32,12 @@ import model.status.StatusUpdate;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
 import util.UUIDFactory;
@@ -54,6 +61,9 @@ public class IngestWorker implements Runnable {
 	private Inspector inspector;
 	private WorkerCallback callback;
 
+	private String EVENT_ID;
+	private String WORKFLOW_URL;
+
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an
 	 * Ingest Job.
@@ -71,15 +81,23 @@ public class IngestWorker implements Runnable {
 	 *            UUIDGen factory used to create UUIDs for Data Resource items
 	 * @param logger
 	 *            The Piazza Logger instance for logging
+	 * @param eventId
+	 *            The ID of the pz-workflow Ingest name
+	 * @param workflowUrl
+	 *            The URL of the pz-workflow Alerter endpoint that will be
+	 *            POSTed to notify upon successful ingest
 	 */
 	public IngestWorker(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
-			Producer<String, String> producer, WorkerCallback callback, UUIDFactory uuidFactory, PiazzaLogger logger) {
+			Producer<String, String> producer, WorkerCallback callback, UUIDFactory uuidFactory, PiazzaLogger logger,
+			String eventId, String workflowUrl) {
 		this.consumerRecord = consumerRecord;
 		this.inspector = inspector;
 		this.producer = producer;
 		this.callback = callback;
 		this.uuidFactory = uuidFactory;
 		this.logger = logger;
+		this.EVENT_ID = eventId;
+		this.WORKFLOW_URL = workflowUrl;
 	}
 
 	@Override
@@ -130,6 +148,16 @@ public class IngestWorker implements Runnable {
 			logger.log(
 					String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					PiazzaLogger.INFO);
+
+			// Fire the Event to Pz-Workflow that a successful Ingest has taken
+			// place.
+			try {
+				dispatchWorkflowEvent(job, dataResource);
+			} catch (Exception exception) {
+				logger.log(String.format(
+						"Event for Ingest of Data %s for Job %s could not be sent to the Workflow Service: %s",
+						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
+			}
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			System.out.println("Error Parsing Ingest Job Message.");
@@ -142,6 +170,36 @@ public class IngestWorker implements Runnable {
 					+ exception.getMessage());
 		} finally {
 			callback.onComplete(consumerRecord.key());
+		}
+	}
+
+	/**
+	 * Dispatches the REST POST request to the pz-workflow service for the event
+	 * that data has been successfully ingested.
+	 * 
+	 * @param job
+	 *            The job
+	 * @param dataResource
+	 *            The DataResource that has been ingested
+	 */
+	private void dispatchWorkflowEvent(Job job, DataResource dataResource) throws Exception {
+		RestTemplate restTemplate = new RestTemplate();
+		HttpHeaders headers = new HttpHeaders();
+		IngestEvent ingestEvent = new IngestEvent(EVENT_ID, job, dataResource);
+		String ingestString = new ObjectMapper().writeValueAsString(ingestEvent);
+		HttpEntity<String> entity = new HttpEntity<String>(ingestString, headers);
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		ResponseEntity<Object> response = restTemplate.postForEntity(WORKFLOW_URL, entity, Object.class);
+		if (response.getStatusCode() == HttpStatus.CREATED) {
+			// The Event was successfully received by pz-workflow
+			logger.log(
+					String.format(
+							"Event for Ingest of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
+							dataResource.getDataId(), job.getJobId(), response.getBody().toString()), PiazzaLogger.INFO);
+
+		} else {
+			// 201 not received. Throw an exception that something went wrong.
+			throw new Exception(String.format("Status code %s received.", response.getStatusCode()));
 		}
 	}
 

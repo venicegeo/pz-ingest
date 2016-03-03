@@ -64,12 +64,19 @@ public class IngestThreadManager {
 	private PersistMetadata metadataPersist;
 	@Autowired
 	private Inspector inspector;
+
 	@Value("${kafka.host}")
 	private String KAFKA_HOST;
 	@Value("${kafka.port}")
 	private String KAFKA_PORT;
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
+
+	@Value("${pz.workflow.event.id}")
+	private String EVENT_ID;
+	@Value("${pz.workflow.url:}")
+	private String WORKFLOW_URL;
+
 	private Producer<String, String> producer;
 	private ThreadPoolExecutor executor;
 	private Map<String, Future<?>> runningJobs;
@@ -138,7 +145,7 @@ public class IngestThreadManager {
 					// Create a new worker to process this message and add it to
 					// the thread pool.
 					IngestWorker ingestWorker = new IngestWorker(consumerRecord, inspector, producer, callback,
-							uuidFactory, logger);
+							uuidFactory, logger, EVENT_ID, String.format("http://%s", WORKFLOW_URL));
 					Future<?> workerFuture = executor.submit(ingestWorker);
 
 					// Keep track of all Running Jobs
