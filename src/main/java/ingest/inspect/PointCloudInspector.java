@@ -23,6 +23,8 @@ import model.data.response.PointCloudResponse;
 import model.data.type.PointCloudResource;
 import model.job.metadata.SpatialMetadata;
 import org.apache.commons.io.IOUtils;
+import org.geotools.referencing.CRS;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -78,8 +80,12 @@ public class PointCloudInspector implements InspectorType {
 		spatialMetadata.setMinZ(pointCloudResponse.getMinz());
 		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
 		
-		//Which epsg code to pull from point cloud?? There are multiple in the response payload
-		//spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
+		// Pull EPSG code from decoded CoordinateReferenceSystem, CRS.decode breaks
+		// Remove \ escape character from spatial reference string, replace \" with "
+//		String removeEscapeCharacters = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
+//	    CoordinateReferenceSystem coordinateReferenceSystem = CRS.parseWKT(removeEscapeCharacters);
+//	    spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
+		
 
 		// Set the DataResource Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
