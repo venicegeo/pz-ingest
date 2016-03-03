@@ -15,48 +15,27 @@
  **/
 package ingest.inspect;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
 import model.data.response.PointCloudResponse;
-import model.data.type.RasterResource;
 import model.data.type.PointCloudResource;
-import model.job.Job;
 import model.job.metadata.SpatialMetadata;
-import model.response.PiazzaResponse;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.tomcat.util.codec.binary.Base64;
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.coverage.grid.io.GridCoverage2DReader;
-import org.geotools.coverage.grid.io.GridFormatFinder;
-import org.geotools.referencing.CRS;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Inspects point cloud response file, parsing essential metadata from json.
+ * Inspects Point Cloud response file, parsing essential metadata from json.
  * 
  * @author Sonny.Saniev
  * 
@@ -68,28 +47,26 @@ public class PointCloudInspector implements InspectorType {
 	@Value("${s3.key.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 
-	@Value("${s3.pointcloud.file.url:}")
-	private String AMAZONS3_POINT_CLOUD_URL;
-	
 	private static final String POINT_CLOUD_ENDPOINT = "http://pzsvc-pdal.cf.piazzageo.io/api/v1/pdal";
 	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
-		
-		// Load template
+
+		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
 		String pointCloudTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/pointCloudRequest.json"));
-
-		//get url from data source for point cloud file, how to get actual aws url?
+		
+		// Obtain File URL from AWS S3 Bucket
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		FileLocation fileLocation = ((PointCloudResource) dataResource.getDataType()).getLocation();
-//		String awsS3Url = String.format("%s/%s", AMAZONS3_POINT_CLOUD_URL, fileLocation.getURI());
-		String awsS3Url = "https://s3.amazonaws.com/venicegeo-sample-data/pointcloud/samp71-utm.laz";
-	
-		// Inject Metadata from the Data Resource into the Data Store Payload
-		String dataStoreRequestBody = String.format(pointCloudTemplate, awsS3Url);
+		String awsS3Url = fileFactory.getFileUri(fileLocation);
+		//String awsS3Url = "https://s3.amazonaws.com/venicegeo-sample-data/pointcloud/samp71-utm.laz"; // sample working file
+
+		// Inject URL into the Post Payload
+		String payloadBody = String.format(pointCloudTemplate, awsS3Url);
 		
 		// Post payload to point cloud endpoint for the response payload
-		PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, dataStoreRequestBody);
+		PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, payloadBody);
 
 		// Set the Metadata
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
@@ -100,7 +77,8 @@ public class PointCloudInspector implements InspectorType {
 		spatialMetadata.setMinY(pointCloudResponse.getMiny());
 		spatialMetadata.setMinZ(pointCloudResponse.getMinz());
 		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
-		//which epsg code to pull from point cloud?? There are multiple in the response payload
+		
+		//Which epsg code to pull from point cloud?? There are multiple in the response payload
 		//spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
 
 		// Set the DataResource Spatial Metadata
@@ -110,10 +88,10 @@ public class PointCloudInspector implements InspectorType {
 	}
 
 	/**
-	 * Executes POST request to point cloud url to grab the payload
+	 * Executes POST request to Point Cloud to grab the Payload
 	 * 
 	 * @param url
-	 *            The url to post for point cloud api
+	 *            The URL to post for point cloud api
 	 * @return The PointCloudResponse object containing metadata.
 	 * 
 	 * @throws IOException 
