@@ -19,7 +19,6 @@ import java.io.IOException;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
-import model.data.response.PointCloudResponse;
 import model.data.type.PointCloudResource;
 import model.job.metadata.SpatialMetadata;
 import org.apache.commons.io.IOUtils;
@@ -35,6 +34,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import ingest.model.PointCloudResponse;
 
 /**
  * Inspects Point Cloud response file, parsing essential metadata from json.
@@ -62,12 +63,12 @@ public class PointCloudInspector implements InspectorType {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		FileLocation fileLocation = ((PointCloudResource) dataResource.getDataType()).getLocation();
 		String awsS3Url = fileFactory.getFileUri(fileLocation);
-		//String awsS3Url = "https://s3.amazonaws.com/venicegeo-sample-data/pointcloud/samp71-utm.laz"; // sample working file
+		//String awsS3Url = "https://s3.amazonaws.com/venicegeo-sample-data/pointcloud/samp71-utm.laz"; // sample working file, remove after test
 
 		// Inject URL into the Post Payload
 		String payloadBody = String.format(pointCloudTemplate, awsS3Url);
 		
-		// Post payload to point cloud endpoint for the response payload
+		// Post payload to point cloud endpoint for the metadata response
 		PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, payloadBody);
 
 		// Set the Metadata
@@ -80,13 +81,13 @@ public class PointCloudInspector implements InspectorType {
 		spatialMetadata.setMinZ(pointCloudResponse.getMinz());
 		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
 		
-		// Pull EPSG code from decoded CoordinateReferenceSystem, CRS.decode breaks
-		// Remove \ escape character from spatial reference string, replace \" with "
-//		String removeEscapeCharacters = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
-//	    CoordinateReferenceSystem coordinateReferenceSystem = CRS.parseWKT(removeEscapeCharacters);
-//	    spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(coordinateReferenceSystem, true));
+		// Replace \ escape character from spatial reference string
+		String formattedSpatialreference = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
 		
-
+		// Decode CoordinateReferenceSystem and parse EPSG code
+	    CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
+		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
+		
 		// Set the DataResource Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
