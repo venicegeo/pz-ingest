@@ -49,8 +49,8 @@ public class PointCloudInspector implements InspectorType {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${s3.key.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
-
-	private static final String POINT_CLOUD_ENDPOINT = "http://pzsvc-pdal.cf.piazzageo.io/api/v1/pdal";
+	@Value("${point.cloud.endpoint}")
+	private String POINT_CLOUD_ENDPOINT;
 	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
