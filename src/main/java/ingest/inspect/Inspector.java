@@ -17,6 +17,7 @@ package ingest.inspect;
 
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
+import model.data.type.PointCloudResource;
 import model.data.type.PostGISResource;
 import model.data.type.RasterResource;
 import model.data.type.ShapefileResource;
@@ -45,6 +46,8 @@ public class Inspector {
 	private WfsInspector wfsInspector;
 	@Autowired
 	private GeoTiffInspector geotiffInspector;
+	@Autowired
+	private PointCloudInspector pointCloudInspector;
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -90,6 +93,8 @@ public class Inspector {
 			return wfsInspector;
 		case RasterResource.type:
 			return geotiffInspector;
+		case PointCloudResource.type:
+			return pointCloudInspector;
 		case PostGISResource.type:
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
