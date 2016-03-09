@@ -60,8 +60,7 @@ public class PointCloudInspector implements InspectorType {
 		// Obtain File URL from AWS S3 Bucket
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		FileLocation fileLocation = ((PointCloudResource) dataResource.getDataType()).getLocation();
-		String awsS3Url = fileFactory.getFileUri(fileLocation);
-		//String awsS3Url = "https://s3.amazonaws.com/venicegeo-sample-data/pointcloud/samp71-utm.laz"; // sample working file, remove after test
+		String awsS3Url = fileFactory.getFileUri(fileLocation); // test with files on s3 that are public accessible first
 
 		// Inject URL into the Post Payload
 		String payloadBody = String.format(pointCloudTemplate, awsS3Url);
