@@ -18,8 +18,10 @@ package ingest.messaging;
 import ingest.inspect.Inspector;
 import ingest.persist.PersistMetadata;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -189,6 +191,16 @@ public class IngestThreadManager {
 			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);
 		}
+	}
+
+	/**
+	 * Returns a list of the Job IDs that are currently being processed by this
+	 * instance
+	 * 
+	 * @return The list of Job IDs
+	 */
+	public List<String> getRunningJobIDs() {
+		return new ArrayList<String>(runningJobs.keySet());
 	}
 
 }

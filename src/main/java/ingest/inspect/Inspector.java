@@ -17,12 +17,12 @@ package ingest.inspect;
 
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
-import model.data.type.PointCloudResource;
-import model.data.type.PostGISResource;
-import model.data.type.RasterResource;
-import model.data.type.ShapefileResource;
-import model.data.type.TextResource;
-import model.data.type.WfsResource;
+import model.data.type.PointCloudDataType;
+import model.data.type.PostGISDataType;
+import model.data.type.RasterDataType;
+import model.data.type.ShapefileDataType;
+import model.data.type.TextDataType;
+import model.data.type.WfsDataType;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -85,17 +85,17 @@ public class Inspector {
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
 		switch (dataResource.getDataType().getType()) {
-		case ShapefileResource.type:
+		case ShapefileDataType.type:
 			return shapefileInspector;
-		case TextResource.type:
+		case TextDataType.type:
 			return textInspector;
-		case WfsResource.type:
+		case WfsDataType.type:
 			return wfsInspector;
-		case RasterResource.type:
+		case RasterDataType.type:
 			return geotiffInspector;
-		case PointCloudResource.type:
+		case PointCloudDataType.type:
 			return pointCloudInspector;
-		case PostGISResource.type:
+		case PostGISDataType.type:
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
 				+ dataResource.getDataType().getType());

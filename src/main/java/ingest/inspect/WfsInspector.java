@@ -20,8 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import model.data.DataResource;
-import model.data.type.PostGISResource;
-import model.data.type.WfsResource;
+import model.data.type.PostGISDataType;
+import model.data.type.WfsDataType;
 import model.job.metadata.SpatialMetadata;
 
 import org.geotools.data.DataStore;
@@ -140,7 +140,7 @@ public class WfsInspector implements InspectorType {
 
 		// Update the Metadata of the DataResource to the new PostGIS table, and
 		// treat as a PostGIS Resource type from now on.
-		PostGISResource postGisData = new PostGISResource();
+		PostGISDataType postGisData = new PostGISDataType();
 		postGisData.database = POSTGRES_DB_NAME;
 		postGisData.table = tableName;
 		dataResource.dataType = postGisData;
@@ -155,7 +155,7 @@ public class WfsInspector implements InspectorType {
 	public FeatureSource<SimpleFeatureType, SimpleFeature> getWfsFeatureSource(DataResource dataResource)
 			throws IOException {
 		// Form the Get Capabilities URL
-		WfsResource wfsResource = (WfsResource) dataResource.getDataType();
+		WfsDataType wfsResource = (WfsDataType) dataResource.getDataType();
 		String capabilitiesUrl = String.format(CAPABILITIES_TEMPLATE, wfsResource.getUrl(), wfsResource.getVersion());
 		Map<String, String> connectionParameters = new HashMap<String, String>();
 		connectionParameters.put("WFSDataStoreFactory:GET_CAPABILITIES_URL", capabilitiesUrl);
