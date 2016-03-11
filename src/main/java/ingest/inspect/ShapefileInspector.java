@@ -111,7 +111,7 @@ public class ShapefileInspector implements InspectorType {
 		// Set the spatial metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
-		// Process and persist shapotepae file into the Piazza PostGIS database.
+		// Process and persist shapefile file into the Piazza PostGIS database.
 		if (host) {
 			persistShapeFile(featureSource, dataResource);
 		}
