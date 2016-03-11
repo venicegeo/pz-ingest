@@ -20,7 +20,7 @@ import java.io.InputStream;
 
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
-import model.data.type.RasterResource;
+import model.data.type.RasterDataType;
 import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
@@ -85,7 +85,7 @@ public class GeoTiffInspector implements InspectorType {
 	private GridCoverage2D getGridCoverage(DataResource dataResource) throws Exception {
 		// Get the file from S3
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		InputStream tiffFileStream = fileFactory.getFile(((RasterResource) dataResource.getDataType()).getLocation());
+		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());
 		File geoTiffFile = new File(String.format("%s\\%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "tif"));
 		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
 

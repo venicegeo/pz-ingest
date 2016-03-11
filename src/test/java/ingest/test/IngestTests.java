@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import model.data.DataResource;
-import model.data.type.WfsResource;
+import model.data.type.WfsDataType;
 
 import org.geotools.data.DataUtilities;
 import org.geotools.data.memory.MemoryDataStore;
@@ -69,7 +69,7 @@ public class IngestTests {
 	@Test
 	public void testWfsInspector() throws Exception {
 		// Mock a WFS DataResource
-		WfsResource wfsResource = new WfsResource();
+		WfsDataType wfsResource = new WfsDataType();
 		DataResource mockResource = new DataResource();
 		mockResource.dataId = UUID.randomUUID().toString();
 		mockResource.dataType = wfsResource;

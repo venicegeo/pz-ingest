@@ -15,11 +15,13 @@
  **/
 package ingest.inspect;
 
+import ingest.model.PointCloudResponse;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
-import model.data.type.PointCloudResource;
+import model.data.type.PointCloudDataType;
 import model.job.metadata.SpatialMetadata;
+
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -33,8 +35,6 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import ingest.model.PointCloudResponse;
 
 /**
  * Inspects Point Cloud response file, parsing essential metadata from json.
@@ -50,21 +50,22 @@ public class PointCloudInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
-	
+
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String pointCloudTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates/pointCloudRequest.json"));
-		
+		String pointCloudTemplate = IOUtils.toString(classLoader
+				.getResourceAsStream("templates/pointCloudRequest.json"));
+
 		// Obtain File URL from AWS S3 Bucket
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		FileLocation fileLocation = ((PointCloudResource) dataResource.getDataType()).getLocation();
-		String awsS3Url = fileFactory.getFileUri(fileLocation); // test with files on s3 that are public accessible first
+		FileLocation fileLocation = ((PointCloudDataType) dataResource.getDataType()).getLocation();
+		String awsS3Url = fileFactory.getFileUri(fileLocation);
 
 		// Inject URL into the Post Payload
 		String payloadBody = String.format(pointCloudTemplate, awsS3Url);
-		
+
 		// Post payload to point cloud endpoint for the metadata response
 		PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, payloadBody);
 
@@ -77,14 +78,14 @@ public class PointCloudInspector implements InspectorType {
 		spatialMetadata.setMinY(pointCloudResponse.getMiny());
 		spatialMetadata.setMinZ(pointCloudResponse.getMinz());
 		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
-		
+
 		// Replace \ escape character from spatial reference string
 		String formattedSpatialreference = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
-		
+
 		// Decode CoordinateReferenceSystem and parse EPSG code
-	    CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
+		CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
 		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
-		
+
 		// Set the DataResource Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
@@ -97,7 +98,7 @@ public class PointCloudInspector implements InspectorType {
 	 * @param url
 	 *            The URL to post for point cloud api
 	 * @return The PointCloudResponse object containing metadata.
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	private PointCloudResponse postPointCloudTemplate(String url, String payload) throws Exception {
 		// Setup Basic Headers
@@ -111,9 +112,12 @@ public class PointCloudInspector implements InspectorType {
 		try {
 			response = restTemplate.postForObject(url, request, String.class);
 		} catch (HttpServerErrorException e) {
-			// this exception will be thrown until the s3 file is accessible to external services
-			// that use the s3 file url line above: String awsS3Url = fileFactory.getFileUri(fileLocation);
-			throw new Exception("Error occurred posting to: " + url + "\nPayload: \n" + payload + "\nMost likely the payload source file is not accessible.");
+			// this exception will be thrown until the s3 file is accessible to
+			// external services
+			// that use the s3 file url line above: String awsS3Url =
+			// fileFactory.getFileUri(fileLocation);
+			throw new Exception("Error occurred posting to: " + url + "\nPayload: \n" + payload
+					+ "\nMost likely the payload source file is not accessible.");
 		}
 
 		// Parse required fields from point cloud json response

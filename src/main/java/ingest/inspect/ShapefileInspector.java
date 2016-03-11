@@ -27,7 +27,7 @@ import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
-import model.data.type.ShapefileResource;
+import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
@@ -81,7 +81,7 @@ public class ShapefileInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		InputStream shapefileStream = fileFactory.getFile(((ShapefileResource) dataResource.getDataType())
+		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
 				.getLocation());
 		File shapefileZip = new File(String.format("%s.%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
@@ -161,7 +161,7 @@ public class ShapefileInspector implements InspectorType {
 		// Create the Schema in the Data Store
 		String tableName = dataResource.getDataId();
 		// Associate the Table name with the Shapefile Resource
-		((ShapefileResource) dataResource.getDataType()).setDatabaseTableName(tableName);
+		((ShapefileDataType) dataResource.getDataType()).setDatabaseTableName(tableName);
 		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
