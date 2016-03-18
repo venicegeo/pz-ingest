@@ -80,11 +80,14 @@ public class PointCloudInspector implements InspectorType {
 		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
 
 		// Replace \ escape character from spatial reference string
-		String formattedSpatialreference = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
-
-		// Decode CoordinateReferenceSystem and parse EPSG code
-		CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
-		spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
+		try {
+			String formattedSpatialreference = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
+			// Decode CoordinateReferenceSystem and parse EPSG code
+			CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
+			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
+		} catch (Exception exception) {
+			System.out.println("Error parsing EPSG Code for Point Cloud.");
+		}
 
 		// Set the DataResource Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
