@@ -12,7 +12,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>1.3.0.RELEASE</version>
+		<version>1.3.3.RELEASE</version>
 	</parent>
 
 	<repositories>
@@ -46,7 +46,7 @@
 		<dependency>
 			<groupId>io.piazzageo</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>Sprint01-27-g29ee48b</version>
+			<version>LATEST</version>
 		</dependency>
 
 		<dependency>
@@ -114,6 +114,12 @@
 			<artifactId>spring-mock</artifactId>
 			<version>2.0.8</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

@@ -43,9 +43,9 @@ import org.springframework.stereotype.Component;
 public class GeoTiffInspector implements InspectorType {
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	@Override

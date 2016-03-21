@@ -49,15 +49,15 @@ import util.GeoToolsUtil;
 @Component
 public class WfsInspector implements InspectorType {
 	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&VERSION=%s";
-	@Value("${postgres.host}")
+	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
-	@Value("${postgres.port}")
+	@Value("${vcap.services.pz-postgres.credentials.port}")
 	private String POSTGRES_PORT;
-	@Value("${postgres.db.name}")
+	@Value("${vcap.services.pz-postgres.credentials.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${postgres.user}")
+	@Value("${vcap.services.pz-postgres.credentials.username}")
 	private String POSTGRES_USER;
-	@Value("${postgres.password}")
+	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;

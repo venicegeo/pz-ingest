@@ -58,23 +58,23 @@ import util.GeoToolsUtil;
  */
 @Component
 public class ShapefileInspector implements InspectorType {
-	@Value("${postgres.host}")
+	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
-	@Value("${postgres.port}")
+	@Value("${vcap.services.pz-postgres.credentials.port}")
 	private String POSTGRES_PORT;
-	@Value("${postgres.db.name}")
+	@Value("${vcap.services.pz-postgres.credentials.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${postgres.user}")
+	@Value("${vcap.services.pz-postgres.credentials.username}")
 	private String POSTGRES_USER;
-	@Value("${postgres.password}")
+	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	@Override
