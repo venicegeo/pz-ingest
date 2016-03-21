@@ -67,7 +67,7 @@ public class IngestThreadManager {
 	@Autowired
 	private Inspector inspector;
 
-	@Value("${vcap.services.pz-kafka.credentials.host:kafka.dev:9092}")
+	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
 	private String KAFKA_PORT;
