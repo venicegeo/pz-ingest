@@ -31,6 +31,7 @@ import util.PiazzaLogger;
 
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 
 /**
@@ -47,11 +48,9 @@ import com.mongodb.MongoException;
 public class PersistMetadata {
 	@Autowired
 	private PiazzaLogger logger;
-	@Value("${mongo.host}")
-	private String DATABASE_HOST;
-	@Value("${mongo.port}")
-	private int DATABASE_PORT;
-	@Value("${mongo.db.name}")
+	@Value("${vcap.services.pz-mongodb.credentials.uri}")
+	private String DATABASE_URI;
+	@Value("${vcap.services.pz-mongodb.credentials.database}")
 	private String DATABASE_NAME;
 	@Value("${mongo.db.collection.name}")
 	private String RESOURCE_COLLECTION_NAME;
@@ -66,7 +65,7 @@ public class PersistMetadata {
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(DATABASE_HOST, DATABASE_PORT);
+			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI));
 		} catch (UnknownHostException exception) {
 			logger.log(String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);
