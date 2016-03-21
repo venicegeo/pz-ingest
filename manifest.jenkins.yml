@@ -11,4 +11,4 @@ applications:
     - pz-kafka
     - pz-blobstore
     - pz-postgres
-  
+    - pz-mongodb
