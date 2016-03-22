@@ -87,7 +87,7 @@ public class ShapefileInspector implements InspectorType {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
 				.getLocation());
-		File shapefileZip = new File(String.format("%s/%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
+		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
@@ -100,7 +100,7 @@ public class ShapefileInspector implements InspectorType {
 
 		extractZip(shapefileZip.getAbsolutePath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = String.format("%s\\%s", extractPath, findShapeFileName(extractPath));
+		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);
