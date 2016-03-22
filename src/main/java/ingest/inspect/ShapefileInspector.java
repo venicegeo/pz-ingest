@@ -83,7 +83,7 @@ public class ShapefileInspector implements InspectorType {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
 				.getLocation());
-		File shapefileZip = new File(String.format("%s.%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
+		File shapefileZip = new File(String.format("%s/%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
