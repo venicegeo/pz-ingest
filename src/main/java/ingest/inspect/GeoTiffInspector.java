@@ -86,7 +86,8 @@ public class GeoTiffInspector implements InspectorType {
 		// Get the file from S3
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());
-		File geoTiffFile = new File(String.format("%s/%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "tif"));
+		File geoTiffFile = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator,
+				dataResource.getDataId(), "tif"));
 		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
 
 		// Read the coverage file
