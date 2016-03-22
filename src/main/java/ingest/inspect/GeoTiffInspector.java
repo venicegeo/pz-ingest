@@ -43,9 +43,9 @@ import org.springframework.stereotype.Component;
 public class GeoTiffInspector implements InspectorType {
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 
 	@Override
@@ -86,7 +86,8 @@ public class GeoTiffInspector implements InspectorType {
 		// Get the file from S3
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());
-		File geoTiffFile = new File(String.format("%s\\%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "tif"));
+		File geoTiffFile = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator,
+				dataResource.getDataId(), "tif"));
 		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
 
 		// Read the coverage file

@@ -42,10 +42,12 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import util.GeoToolsUtil;
+import util.PiazzaLogger;
 
 /**
  * Inspects a Shapefile, populating any essential metadata from the file itself.
@@ -58,24 +60,26 @@ import util.GeoToolsUtil;
  */
 @Component
 public class ShapefileInspector implements InspectorType {
-	@Value("${postgres.host}")
+	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
-	@Value("${postgres.port}")
+	@Value("${vcap.services.pz-postgres.credentials.port}")
 	private String POSTGRES_PORT;
-	@Value("${postgres.db.name}")
+	@Value("${vcap.services.pz-postgres.credentials.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${postgres.user}")
+	@Value("${vcap.services.pz-postgres.credentials.username}")
 	private String POSTGRES_USER;
-	@Value("${postgres.password}")
+	@Value("${vcap.services.pz-postgres.credentials.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
+	@Autowired
+	private PiazzaLogger logger;
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
@@ -83,15 +87,20 @@ public class ShapefileInspector implements InspectorType {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
 				.getLocation());
-		File shapefileZip = new File(String.format("%s.%s.%s", DATA_TEMP_PATH, dataResource.getDataId(), "zip"));
+		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
 		// to parse the Shapefile's sidecar files.
-		String extractPath = DATA_TEMP_PATH + dataResource.getDataId();
+		String extractPath = DATA_TEMP_PATH + File.separator + dataResource.getDataId();
+
+		// Log the file locations.
+		logger.log(String.format("Inspecting shapefile. Copied Zip to temporary path %s. Inflating contents into %s.",
+				shapefileZip.getAbsolutePath(), extractPath), PiazzaLogger.INFO);
+
 		extractZip(shapefileZip.getAbsolutePath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = String.format("%s\\%s", extractPath, findShapeFileName(extractPath));
+		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);

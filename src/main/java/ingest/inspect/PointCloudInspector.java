@@ -44,9 +44,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Component
 public class PointCloudInspector implements InspectorType {
-	@Value("${s3.key.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${s3.key.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
