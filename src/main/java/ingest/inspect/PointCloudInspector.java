@@ -25,6 +25,7 @@ import model.job.metadata.SpatialMetadata;
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +33,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+
+import util.PiazzaLogger;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +47,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 @Component
 public class PointCloudInspector implements InspectorType {
+	@Autowired
+	private PiazzaLogger logger;
 	@Value("${vcap.services.pz-blobstore.credentials.access:}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.private:}")
@@ -66,27 +71,29 @@ public class PointCloudInspector implements InspectorType {
 		// Inject URL into the Post Payload
 		String payloadBody = String.format(pointCloudTemplate, awsS3Url);
 
-		// Post payload to point cloud endpoint for the metadata response
-		PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, payloadBody);
-
-		// Set the Metadata
+		// Attempt to populate Spatial metadata for the Point Cloud by pointing
+		// to the Point Cloud metadata service.
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
-		spatialMetadata.setMaxX(pointCloudResponse.getMaxx());
-		spatialMetadata.setMaxY(pointCloudResponse.getMaxy());
-		spatialMetadata.setMaxZ(pointCloudResponse.getMaxz());
-		spatialMetadata.setMinX(pointCloudResponse.getMinx());
-		spatialMetadata.setMinY(pointCloudResponse.getMiny());
-		spatialMetadata.setMinZ(pointCloudResponse.getMinz());
-		spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
-
-		// Replace \ escape character from spatial reference string
 		try {
+			// Post payload to point cloud endpoint for the metadata response
+			PointCloudResponse pointCloudResponse = postPointCloudTemplate(POINT_CLOUD_ENDPOINT, payloadBody);
+
+			// Set the Metadata
+			spatialMetadata.setMaxX(pointCloudResponse.getMaxx());
+			spatialMetadata.setMaxY(pointCloudResponse.getMaxy());
+			spatialMetadata.setMaxZ(pointCloudResponse.getMaxz());
+			spatialMetadata.setMinX(pointCloudResponse.getMinx());
+			spatialMetadata.setMinY(pointCloudResponse.getMiny());
+			spatialMetadata.setMinZ(pointCloudResponse.getMinz());
+			spatialMetadata.setCoordinateReferenceSystem(pointCloudResponse.getSpatialreference());
+
 			String formattedSpatialreference = pointCloudResponse.getSpatialreference().replace("\\\"", "\"");
 			// Decode CoordinateReferenceSystem and parse EPSG code
 			CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
 			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
 		} catch (Exception exception) {
-			System.out.println("Error parsing EPSG Code for Point Cloud.");
+			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s",
+					dataResource.getDataId(), awsS3Url, exception.getMessage()), PiazzaLogger.WARNING);
 		}
 
 		// Set the DataResource Spatial Metadata
