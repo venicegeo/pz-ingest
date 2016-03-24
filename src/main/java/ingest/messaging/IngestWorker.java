@@ -28,6 +28,8 @@ import model.job.JobProgress;
 import model.job.result.type.DataResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
+import model.job.type.SearchMetadataIngestJob;
+import model.response.PiazzaResponse;
 import model.status.StatusUpdate;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -63,6 +65,7 @@ public class IngestWorker implements Runnable {
 
 	private String EVENT_ID;
 	private String WORKFLOW_URL;
+	private String SEARCH_URL;
 
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an
@@ -86,10 +89,12 @@ public class IngestWorker implements Runnable {
 	 * @param workflowUrl
 	 *            The URL of the pz-workflow Alerter endpoint that will be
 	 *            POSTed to notify upon successful ingest
+	 * @param searchUrl
+	 *            The search ingest URL
 	 */
 	public IngestWorker(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
 			Producer<String, String> producer, WorkerCallback callback, UUIDFactory uuidFactory, PiazzaLogger logger,
-			String eventId, String workflowUrl) {
+			String eventId, String workflowUrl, String searchUrl) {
 		this.consumerRecord = consumerRecord;
 		this.inspector = inspector;
 		this.producer = producer;
@@ -98,6 +103,7 @@ public class IngestWorker implements Runnable {
 		this.logger = logger;
 		this.EVENT_ID = eventId;
 		this.WORKFLOW_URL = workflowUrl;
+		this.SEARCH_URL = searchUrl;
 	}
 
 	@Override
@@ -149,6 +155,15 @@ public class IngestWorker implements Runnable {
 					String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					PiazzaLogger.INFO);
 
+			// Fire the Event to Pz-Search that new metadata has been ingested
+			try {
+				dispatchMetadataIngestMessage(dataResource);
+			} catch (Exception exception) {
+				logger.log(String.format(
+						"Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
+						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
+			}
+
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
 			// place.
 			try {
@@ -170,6 +185,34 @@ public class IngestWorker implements Runnable {
 					+ exception.getMessage());
 		} finally {
 			callback.onComplete(consumerRecord.key());
+		}
+	}
+
+	/**
+	 * Dispatches the REST POST request to the pz-search service for the
+	 * ingestion of metadata for the newly ingested data resource.
+	 * 
+	 * @param dataResource
+	 *            The Data Resource to ingest metadata for
+	 */
+	private void dispatchMetadataIngestMessage(DataResource dataResource) {
+		// Create the Ingest Job that the Search Service Expects
+		SearchMetadataIngestJob job = new SearchMetadataIngestJob();
+		job.data = dataResource;
+
+		// Create Request Objects
+		RestTemplate restTemplate = new RestTemplate();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		HttpEntity<SearchMetadataIngestJob> entity = new HttpEntity<SearchMetadataIngestJob>(job, headers);
+
+		// Send the Request
+		try {
+			PiazzaResponse response = restTemplate.postForObject(SEARCH_URL, entity, PiazzaResponse.class);
+		} catch (Exception exception) {
+			// Log failure of Ingest
+			logger.log(String.format("Search Metadata Ingest for data %s failed with error: %s",
+					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.ERROR);
 		}
 	}
 
