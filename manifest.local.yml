@@ -4,7 +4,7 @@ applications:
   path: pz-ingest.jar
   buildpack: java_buildpack_offline
   domain: test.geointservices.io
-  memory: 512M
+  memory: 2048M
   instances: 1
   timeout: 80
   services:
