@@ -78,6 +78,8 @@ public class IngestThreadManager {
 	private String EVENT_ID;
 	@Value("${pz.workflow.url:}")
 	private String WORKFLOW_URL;
+	@Value("${pz.search.ingest.url:}")
+	private String SEARCH_URL;
 
 	private Producer<String, String> producer;
 	private ThreadPoolExecutor executor;
@@ -149,7 +151,7 @@ public class IngestThreadManager {
 					// Create a new worker to process this message and add it to
 					// the thread pool.
 					IngestWorker ingestWorker = new IngestWorker(consumerRecord, inspector, producer, callback,
-							uuidFactory, logger, EVENT_ID, String.format("http://%s", WORKFLOW_URL));
+							uuidFactory, logger, EVENT_ID, WORKFLOW_URL, SEARCH_URL);
 					Future<?> workerFuture = executor.submit(ingestWorker);
 
 					// Keep track of all Running Jobs
