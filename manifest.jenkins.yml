@@ -12,3 +12,5 @@ applications:
     - pz-blobstore
     - pz-postgres
     - pz-mongodb
+  env:
+    SPRING_PROFILES_ACTIVE: cloud,fade-stage
