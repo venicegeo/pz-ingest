@@ -122,11 +122,14 @@ public class WfsInspector implements InspectorType {
 		try {
 			// Get the Features from the WFS and add them to the PostGIS store
 			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
+			if (wfsFeatures.size() == 0) {
+				throw new Exception("No features could be collected from the WFS. Nothing to store.");
+			}
 			postGisFeatureStore.addFeatures(wfsFeatures);
 			// Commit the changes and clean up
 			transaction.commit();
 			transaction.close();
-		} catch (IOException exception) {
+		} catch (Exception exception) {
 			// Clean up resources
 			transaction.rollback();
 			transaction.close();
