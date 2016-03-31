@@ -4,10 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.geotools.data.DataStore;
+import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Transaction;
@@ -125,6 +128,23 @@ public class IngestUtilities {
 	}
 	
 	/**
+	 * Gets the GeoTools Feature Store for the Shapefile.
+	 * 
+	 * @param shapefilePath
+	 *            The full string path to the expanded *.shp shape file.
+	 * @return The GeoTools Shapefile Data Store Feature Source
+	 */
+	public FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath) throws IOException {
+		File shapefile = new File(shapefilePath);
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("url", shapefile.toURI().toURL());
+		DataStore dataStore = DataStoreFinder.getDataStore(map);
+		String typeName = dataStore.getTypeNames()[0];
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);
+		return featureSource;
+	}
+	
+	/**
 	 * Loads the contents of the Shapefile into the PostGIS Database.
 	 * 
 	 * @param shpFeatureSource
@@ -140,7 +160,6 @@ public class IngestUtilities {
 		String tableName = dataResource.getDataId();
 		
 		// Associate the table name with the shapefile resource
-		((ShapefileDataType) dataResource.getDataType()).setDatabaseTableName(tableName);
 		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
@@ -168,5 +187,27 @@ public class IngestUtilities {
 			// Cleanup Data Store
 			postGisStore.dispose();
 		}
+	}
+	
+	/**
+	 * Searches directory file list for the first matching file extension and
+	 * returns the name (non-recursive)
+	 * 
+	 * @param directoryPath
+	 *            Folder path to search
+	 * @param fileExtension
+	 *            File extension to match name
+	 * 
+	 * @return File name found in the directory
+	 */
+	public String findShapeFileName(String directoryPath) throws Exception {
+		File[] files = new File(directoryPath).listFiles();
+		for (int index = 0; index < files.length; index++) {
+			String fileName = files[index].getName();
+			if (fileName.toLowerCase().endsWith("." + "shp"))
+				return fileName;
+		}
+
+		throw new Exception("No shape file was found inside unzipped directory: " + directoryPath);
 	}
 }
