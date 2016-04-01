@@ -47,14 +47,13 @@ import ingest.utility.IngestUtilities;
 import util.PiazzaLogger;
 
 /**
- * Inspects geojson string and loads it into postGIS.
+ * Inspects GeoJSON string and loads it into postGIS only if host is true.
  * 
  * @author Sonny.Saniev
  * 
  */
 @Component
 public class GeoJsonInspector implements InspectorType {
-	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&VERSION=%s";
 	@Value("${vcap.services.pz-postgres.credentials.host}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-postgres.credentials.port}")
@@ -71,8 +70,7 @@ public class GeoJsonInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
-	@Value("${data.temp.geojson.path}")
-	private String DATA_TEMP_PATH;
+
 	@Autowired
 	IngestUtilities ingestUtilities;
 	@Autowired
@@ -80,46 +78,47 @@ public class GeoJsonInspector implements InspectorType {
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
-		
-		// Create local directory to hold the shapefile contents
+
+		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
-		
-		// Create new placeholder for new shapefile
-		File shapeFilePlaceHolder = new File(String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp"));
+		File shapeFilePlaceHolder = new File(
+				String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp"));
 		shapeFilePlaceHolder.createNewFile();
-		
-		// Map geojson to shapefile
-		File newShapeFile = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
-		
-		// Persisting mapped shapefile into the Piazza PostGIS database.
-		if (true || host ) {
-			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities.getShapefileDataStore(newShapeFile.getAbsolutePath());
+
+		// Persist mapped Shapefile into the Piazza PostGIS Database.
+		if (host) {
+
+			// Map GeoJSON to Shapefile
+			File newShapeFile = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
+
+			// Persist to PostGIS
+			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
+					.getShapefileDataStore(newShapeFile.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
 		}
 
-		// Delete temporary shapefile contents local folder 
-		ingestUtilities.deleteDirectoryRecursive(localWriteDir);
+		// Delete temporary Shapefile contents local temp folder
+		ingestUtilities.deleteDirectoryRecursive(shapeFilePlaceHolder.getParentFile());
 
 		// Return DataResource
 		return dataResource;
 	}
 
 	/**
-	 * @param geojson
-	 * @param dataResource
-	 * 			dadataresource to be used for unique temp folder output generation
+	 * 
+	 * @param shapefileOutput 
+	 * 			Shapefile file to map geojson into.
+	 * @param dataResource 
+	 * 			DataResource for unique names from id.
 	 * 
 	 * @return File object location of the newly created shapefile
-	 * 		
 	 * @throws Exception
 	 */
 	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
 
 		File geoJsonOriginalFile = getFile(dataResource);
 		//File geoJsonOriginalFile = new File("C:\\geoFiles\\geojson\\gz_2010_us_outline_500k.json");
-		//File geoJsonOriginalFile = new File("C:\\geoFiles\\geojson\\Hanson_Area_GS_NGA.geojson");
-		//File geoJsonOriginalFile = new File("C:\\geoFiles\\geojson\\Hanson_Output3_espg4326.geojson");
 
 		// Mapping geojson to shapefile
 		ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
@@ -153,6 +152,10 @@ public class GeoJsonInspector implements InspectorType {
 			logger.log(String.format("%s%s", typeName, " does not support read/write access"), PiazzaLogger.INFO);
 		}
 		
+		//clean up efforts
+		in.close();
+		ingestUtilities.deleteDirectoryRecursive(geoJsonOriginalFile.getParentFile());
+		
 		return shapefileOutput;
 	}
 	
@@ -163,13 +166,11 @@ public class GeoJsonInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	private File getFile(DataResource dataResource) throws Exception {
-		// Convert this to generic method, need to cast to generic type
-		File file = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "tif"));
-
+		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator, dataResource.getDataId(), "json"));
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
 		FileUtils.copyInputStreamToFile(fileStream, file);
-		
+
 		return file;
 	}
 }
