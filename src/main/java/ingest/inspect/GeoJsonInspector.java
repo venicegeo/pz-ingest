@@ -82,8 +82,8 @@ public class GeoJsonInspector implements InspectorType {
 		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
-		File shapeFilePlaceHolder = new File(
-				String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp"));
+		String file = String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp");
+		File shapeFilePlaceHolder = new File(file);
 		shapeFilePlaceHolder.createNewFile();
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.

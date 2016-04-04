@@ -138,6 +138,11 @@ public class IngestWorker implements Runnable {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
+			// handle the host= true
+			//copy to our aws bucket, and update filelocation to point to our local
+			// for story https://redmine.devops.geointservices.io/issues/1841
+			
+			
 			// Inspect processes the Data item. Adds appropriate
 			// metadata, and stores data if requested.
 			inspector.inspect(dataResource, ingestJob.getHost());
