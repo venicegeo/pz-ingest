@@ -118,7 +118,6 @@ public class GeoJsonInspector implements InspectorType {
 	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
 
 		File geoJsonOriginalFile = getFile(dataResource);
-		//File geoJsonOriginalFile = new File("C:\\geoFiles\\geojson\\gz_2010_us_outline_500k.json");
 
 		// Mapping geojson to shapefile
 		ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
