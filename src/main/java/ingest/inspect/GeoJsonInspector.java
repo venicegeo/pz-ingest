@@ -23,8 +23,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import model.data.DataResource;
+import model.data.DataType;
 import model.data.location.FileAccessFactory;
 import model.data.type.GeoJsonDataType;
+import model.data.type.PostGISDataType;
+import model.data.type.RasterDataType;
+
 import org.apache.commons.io.FileUtils;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
@@ -78,7 +82,7 @@ public class GeoJsonInspector implements InspectorType {
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
-
+		
 		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
@@ -87,8 +91,8 @@ public class GeoJsonInspector implements InspectorType {
 		shapeFilePlaceHolder.createNewFile();
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.
-		if (host) {
-
+		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
+			
 			// Map GeoJSON to Shapefile
 			File newShapeFile = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
 
@@ -96,6 +100,12 @@ public class GeoJsonInspector implements InspectorType {
 			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
 					.getShapefileDataStore(newShapeFile.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
+			
+			// Convert DataType to postgis from geojson
+			PostGISDataType postGisData = new PostGISDataType();
+			postGisData.database = POSTGRES_DB_NAME;
+			postGisData.table = dataResource.getDataId();
+			dataResource.dataType = postGisData;
 		}
 
 		// Delete temporary Shapefile contents local temp folder
