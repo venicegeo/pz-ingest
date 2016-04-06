@@ -125,7 +125,8 @@ public class IngestWorker2 {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 			// Copy to Piazza S3 Bucket, update FileLocation to Point to Piazza S3 Bucket
-			//ingestUtilities.copyS3Source(dataResource, ingestJob.getHost()); //comment in when copy functionality is ready.
+			// cleanup stuff, check for datatype locaiton is an s3 type before copying? ******
+			ingestUtilities.copyS3Source(dataResource, ingestJob.getHost());
 			
 			// Inspect processes the Data item. Adds appropriate metadata, and stores data if requested.
 			inspector.inspect(dataResource, ingestJob.getHost());

@@ -60,6 +60,8 @@ public class IngestUtilities {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.private:}")
 	private String AMAZONS3_PRIVATE_KEY;
+	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
+	private String AMAZONS3_BUCKET_NAME;
 	
 	private AmazonS3 s3Client;
 	
@@ -230,10 +232,12 @@ public class IngestUtilities {
 
 			// Write stream directly into an s3 bucket
 			ObjectMetadata metadata = new ObjectMetadata();
-			metadata.setContentLength(inputStream.available());
-			String fileKey = String.format("sonny-external-stream-test-%s-%s", dataResource.getDataId(), fileLocation.getFileName());
-			s3Client.putObject("piazza-persist", fileKey, inputStream, metadata);
+			//metadata.setContentLength(inputStream.toString().length());
 			
+			String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
+			s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
+			
+			// Clean up
 			inputStream.close();
 		}
 	}
