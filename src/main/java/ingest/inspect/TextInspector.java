@@ -32,7 +32,6 @@ public class TextInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource, boolean host) {
 		// TODO: What is there to inspect for a Text resource?
 		
-		System.out.println("===================================\n" + dataResource.getDataType().getType() );
 		return dataResource;
 	}
 

@@ -17,7 +17,11 @@ package ingest.messaging;
 
 import ingest.event.IngestEvent;
 import ingest.inspect.Inspector;
+import ingest.utility.IngestUtilities;
+
 import java.io.IOException;
+import java.util.concurrent.Future;
+
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
@@ -32,11 +36,15 @@ import model.status.StatusUpdate;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.AsyncResult;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
@@ -47,26 +55,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
 /**
- * Worker class that handles a specific Ingest Job. These Runnables are managed
- * by the ExecutorService defined in the IngestManager class.
+ * Worker class that handles a specific Ingest Job. 
+ * The threads are managed by the IngestThreadManager class.
  * 
- * @author Patrick.Doody
+ * @author Patrick.Doody & Sonny.Saniev
  * 
  */
-public class IngestWorker implements Runnable {
-	private ConsumerRecord<String, String> consumerRecord;
-	private Producer<String, String> producer;
+@Component
+public class IngestWorker2 {
 	private PiazzaLogger logger;
-	private UUIDFactory uuidFactory;
-	private Inspector inspector;
-	private WorkerCallback callback;
-	private String EVENT_ID;
-	private String WORKFLOW_URL;
-	private String SEARCH_URL;
 
+	@Autowired
+	IngestUtilities ingestUtilities;
+	
 	/**
-	 * Creates a new Worker Thread for the specified Kafka Message containing an
-	 * Ingest Job.
+	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
 	 * 
 	 * @param consumerRecord
 	 *            The Kafka Message containing the Job.
@@ -89,34 +92,22 @@ public class IngestWorker implements Runnable {
 	 * @param searchUrl
 	 *            The search ingest URL
 	 */
-	public IngestWorker(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
+	@Async
+	public Future<DataResource> run(ConsumerRecord<String, String> consumerRecord, Inspector inspector,
 			Producer<String, String> producer, WorkerCallback callback, UUIDFactory uuidFactory, PiazzaLogger logger,
-			String eventId, String workflowUrl, String searchUrl) {
-		this.consumerRecord = consumerRecord;
-		this.inspector = inspector;
-		this.producer = producer;
-		this.callback = callback;
-		this.uuidFactory = uuidFactory;
-		this.logger = logger;
-		this.EVENT_ID = eventId;
-		this.WORKFLOW_URL = workflowUrl;
-		this.SEARCH_URL = searchUrl;
-	}
+			String eventId, String workflowUrl, String searchUrl){
+		DataResource dataResource = null;
 
-	@Override
-	public void run() {
 		try {
 			// Log
-			logger.log(
-					String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
-							consumerRecord.key()), PiazzaLogger.INFO);
+			logger.log(String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(), consumerRecord.key()), PiazzaLogger.INFO);
 
 			// Parse the Job from the Kafka Message
 			ObjectMapper mapper = new ObjectMapper();
 			Job job = mapper.readValue(consumerRecord.value(), Job.class);
 			IngestJob ingestJob = (IngestJob) job.getJobType();
 			// Get the description of the Data to be ingested
-			DataResource dataResource = ingestJob.getData();
+			dataResource = ingestJob.getData();
 
 			// Assign a Resource ID to the incoming DataResource.
 			if (dataResource.getDataId() == null) {
@@ -125,18 +116,18 @@ public class IngestWorker implements Runnable {
 			}
 
 			// Log what we're going to Ingest
-			logger.log(String.format(
-					"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
-					dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(),
-					job.getJobId()), PiazzaLogger.INFO);
+			logger.log(String.format("Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
+							dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(), job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
-			// Inspect processes the Data item. Adds appropriate
-			// metadata, and stores data if requested.
+			// Copy to Piazza S3 Bucket, update FileLocation to Point to Piazza S3 Bucket
+			//ingestUtilities.copyS3Source(dataResource, ingestJob.getHost()); //comment in when copy functionality is ready.
+			
+			// Inspect processes the Data item. Adds appropriate metadata, and stores data if requested.
 			inspector.inspect(dataResource, ingestJob.getHost());
 
 			// Update Status when Complete
@@ -154,7 +145,7 @@ public class IngestWorker implements Runnable {
 
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
-				dispatchMetadataIngestMessage(dataResource);
+				dispatchMetadataIngestMessage(dataResource, searchUrl);
 			} catch (Exception exception) {
 				logger.log(String.format(
 						"Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
@@ -164,27 +155,29 @@ public class IngestWorker implements Runnable {
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
 			// place.
 			try {
-				dispatchWorkflowEvent(job, dataResource);
+				dispatchWorkflowEvent(job, dataResource, eventId, workflowUrl);
 			} catch (Exception exception) {
 				logger.log(String.format(
 						"Event for Ingest of Data %s for Job %s could not be sent to the Workflow Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
-			handleException(consumerRecord.key(), jsonException);
+			handleException(producer, consumerRecord.key(), jsonException);
 			System.out.println("Error Parsing Ingest Job Message.");
 		} catch (MongoException mongoException) {
-			handleException(consumerRecord.key(), mongoException);
+			handleException(producer, consumerRecord.key(), mongoException);
 			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
 		} catch (Exception exception) {
-			handleException(consumerRecord.key(), exception);
+			handleException(producer, consumerRecord.key(), exception);
 			System.out.println("An unexpected error occurred while processing the Job Message: "
 					+ exception.getMessage());
 		} finally {
 			callback.onComplete(consumerRecord.key());
 		}
+		
+		 return new AsyncResult<DataResource>(dataResource);
 	}
-
+	
 	/**
 	 * Dispatches the REST POST request to the pz-search service for the
 	 * ingestion of metadata for the newly ingested data resource.
@@ -192,7 +185,7 @@ public class IngestWorker implements Runnable {
 	 * @param dataResource
 	 *            The Data Resource to ingest metadata for
 	 */
-	private void dispatchMetadataIngestMessage(DataResource dataResource) {
+	private void dispatchMetadataIngestMessage(DataResource dataResource, String searchUrl) {
 		// Create the Ingest Job that the Search Service Expects
 		SearchMetadataIngestJob job = new SearchMetadataIngestJob();
 		job.data = dataResource;
@@ -205,7 +198,7 @@ public class IngestWorker implements Runnable {
 
 		// Send the Request
 		try {
-			PiazzaResponse response = restTemplate.postForObject(SEARCH_URL, entity, PiazzaResponse.class);
+			restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
 		} catch (Exception exception) {
 			// Log failure of Ingest
 			logger.log(String.format("Search Metadata Ingest for data %s failed with error: %s",
@@ -222,14 +215,14 @@ public class IngestWorker implements Runnable {
 	 * @param dataResource
 	 *            The DataResource that has been ingested
 	 */
-	private void dispatchWorkflowEvent(Job job, DataResource dataResource) throws Exception {
+	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String eventId, String workflowUrl) throws Exception {
 		RestTemplate restTemplate = new RestTemplate();
 		HttpHeaders headers = new HttpHeaders();
-		IngestEvent ingestEvent = new IngestEvent(EVENT_ID, job, dataResource);
+		IngestEvent ingestEvent = new IngestEvent(eventId, job, dataResource);
 		String ingestString = new ObjectMapper().writeValueAsString(ingestEvent);
 		HttpEntity<String> entity = new HttpEntity<String>(ingestString, headers);
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		ResponseEntity<Object> response = restTemplate.postForEntity(WORKFLOW_URL, entity, Object.class);
+		ResponseEntity<Object> response = restTemplate.postForEntity(workflowUrl, entity, Object.class);
 		if (response.getStatusCode() == HttpStatus.CREATED) {
 			// The Event was successfully received by pz-workflow
 			logger.log(
@@ -251,7 +244,7 @@ public class IngestWorker implements Runnable {
 	 * @param jobId
 	 * @param exception
 	 */
-	private void handleException(String jobId, Exception exception) {
+	private void handleException(Producer<String, String> producer, String jobId, Exception exception) {
 		exception.printStackTrace();
 		logger.log(
 				String.format("An Error occurred during Data Ingestion for Job %s: %s", jobId, exception.getMessage()),
@@ -266,5 +259,4 @@ public class IngestWorker implements Runnable {
 			jsonException.printStackTrace();
 		}
 	}
-
 }

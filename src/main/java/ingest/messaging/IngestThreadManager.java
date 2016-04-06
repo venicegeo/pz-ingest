@@ -67,6 +67,9 @@ public class IngestThreadManager {
 	@Autowired
 	private Inspector inspector;
 
+	@Autowired
+	private IngestWorker2 ingestWorker;
+	
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
@@ -148,11 +151,10 @@ public class IngestThreadManager {
 				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					// Create a new worker to process this message and add it to
-					// the thread pool.
-					IngestWorker ingestWorker = new IngestWorker(consumerRecord, inspector, producer, callback,
-							uuidFactory, logger, EVENT_ID, WORKFLOW_URL, SEARCH_URL);
-					Future<?> workerFuture = executor.submit(ingestWorker);
+
+					// Create a new worker to process this message and add it to the thread pool.
+					Future<?> workerFuture = ingestWorker.run(consumerRecord, inspector, producer, callback, uuidFactory, logger, EVENT_ID,
+							WORKFLOW_URL, SEARCH_URL);
 
 					// Keep track of all Running Jobs
 					runningJobs.put(consumerRecord.key(), workerFuture);
