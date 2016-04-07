@@ -15,18 +15,13 @@
  **/
 package ingest.messaging;
 
-import ingest.inspect.Inspector;
-import ingest.persist.PersistMetadata;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
@@ -45,7 +40,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
-import util.UUIDFactory;
 
 /**
  * Main listener class for Ingest Jobs. Handles an incoming Ingest Job request
@@ -61,14 +55,7 @@ public class IngestThreadManager {
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
-	private UUIDFactory uuidFactory;
-	@Autowired
-	private PersistMetadata metadataPersist;
-	@Autowired
-	private Inspector inspector;
-
-	@Autowired
-	private IngestWorker2 ingestWorker;
+	private IngestWorker ingestWorker;
 	
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
@@ -76,7 +63,6 @@ public class IngestThreadManager {
 	private String KAFKA_PORT;
 	@Value("${kafka.group}")
 	private String KAFKA_GROUP;
-
 	@Value("${pz.workflow.event.id}")
 	private String EVENT_ID;
 	@Value("${pz.workflow.url:}")
@@ -85,7 +71,6 @@ public class IngestThreadManager {
 	private String SEARCH_URL;
 
 	private Producer<String, String> producer;
-	private ThreadPoolExecutor executor;
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -106,7 +91,6 @@ public class IngestThreadManager {
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
 		// Initialize the Thread Pool and Map of running Threads
-		executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
 		runningJobs = new HashMap<String, Future<?>>();
 
 		// Start polling for Kafka Jobs on the Group Consumer.. This occurs on a
@@ -142,8 +126,7 @@ public class IngestThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
-					KAFKA_GROUP);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
 
 			// Poll
@@ -153,16 +136,14 @@ public class IngestThreadManager {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 
 					// Create a new worker to process this message and add it to the thread pool.
-					Future<?> workerFuture = ingestWorker.run(consumerRecord, inspector, producer, callback, uuidFactory, logger, EVENT_ID,
-							WORKFLOW_URL, SEARCH_URL);
+					Future<?> workerFuture = ingestWorker.run(consumerRecord, producer, callback);
 
 					// Keep track of all Running Jobs
 					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
 		}
 	}
 

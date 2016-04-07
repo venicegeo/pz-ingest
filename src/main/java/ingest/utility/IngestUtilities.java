@@ -214,9 +214,8 @@ public class IngestUtilities {
 	 * @param host if piazza should host the data
 	 * @throws Exception 
 	 */
-	public void copyS3Source(DataResource dataResource, boolean host) throws Exception{
-		if( host )
-		{
+	public void copyS3Source(DataResource dataResource) throws Exception{
+
 			// Connect to AWS S3 Bucket. Apply security only if credentials are present
 			if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
 				s3Client = new AmazonS3Client();
@@ -232,14 +231,11 @@ public class IngestUtilities {
 
 			// Write stream directly into an s3 bucket
 			ObjectMetadata metadata = new ObjectMetadata();
-			//metadata.setContentLength(inputStream.toString().length());
-			
 			String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
 			s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
 			
 			// Clean up
 			inputStream.close();
-		}
 	}
 	
 	/**
