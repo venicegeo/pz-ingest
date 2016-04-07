@@ -31,7 +31,6 @@ import model.data.DataResource;
 import model.data.FileRepresentation;
 import model.data.location.FileAccessFactory;
 import model.data.location.FileLocation;
-import model.data.type.ShapefileDataType;
 import util.GeoToolsUtil;
 
 /**
