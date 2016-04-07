@@ -46,6 +46,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import ingest.utility.IngestUtilities;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
@@ -80,7 +81,9 @@ public class ShapefileInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Autowired
 	private PiazzaLogger logger;
-
+	@Autowired
+	private IngestUtilities ingestUtilities;
+	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
@@ -98,12 +101,12 @@ public class ShapefileInspector implements InspectorType {
 		logger.log(String.format("Inspecting shapefile. Copied Zip to temporary path %s. Inflating contents into %s.",
 				shapefileZip.getAbsolutePath(), extractPath), PiazzaLogger.INFO);
 
-		extractZip(shapefileZip.getAbsolutePath(), extractPath);
+		ingestUtilities.extractZip(shapefileZip.getAbsolutePath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, findShapeFileName(extractPath));
+		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, ingestUtilities.findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getShapefileDataStore(shapefilePath);
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = ingestUtilities.getShapefileDataStore(shapefilePath);
 
 		// Get the Bounding Box, set the Spatial Metadata
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
@@ -122,182 +125,17 @@ public class ShapefileInspector implements InspectorType {
 
 		// Process and persist shapefile file into the Piazza PostGIS database.
 		if (host) {
-			persistShapeFile(featureSource, dataResource);
+			((ShapefileDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
+			ingestUtilities.persistShapeFile(featureSource, dataResource);
 		}
 
 		// Clean up the temporary Shapefile, and the directory that contained
 		// the expanded contents.
 		shapefileZip.delete();
-		deleteDirectoryRecursive(new File(extractPath));
+		ingestUtilities.deleteDirectoryRecursive(new File(extractPath));
 		featureSource.getDataStore().dispose();
 
 		// Return the populated metadata
 		return dataResource;
 	}
-
-	/**
-	 * Gets the GeoTools Feature Store for the Shapefile.
-	 * 
-	 * @param shapefilePath
-	 *            The full string path to the expanded *.shp shape file.
-	 * @return The GeoTools Shapefile Data Store Feature Source
-	 */
-	private FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath)
-			throws IOException {
-		File shapefile = new File(shapefilePath);
-		Map<String, Object> map = new HashMap<String, Object>();
-		map.put("url", shapefile.toURI().toURL());
-		DataStore dataStore = DataStoreFinder.getDataStore(map);
-		String typeName = dataStore.getTypeNames()[0];
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);
-		return featureSource;
-	}
-
-	/**
-	 * Loads the contents of the Shapefile into the PostGIS Database.
-	 * 
-	 * @param shpFeatureSource
-	 *            The GeoTools FeatureSource for the shapefile information.
-	 * @param dataResource
-	 *            The DataResource object with Shapefile metadata
-	 */
-	private void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource,
-			DataResource dataResource) throws Exception {
-		// Get the DataStore to the PostGIS database.
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
-
-		// Create the Schema in the Data Store
-		String tableName = dataResource.getDataId();
-		// Associate the Table name with the Shapefile Resource
-		((ShapefileDataType) dataResource.getDataType()).setDatabaseTableName(tableName);
-		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
-		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
-		postGisStore.createSchema(postGisSchema);
-		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
-
-		// Commit the Features to the Data Store
-		Transaction transaction = new DefaultTransaction();
-		try {
-			// Get the Features from the Shapefile and add to the PostGIS store
-			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) shpFeatureSource.getFeatures();
-			postGisFeatureStore.addFeatures(wfsFeatures);
-			// Commit the changes and clean up
-			transaction.commit();
-			transaction.close();
-		} catch (IOException exception) {
-			// Clean up resources
-			transaction.rollback();
-			transaction.close();
-			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
-			// Rethrow
-			throw exception;
-		} finally {
-			// Cleanup Data Store
-			postGisStore.dispose();
-		}
-	}
-
-	/**
-	 * Searches directory file list for the first matching file extension and
-	 * returns the name (non-recursive)
-	 * 
-	 * @param directoryPath
-	 *            Folder path to search
-	 * @param fileExtension
-	 *            File extension to match name
-	 * 
-	 * @return File name found in the directory
-	 */
-	private String findShapeFileName(String directoryPath) throws Exception {
-		File[] files = new File(directoryPath).listFiles();
-		for (int index = 0; index < files.length; index++) {
-			String fileName = files[index].getName();
-			if (fileName.toLowerCase().endsWith("." + "shp"))
-				return fileName;
-		}
-
-		throw new Exception("No shape file was found inside unzipped directory: " + directoryPath);
-	}
-
-	/**
-	 * Unzip the given zip into output directory
-	 * 
-	 * @param zipPath
-	 *            Zip file full path
-	 * @param extractPath
-	 *            Extracted zip output directory
-	 * 
-	 * @return boolean if successful
-	 */
-	private void extractZip(String zipPath, String extractPath) throws Exception {
-		byte[] buffer = new byte[1024];
-		try {
-			// Create output directory
-			File directory = new File(extractPath);
-			if (!directory.exists()) {
-				directory.mkdir();
-			}
-
-			// Stream from zip content
-			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
-
-			// Get initial file list entry
-			ZipEntry zipEntry = zipInputStream.getNextEntry();
-			while (zipEntry != null) {
-				String fileName = zipEntry.getName();
-				File newFile = new File(extractPath + File.separator + fileName);
-
-				// Create all non existing folders
-				new File(newFile.getParent()).mkdirs();
-				FileOutputStream outputStream = new FileOutputStream(newFile);
-
-				int length;
-				while ((length = zipInputStream.read(buffer)) > 0) {
-					outputStream.write(buffer, 0, length);
-				}
-
-				outputStream.close();
-				zipEntry = zipInputStream.getNextEntry();
-			}
-
-			zipInputStream.closeEntry();
-			zipInputStream.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
-		}
-	}
-
-	/**
-	 * Recursive deletion of directory
-	 * 
-	 * @param File
-	 *            Directory to be deleted
-	 * 
-	 * @return boolean if successful
-	 * @throws Exception
-	 */
-	private boolean deleteDirectoryRecursive(File directory) throws Exception {
-		boolean result = false;
-
-		if (directory.isDirectory()) {
-			File[] files = directory.listFiles();
-
-			for (int i = 0; i < files.length; i++) {
-				if (files[i].isDirectory()) {
-					deleteDirectoryRecursive(files[i]);
-				}
-
-				if (!files[i].delete())
-					throw new Exception("Unable to delete file " + files[i].getName() + " from "
-							+ directory.getAbsolutePath());
-			}
-
-			result = directory.delete();
-		}
-
-		return result;
-	}
-
 }

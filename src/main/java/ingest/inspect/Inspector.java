@@ -17,6 +17,7 @@ package ingest.inspect;
 
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
+import model.data.type.GeoJsonDataType;
 import model.data.type.PointCloudDataType;
 import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
@@ -48,6 +49,8 @@ public class Inspector {
 	private GeoTiffInspector geotiffInspector;
 	@Autowired
 	private PointCloudInspector pointCloudInspector;
+	@Autowired
+	private GeoJsonInspector geoJsonInspector;
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -95,6 +98,8 @@ public class Inspector {
 			return geotiffInspector;
 		case PointCloudDataType.type:
 			return pointCloudInspector;
+		case GeoJsonDataType.type:
+			return geoJsonInspector;
 		case PostGISDataType.type:
 		}
 		throw new Exception("An Inspector was not found for the following data type: "
