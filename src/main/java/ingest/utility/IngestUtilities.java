@@ -208,7 +208,7 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Will copy external AWS S3 file to piazza S3 Bucket if host is true.
+	 * Will copy external AWS S3 file to piazza S3 Bucket 
 	 *  
 	 * @param dataResource
 	 * @param host if piazza should host the data
