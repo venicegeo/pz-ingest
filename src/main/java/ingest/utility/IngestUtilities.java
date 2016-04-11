@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -21,8 +22,15 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+
 import model.data.DataResource;
-import model.data.type.ShapefileDataType;
+import model.data.FileRepresentation;
+import model.data.location.FileAccessFactory;
+import model.data.location.FileLocation;
 import util.GeoToolsUtil;
 
 /**
@@ -46,6 +54,15 @@ public class IngestUtilities {
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
+	
+	@Value("${vcap.services.pz-blobstore.credentials.access:}")
+	private String AMAZONS3_ACCESS_KEY;
+	@Value("${vcap.services.pz-blobstore.credentials.private:}")
+	private String AMAZONS3_PRIVATE_KEY;
+	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
+	private String AMAZONS3_BUCKET_NAME;
+	
+	private AmazonS3 s3Client;
 	
 	/**
 	 * Recursive deletion of directory
@@ -187,6 +204,37 @@ public class IngestUtilities {
 			// Cleanup Data Store
 			postGisStore.dispose();
 		}
+	}
+
+	/**
+	 * Will copy external AWS S3 file to piazza S3 Bucket 
+	 *  
+	 * @param dataResource
+	 * @param host if piazza should host the data
+	 * @throws Exception 
+	 */
+	public void copyS3Source(DataResource dataResource) throws Exception{
+
+			// Connect to AWS S3 Bucket. Apply security only if credentials are present
+			if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
+				s3Client = new AmazonS3Client();
+			} else {
+				BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+				s3Client = new AmazonS3Client(credentials);
+			}
+
+			// Obtain file input stream
+			FileLocation fileLocation = ((FileRepresentation)dataResource.getDataType()).getLocation();
+			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY,AMAZONS3_PRIVATE_KEY);
+			InputStream inputStream = fileFactory.getFile(fileLocation);
+
+			// Write stream directly into an s3 bucket
+			ObjectMetadata metadata = new ObjectMetadata();
+			String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
+			s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
+			
+			// Clean up
+			inputStream.close();
 	}
 	
 	/**
