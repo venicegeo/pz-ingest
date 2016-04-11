@@ -100,13 +100,15 @@ public class IngestWorker {
 	 *            processing (error or success, regardless)
 	 */
 	@Async
-	public Future<DataResource> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer, WorkerCallback callback) {
+	public Future<DataResource> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
+			WorkerCallback callback) {
 		DataResource dataResource = null;
 
 		try {
 			// Log
-			logger.log(String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(), consumerRecord.key()),
-					PiazzaLogger.INFO);
+			logger.log(
+					String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
+							consumerRecord.key()), PiazzaLogger.INFO);
 
 			// Parse the Job from the Kafka Message
 			ObjectMapper mapper = new ObjectMapper();
@@ -122,10 +124,10 @@ public class IngestWorker {
 			}
 
 			// Log what we're going to Ingest
-			logger.log(
-					String.format("Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
-							dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(), job.getJobId()),
-					PiazzaLogger.INFO);
+			logger.log(String.format(
+					"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
+					dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(),
+					job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
@@ -133,7 +135,7 @@ public class IngestWorker {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 			// Copy to piazza S3 bucket
-			if ((ingestJob.getHost() && (ingestJob.getData().getDataType() instanceof FileRepresentation)) {
+			if ((ingestJob.getHost() && (ingestJob.getData().getDataType() instanceof FileRepresentation))) {
 				ingestUtilities.copyS3Source(dataResource);
 			}
 
@@ -145,27 +147,32 @@ public class IngestWorker {
 			jobProgress.percentComplete = 100;
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 
-			// The result of this Job was creating a resource at the specified ID.
+			// The result of this Job was creating a resource at the specified
+			// ID.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 			// Console Logging
-			logger.log(String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
+			logger.log(
+					String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					PiazzaLogger.INFO);
 
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
 				dispatchMetadataIngestMessage(dataResource, SEARCH_URL);
 			} catch (Exception exception) {
-				logger.log(String.format("Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
+				logger.log(String.format(
+						"Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 
-			// Fire the Event to Pz-Workflow that a successful Ingest has taken place.
+			// Fire the Event to Pz-Workflow that a successful Ingest has taken
+			// place.
 			try {
 				dispatchWorkflowEvent(job, dataResource, EVENT_ID, WORKFLOW_URL);
 			} catch (Exception exception) {
-				logger.log(String.format("Event for Ingest of Data %s for Job %s could not be sent to the Workflow Service: %s",
+				logger.log(String.format(
+						"Event for Ingest of Data %s for Job %s could not be sent to the Workflow Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
@@ -176,7 +183,8 @@ public class IngestWorker {
 			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
 		} catch (Exception exception) {
 			handleException(producer, consumerRecord.key(), exception);
-			System.out.println("An unexpected error occurred while processing the Job Message: " + exception.getMessage());
+			System.out.println("An unexpected error occurred while processing the Job Message: "
+					+ exception.getMessage());
 		} finally {
 			callback.onComplete(consumerRecord.key());
 		}
