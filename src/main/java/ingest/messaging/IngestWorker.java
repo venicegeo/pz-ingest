@@ -25,6 +25,7 @@ import java.util.concurrent.Future;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
+import model.data.FileRepresentation;
 import model.job.Job;
 import model.job.JobProgress;
 import model.job.result.type.DataResult;
@@ -56,8 +57,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
 /**
- * Worker class that handles a specific Ingest Job. 
- * The threads are managed by the IngestThreadManager class.
+ * Worker class that handles a specific Ingest Job. The threads are managed by
+ * the IngestThreadManager class.
  * 
  * @author Patrick.Doody & Sonny.Saniev
  * 
@@ -76,7 +77,7 @@ public class IngestWorker {
 
 	@Autowired
 	private PiazzaLogger logger;
-	
+
 	@Autowired
 	private Inspector inspector;
 
@@ -87,7 +88,8 @@ public class IngestWorker {
 	private UUIDFactory uuidFactory;
 
 	/**
-	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
+	 * Creates a new Worker Thread for the specified Kafka Message containing an
+	 * Ingest Job.
 	 * 
 	 * @param consumerRecord
 	 *            The Kafka Message containing the Job.
@@ -131,7 +133,7 @@ public class IngestWorker {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
 			// Copy to piazza S3 bucket
-			if (ingestJob.getHost()) {
+			if ((ingestJob.getHost() && (ingestJob.getData().getDataType() instanceof FileRepresentation)) {
 				ingestUtilities.copyS3Source(dataResource);
 			}
 
@@ -181,7 +183,7 @@ public class IngestWorker {
 
 		return new AsyncResult<DataResource>(dataResource);
 	}
-	
+
 	/**
 	 * Dispatches the REST POST request to the pz-search service for the
 	 * ingestion of metadata for the newly ingested data resource.
@@ -219,7 +221,8 @@ public class IngestWorker {
 	 * @param dataResource
 	 *            The DataResource that has been ingested
 	 */
-	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String eventId, String workflowUrl) throws Exception {
+	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String eventId, String workflowUrl)
+			throws Exception {
 		RestTemplate restTemplate = new RestTemplate();
 		HttpHeaders headers = new HttpHeaders();
 		IngestEvent ingestEvent = new IngestEvent(eventId, job, dataResource);
