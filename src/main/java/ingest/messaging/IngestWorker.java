@@ -134,10 +134,12 @@ public class IngestWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
 
+			/* Temporarily disabled until this can be fully tested.
 			// Copy to piazza S3 bucket
 			if ((ingestJob.getHost() && (ingestJob.getData().getDataType() instanceof FileRepresentation))) {
 				ingestUtilities.copyS3Source(dataResource);
 			}
+			*/
 
 			// Inspect processes the Data item,
 			// adds appropriate metadata and stores if requested
