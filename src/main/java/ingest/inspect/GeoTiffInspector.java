@@ -30,8 +30,11 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import util.PiazzaLogger;
 
 /**
  * Inspects GeoTIFF file, parsing essential metadata from it.
@@ -41,6 +44,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class GeoTiffInspector implements InspectorType {
+	@Autowired
+	private PiazzaLogger logger;
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
 	@Value("${vcap.services.pz-blobstore.credentials.access:}")
@@ -52,7 +57,9 @@ public class GeoTiffInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 
 		// Gather GeoTIFF relevant metadata
-		GridCoverage2D coverage = getGridCoverage(dataResource);
+		String fileName = String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "tif");
+		File geoTiffFile = new File(fileName);
+		GridCoverage2D coverage = getGridCoverage(dataResource, geoTiffFile);
 		CoordinateReferenceSystem coordinateReferenceSystem = coverage.getCoordinateReferenceSystem();
 		double[] upperRightCorner = coverage.getEnvelope().getUpperCorner().getDirectPosition().getCoordinate();
 		double[] lowerLeftCorner = coverage.getEnvelope().getLowerCorner().getDirectPosition().getCoordinate();
@@ -71,6 +78,15 @@ public class GeoTiffInspector implements InspectorType {
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
+		// Delete the file; cleanup.
+		try {
+			coverage.dispose(true);
+			geoTiffFile.delete();
+		} catch (Exception exception) {
+			logger.log(String.format("Error cleaning up GeoTiff file for %s ingest: %s", dataResource.getDataId(),
+					exception.getMessage()), PiazzaLogger.WARNING);
+		}
+
 		// Return the metadata
 		return dataResource;
 	}
@@ -82,17 +98,15 @@ public class GeoTiffInspector implements InspectorType {
 	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
-	private GridCoverage2D getGridCoverage(DataResource dataResource) throws Exception {
+	private GridCoverage2D getGridCoverage(DataResource dataResource, File file) throws Exception {
 		// Get the file from S3
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());
-		File geoTiffFile = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator,
-				dataResource.getDataId(), "tif"));
-		FileUtils.copyInputStreamToFile(tiffFileStream, geoTiffFile);
+		FileUtils.copyInputStreamToFile(tiffFileStream, file);
 
 		// Read the coverage file
-		AbstractGridFormat format = GridFormatFinder.findFormat(geoTiffFile);
-		GridCoverage2DReader reader = format.getReader(geoTiffFile);
+		AbstractGridFormat format = GridFormatFinder.findFormat(file);
+		GridCoverage2DReader reader = format.getReader(file);
 		GridCoverage2D coverage = (GridCoverage2D) reader.read(null);
 
 		return coverage;
