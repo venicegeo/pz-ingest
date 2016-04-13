@@ -15,6 +15,8 @@
  **/
 package ingest.inspect;
 
+import ingest.utility.IngestUtilities;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -23,11 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import model.data.DataResource;
-import model.data.DataType;
 import model.data.location.FileAccessFactory;
 import model.data.type.GeoJsonDataType;
-import model.data.type.PostGISDataType;
-import model.data.type.RasterDataType;
 
 import org.apache.commons.io.FileUtils;
 import org.geotools.data.DefaultTransaction;
@@ -47,7 +46,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import ingest.utility.IngestUtilities;
 import util.PiazzaLogger;
 
 /**
@@ -82,17 +80,18 @@ public class GeoJsonInspector implements InspectorType {
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
-		
+
 		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
-		String file = String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp");
+		String file = String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator,
+				dataResource.getDataId(), ".shp");
 		File shapeFilePlaceHolder = new File(file);
 		shapeFilePlaceHolder.createNewFile();
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
-			
+
 			// Map GeoJSON to Shapefile
 			File newShapeFile = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
 
@@ -100,12 +99,9 @@ public class GeoJsonInspector implements InspectorType {
 			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
 					.getShapefileDataStore(newShapeFile.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
-			
+
 			// Convert DataType to postgis from geojson
-			PostGISDataType postGisData = new PostGISDataType();
-			postGisData.database = POSTGRES_DB_NAME;
-			postGisData.table = dataResource.getDataId();
-			dataResource.dataType = postGisData;
+			((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
 		}
 
 		// Delete temporary Shapefile contents local temp folder
@@ -117,10 +113,10 @@ public class GeoJsonInspector implements InspectorType {
 
 	/**
 	 * 
-	 * @param shapefileOutput 
-	 * 			Shapefile file to map geojson into.
-	 * @param dataResource 
-	 * 			DataResource for unique names from id.
+	 * @param shapefileOutput
+	 *            Shapefile file to map geojson into.
+	 * @param dataResource
+	 *            DataResource for unique names from id.
 	 * 
 	 * @return File object location of the newly created shapefile
 	 * @throws Exception
@@ -160,22 +156,24 @@ public class GeoJsonInspector implements InspectorType {
 		} else {
 			logger.log(String.format("%s%s", typeName, " does not support read/write access"), PiazzaLogger.INFO);
 		}
-		
-		//clean up efforts
+
+		// clean up efforts
 		in.close();
 		ingestUtilities.deleteDirectoryRecursive(geoJsonOriginalFile.getParentFile());
-		
+
 		return shapefileOutput;
 	}
-	
+
 	/**
 	 * 
-	 * @param dataResource data resource to pull file from 
+	 * @param dataResource
+	 *            data resource to pull file from
 	 * @return File object
 	 * @throws Exception
 	 */
 	private File getFile(DataResource dataResource) throws Exception {
-		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator, dataResource.getDataId(), "json"));
+		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator,
+				dataResource.getDataId(), "json"));
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
 		FileUtils.copyInputStreamToFile(fileStream, file);
