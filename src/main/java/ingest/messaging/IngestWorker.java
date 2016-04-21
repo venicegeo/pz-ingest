@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
-import model.data.FileRepresentation;
 import model.job.Job;
 import model.job.JobProgress;
 import model.job.result.type.DataResult;
@@ -65,6 +64,8 @@ import com.mongodb.MongoException;
  */
 @Component
 public class IngestWorker {
+	@Value("${space}")
+	private String space;
 
 	@Value("${pz.workflow.event.id}")
 	private String EVENT_ID;
@@ -132,14 +133,15 @@ public class IngestWorker {
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
-			/* Temporarily disabled until this can be fully tested.
-			// Copy to piazza S3 bucket
-			if ((ingestJob.getHost() && (ingestJob.getData().getDataType() instanceof FileRepresentation))) {
-				ingestUtilities.copyS3Source(dataResource);
-			}
-			*/
+			/*
+			 * Temporarily disabled until this can be fully tested. // Copy to
+			 * piazza S3 bucket if ((ingestJob.getHost() &&
+			 * (ingestJob.getData().getDataType() instanceof
+			 * FileRepresentation))) {
+			 * ingestUtilities.copyS3Source(dataResource); }
+			 */
 
 			// Inspect processes the Data item,
 			// adds appropriate metadata and stores if requested
@@ -152,7 +154,7 @@ public class IngestWorker {
 			// The result of this Job was creating a resource at the specified
 			// ID.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
 			// Console Logging
 			logger.log(
@@ -269,7 +271,7 @@ public class IngestWorker {
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Ingesting the Data.", exception.getMessage()));
-			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate));
+			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, space));
 		} catch (JsonProcessingException jsonException) {
 			System.out.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
 					+ jsonException.getMessage());

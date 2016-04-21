@@ -56,7 +56,7 @@ public class IngestThreadManager {
 	private PiazzaLogger logger;
 	@Autowired
 	private IngestWorker ingestWorker;
-	
+
 	@Value("${vcap.services.pz-kafka.credentials.host}")
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
@@ -69,6 +69,8 @@ public class IngestThreadManager {
 	private String WORKFLOW_URL;
 	@Value("${pz.search.ingest.url:}")
 	private String SEARCH_URL;
+	@Value("${space}")
+	private String space;
 
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
@@ -126,8 +128,9 @@ public class IngestThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
-			generalConsumer.subscribe(Arrays.asList(INGEST_TOPIC_NAME));
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
+					KAFKA_GROUP);
+			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
@@ -135,7 +138,8 @@ public class IngestThreadManager {
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 
-					// Create a new worker to process this message and add it to the thread pool.
+					// Create a new worker to process this message and add it to
+					// the thread pool.
 					Future<?> workerFuture = ingestWorker.run(consumerRecord, producer, callback);
 
 					// Keep track of all Running Jobs
@@ -143,7 +147,8 @@ public class IngestThreadManager {
 				}
 			}
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()), PiazzaLogger.FATAL);
+			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
+					PiazzaLogger.FATAL);
 		}
 	}
 
@@ -156,7 +161,8 @@ public class IngestThreadManager {
 			// Create the Unique Consumer
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(JobMessageFactory.ABORT_JOB_TOPIC_NAME));
+			uniqueConsumer.subscribe(Arrays.asList(String
+					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
 
 			// Poll
 			while (!closed.get()) {
