@@ -10,7 +10,7 @@ applications:
   services:
     - pz-kafka
     - pz-blobstore
-    - pz-postgres
+    - pz-geoserver
     - pz-mongodb
   env:
     SPRING_PROFILES_ACTIVE: cloud,fade-stage
