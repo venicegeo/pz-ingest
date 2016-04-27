@@ -56,15 +56,15 @@ import util.PiazzaLogger;
  */
 @Component
 public class GeoJsonInspector implements InspectorType {
-	@Value("${vcap.services.pz-geoserver.postgres.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-geoserver.postgres.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-geoserver.postgres.database}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-geoserver.postgres.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-geoserver.postgres.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;

@@ -61,15 +61,15 @@ import util.PiazzaLogger;
  */
 @Component
 public class ShapefileInspector implements InspectorType {
-	@Value("${vcap.services.pz-geoserver.postgres.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-geoserver.postgres.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-geoserver.postgres.database}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-geoserver.postgres.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-geoserver.postgres.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
