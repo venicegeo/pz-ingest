@@ -56,19 +56,19 @@ import util.PiazzaLogger;
  */
 @Component
 public class GeoJsonInspector implements InspectorType {
-	@Value("${vcap.services.pz-postgres.credentials.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-postgres.credentials.port}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-postgres.credentials.database}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-postgres.credentials.username}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-postgres.credentials.password}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.password}")
 	private String POSTGRES_PASSWORD;
-	@Value("${vcap.services.pz-blobstore.credentials.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-blobstore.credentials.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
