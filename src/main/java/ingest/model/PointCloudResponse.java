@@ -30,30 +30,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PointCloudResponse {
-
 	@JsonProperty("spatialreference")
 	public String spatialreference;
-	
 	@JsonProperty("maxx")
 	public Double maxx;
-	
 	@JsonProperty("maxy")
 	public Double maxy;
-	
 	@JsonProperty("maxz")
 	public Double maxz;
-	
 	@JsonProperty("minx")
 	public Double minx;
-	
 	@JsonProperty("miny")
 	public Double miny;
-	
 	@JsonProperty("minz")
 	public Double minz;
-	
 
-	public PointCloudResponse(String spatialreference, Double maxx, Double maxy, Double maxz, Double minx, Double miny, Double minz) {
+	public PointCloudResponse(String spatialreference, Double maxx, Double maxy, Double maxz, Double minx, Double miny,
+			Double minz) {
 		this.spatialreference = spatialreference;
 		this.maxx = maxx;
 		this.maxy = maxy;
@@ -124,7 +117,7 @@ public class PointCloudResponse {
 
 	@Override
 	public String toString() {
-		return "PointCloudResponse [spatialreference=" + spatialreference + ", maxx=" + maxx + ", maxy=" + maxy + ", maxz=" + maxz
-				+ ", minx=" + minx + ", miny=" + miny + ", minz=" + minz + "]";
+		return "PointCloudResponse [spatialreference=" + spatialreference + ", maxx=" + maxx + ", maxy=" + maxy
+				+ ", maxz=" + maxz + ", minx=" + minx + ", miny=" + miny + ", minz=" + minz + "]";
 	}
 }

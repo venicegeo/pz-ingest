@@ -42,15 +42,15 @@ import util.GeoToolsUtil;
 @Component
 public class IngestUtilities {
 	
-	@Value("${vcap.services.pz-postgres.credentials.host}")
+	@Value("${vcap.services.pz-geoserver.postgres.host}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-postgres.credentials.port}")
+	@Value("${vcap.services.pz-geoserver.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-postgres.credentials.database}")
+	@Value("${vcap.services.pz-geoserver.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-postgres.credentials.username}")
+	@Value("${vcap.services.pz-geoserver.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-postgres.credentials.password}")
+	@Value("${vcap.services.pz-geoserver.postgres.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;

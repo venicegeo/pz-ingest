@@ -66,25 +66,19 @@ import com.mongodb.MongoException;
 public class IngestWorker {
 	@Value("${space}")
 	private String space;
-
 	@Value("${pz.workflow.event.id}")
 	private String EVENT_ID;
-
 	@Value("${pz.search.ingest.url:}")
 	private String SEARCH_URL;
-
 	@Value("${pz.workflow.url:}")
 	private String WORKFLOW_URL;
 
 	@Autowired
 	private PiazzaLogger logger;
-
 	@Autowired
 	private Inspector inspector;
-
 	@Autowired
 	private IngestUtilities ingestUtilities;
-
 	@Autowired
 	private UUIDFactory uuidFactory;
 
