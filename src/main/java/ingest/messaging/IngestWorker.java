@@ -25,6 +25,10 @@ import java.util.concurrent.Future;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
+import model.data.DataType;
+import model.data.FileRepresentation;
+import model.data.location.FileLocation;
+import model.data.location.S3FileStore;
 import model.job.Job;
 import model.job.JobProgress;
 import model.job.result.type.DataResult;
@@ -46,6 +50,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
@@ -76,6 +81,9 @@ public class IngestWorker {
 	@Value("${pz.workflow.url:}")
 	private String WORKFLOW_URL;
 
+	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
+	private String AMAZONS3_BUCKET_NAME;
+	
 	@Autowired
 	private PiazzaLogger logger;
 
@@ -135,13 +143,22 @@ public class IngestWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
-			/*
-			 * Temporarily disabled until this can be fully tested. // Copy to
-			 * piazza S3 bucket if ((ingestJob.getHost() &&
-			 * (ingestJob.getData().getDataType() instanceof
-			 * FileRepresentation))) {
-			 * ingestUtilities.copyS3Source(dataResource); }
-			 */
+			// Copy to Piazza S3 bucket if hosted = true; If already in S3, make sure it's different than the Piazza S3.
+			if( ingestJob.getHost().booleanValue() && ingestJob.getData().getDataType() instanceof FileRepresentation ) {
+				
+				FileLocation fileLoc = ((FileRepresentation)(ingestJob.getData().getDataType())).getLocation();
+
+				if( fileLoc.getType().equalsIgnoreCase(S3FileStore.type) ) {
+					if( !((S3FileStore)fileLoc).getBucketName().equals(AMAZONS3_BUCKET_NAME) ) {
+						System.out.println("Copying!"); 
+						ingestUtilities.copyS3Source(dataResource);
+//						ReflectionUtils.invokeMethod(method, target)
+					}
+				}
+				else {
+					ingestUtilities.copyS3Source(dataResource);
+				}
+			}
 
 			// Inspect processes the Data item,
 			// adds appropriate metadata and stores if requested
@@ -278,4 +295,10 @@ public class IngestWorker {
 			jsonException.printStackTrace();
 		}
 	}
+	
+//	private void copyToS3() {
+//		ingestUtilities.copyS3Source(dataResource);
+//		ReflectionUtils.findMethod(clazz, name)
+//		ReflectionUtils.invokeMethod(method, target)
+//	}
 }
