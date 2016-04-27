@@ -25,9 +25,9 @@ import java.util.concurrent.Future;
 import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
-import model.data.DataType;
 import model.data.FileRepresentation;
 import model.data.location.FileLocation;
+import model.data.location.FolderShare;
 import model.data.location.S3FileStore;
 import model.job.Job;
 import model.job.JobProgress;
@@ -50,7 +50,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ReflectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 import util.PiazzaLogger;
@@ -64,7 +63,7 @@ import com.mongodb.MongoException;
  * Worker class that handles a specific Ingest Job. The threads are managed by
  * the IngestThreadManager class.
  * 
- * @author Patrick.Doody & Sonny.Saniev
+ * @author Patrick.Doody & Sonny.Saniev & Russell.Orf
  * 
  */
 @Component
@@ -77,7 +76,6 @@ public class IngestWorker {
 	private String SEARCH_URL;
 	@Value("${pz.workflow.url:}")
 	private String WORKFLOW_URL;
-
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
 	
@@ -137,26 +135,39 @@ public class IngestWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, space));
 
-			// Copy to Piazza S3 bucket if hosted = true; If already in S3, make sure it's different than the Piazza S3.
-			if( ingestJob.getHost().booleanValue() && ingestJob.getData().getDataType() instanceof FileRepresentation ) {
-				
-				FileLocation fileLoc = ((FileRepresentation)(ingestJob.getData().getDataType())).getLocation();
+			// Inspect processes the Data item, adds appropriate metadata and
+			// stores if requested
+			inspector.inspect(dataResource, ingestJob.getHost());
 
-				if( fileLoc.getType().equalsIgnoreCase(S3FileStore.type) ) {
-					if( !((S3FileStore)fileLoc).getBucketName().equals(AMAZONS3_BUCKET_NAME) ) {
-						System.out.println("Copying!"); 
+			// Copy to Piazza S3 bucket if hosted = true; If already in S3, make
+			// sure it's different than the Piazza S3.
+			if (ingestJob.getHost().booleanValue() && ingestJob.getData().getDataType() instanceof FileRepresentation) {
+
+				FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
+				FileLocation fileLoc = fileRep.getLocation();
+
+				switch (fileLoc.getType()) {
+					case S3FileStore.type:
+						S3FileStore s3FS = (S3FileStore) fileLoc;
+
+						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+							ingestUtilities.copyS3Source(dataResource);
+							fileRep.setLocation(
+									new S3FileStore(AMAZONS3_BUCKET_NAME, s3FS.getFileName(), s3FS.getDomainName()));
+						}
+						break;
+
+					case FolderShare.type:
 						ingestUtilities.copyS3Source(dataResource);
-//						ReflectionUtils.invokeMethod(method, target)
-					}
-				}
-				else {
-					ingestUtilities.copyS3Source(dataResource);
+						break;
+
+					default:
+						logger.log(
+								String.format("Unknown File Type for %s, Job %s", dataResource.getDataId(), job.getJobId()),
+								PiazzaLogger.WARNING);
+						break;
 				}
 			}
-
-			// Inspect processes the Data item,
-			// adds appropriate metadata and stores if requested
-			inspector.inspect(dataResource, ingestJob.getHost());
 
 			// Update Status when Complete
 			jobProgress.percentComplete = 100;
@@ -289,10 +300,4 @@ public class IngestWorker {
 			jsonException.printStackTrace();
 		}
 	}
-	
-//	private void copyToS3() {
-//		ingestUtilities.copyS3Source(dataResource);
-//		ReflectionUtils.findMethod(clazz, name)
-//		ReflectionUtils.invokeMethod(method, target)
-//	}
 }
