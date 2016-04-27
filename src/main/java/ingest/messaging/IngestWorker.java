@@ -78,7 +78,7 @@ public class IngestWorker {
 	private String WORKFLOW_URL;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
-	
+
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
@@ -107,9 +107,8 @@ public class IngestWorker {
 
 		try {
 			// Log
-			logger.log(
-					String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
-							consumerRecord.key()), PiazzaLogger.INFO);
+			logger.log(String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
+					consumerRecord.key()), PiazzaLogger.INFO);
 
 			// Parse the Job from the Kafka Message
 			ObjectMapper mapper = new ObjectMapper();
@@ -147,25 +146,25 @@ public class IngestWorker {
 				FileLocation fileLoc = fileRep.getLocation();
 
 				switch (fileLoc.getType()) {
-					case S3FileStore.type:
-						S3FileStore s3FS = (S3FileStore) fileLoc;
+				case S3FileStore.type:
+					S3FileStore s3FS = (S3FileStore) fileLoc;
 
-						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
-							ingestUtilities.copyS3Source(dataResource);
-							fileRep.setLocation(
-									new S3FileStore(AMAZONS3_BUCKET_NAME, s3FS.getFileName(), s3FS.getDomainName()));
-						}
-						break;
-
-					case FolderShare.type:
+					if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 						ingestUtilities.copyS3Source(dataResource);
-						break;
+						fileRep.setLocation(
+								new S3FileStore(AMAZONS3_BUCKET_NAME, s3FS.getFileName(), s3FS.getDomainName()));
+					}
+					break;
 
-					default:
-						logger.log(
-								String.format("Unknown File Type for %s, Job %s", dataResource.getDataId(), job.getJobId()),
-								PiazzaLogger.WARNING);
-						break;
+				case FolderShare.type:
+					ingestUtilities.copyS3Source(dataResource);
+					break;
+
+				default:
+					logger.log(
+							String.format("Unknown File Type for %s, Job %s", dataResource.getDataId(), job.getJobId()),
+							PiazzaLogger.WARNING);
+					break;
 				}
 			}
 
@@ -187,9 +186,10 @@ public class IngestWorker {
 			try {
 				dispatchMetadataIngestMessage(dataResource, SEARCH_URL);
 			} catch (Exception exception) {
-				logger.log(String.format(
-						"Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
+				logger.log(
+						String.format("Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
+								dataResource.getDataId(), job.getJobId(), exception.getMessage()),
+						PiazzaLogger.ERROR);
 			}
 
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
@@ -209,8 +209,8 @@ public class IngestWorker {
 			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
 		} catch (Exception exception) {
 			handleException(producer, consumerRecord.key(), exception);
-			System.out.println("An unexpected error occurred while processing the Job Message: "
-					+ exception.getMessage());
+			System.out.println(
+					"An unexpected error occurred while processing the Job Message: " + exception.getMessage());
 		} finally {
 			callback.onComplete(consumerRecord.key());
 		}
@@ -269,7 +269,8 @@ public class IngestWorker {
 			logger.log(
 					String.format(
 							"Event for Ingest of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
-							dataResource.getDataId(), job.getJobId(), response.getBody().toString()), PiazzaLogger.INFO);
+							dataResource.getDataId(), job.getJobId(), response.getBody().toString()),
+					PiazzaLogger.INFO);
 
 		} else {
 			// 201 not received. Throw an exception that something went wrong.
