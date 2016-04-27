@@ -75,9 +75,9 @@ public class ShapefileInspector implements InspectorType {
 	private String POSTGRES_SCHEMA;
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
-	@Value("${vcap.services.pz-blobstore.credentials.access:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-blobstore.credentials.private:}")
+	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
 	@Autowired
 	private PiazzaLogger logger;
