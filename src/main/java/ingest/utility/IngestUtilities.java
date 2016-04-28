@@ -41,7 +41,7 @@ import util.GeoToolsUtil;
  */
 @Component
 public class IngestUtilities {
-	
+
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
@@ -54,16 +54,16 @@ public class IngestUtilities {
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
-	
+
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
-	
+
 	private AmazonS3 s3Client;
-	
+
 	/**
 	 * Recursive deletion of directory
 	 * 
@@ -143,7 +143,7 @@ public class IngestUtilities {
 			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
 		}
 	}
-	
+
 	/**
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
@@ -151,7 +151,8 @@ public class IngestUtilities {
 	 *            The full string path to the expanded *.shp shape file.
 	 * @return The GeoTools Shapefile Data Store Feature Source
 	 */
-	public FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath) throws IOException {
+	public FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath)
+			throws IOException {
 		File shapefile = new File(shapefilePath);
 		Map<String, Object> map = new HashMap<String, Object>();
 		map.put("url", shapefile.toURI().toURL());
@@ -160,7 +161,7 @@ public class IngestUtilities {
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(typeName);
 		return featureSource;
 	}
-	
+
 	/**
 	 * Loads the contents of the Shapefile into the PostGIS Database.
 	 * 
@@ -169,13 +170,17 @@ public class IngestUtilities {
 	 * @param dataResource
 	 *            The DataResource object with Shapefile metadata
 	 */
-	public void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource, DataResource dataResource) throws Exception {
+	public void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource,
+			DataResource dataResource) throws Exception {
 		// Get the dataStore to the postGIS database.
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile ID %s",
+				POSTGRES_HOST, POSTGRES_PORT, dataResource.getDataId()));
 
 		// Create the schema in the data store
 		String tableName = dataResource.getDataId();
-		
+
 		// Associate the table name with the shapefile resource
 		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
@@ -207,36 +212,38 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Will copy external AWS S3 file to piazza S3 Bucket 
-	 *  
+	 * Will copy external AWS S3 file to piazza S3 Bucket
+	 * 
 	 * @param dataResource
-	 * @param host if piazza should host the data
-	 * @throws Exception 
+	 * @param host
+	 *            if piazza should host the data
+	 * @throws Exception
 	 */
-	public void copyS3Source(DataResource dataResource) throws Exception{
+	public void copyS3Source(DataResource dataResource) throws Exception {
 
-			// Connect to AWS S3 Bucket. Apply security only if credentials are present
-			if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
-				s3Client = new AmazonS3Client();
-			} else {
-				BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-				s3Client = new AmazonS3Client(credentials);
-			}
+		// Connect to AWS S3 Bucket. Apply security only if credentials are
+		// present
+		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
+			s3Client = new AmazonS3Client();
+		} else {
+			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			s3Client = new AmazonS3Client(credentials);
+		}
 
-			// Obtain file input stream
-			FileLocation fileLocation = ((FileRepresentation)dataResource.getDataType()).getLocation();
-			FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY,AMAZONS3_PRIVATE_KEY);
-			InputStream inputStream = fileFactory.getFile(fileLocation);
+		// Obtain file input stream
+		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream inputStream = fileFactory.getFile(fileLocation);
 
-			// Write stream directly into an s3 bucket
-			ObjectMetadata metadata = new ObjectMetadata();
-			String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
-			s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
-			
-			// Clean up
-			inputStream.close();
+		// Write stream directly into an s3 bucket
+		ObjectMetadata metadata = new ObjectMetadata();
+		String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
+		s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
+
+		// Clean up
+		inputStream.close();
 	}
-	
+
 	/**
 	 * Searches directory file list for the first matching file extension and
 	 * returns the name (non-recursive)
