@@ -15,15 +15,10 @@
  **/
 package ingest.inspect;
 
+import ingest.utility.IngestUtilities;
+
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
@@ -31,13 +26,7 @@ import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
-import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
-import org.geotools.data.Transaction;
-import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
@@ -46,8 +35,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import ingest.utility.IngestUtilities;
-import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
 /**
@@ -61,7 +48,7 @@ import util.PiazzaLogger;
  */
 @Component
 public class ShapefileInspector implements InspectorType {
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;

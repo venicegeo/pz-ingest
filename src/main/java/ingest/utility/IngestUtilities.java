@@ -42,7 +42,7 @@ import util.GeoToolsUtil;
 @Component
 public class IngestUtilities {
 	
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;

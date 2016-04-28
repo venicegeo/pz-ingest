@@ -56,7 +56,7 @@ import util.PiazzaLogger;
  */
 @Component
 public class GeoJsonInspector implements InspectorType {
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.host}")
+	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
 	private String POSTGRES_PORT;
