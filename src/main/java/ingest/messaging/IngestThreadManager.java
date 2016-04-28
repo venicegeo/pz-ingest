@@ -118,6 +118,7 @@ public class IngestThreadManager {
 	 */
 	public void pollIngestJobs() {
 		try {
+			System.out.println("Listening");
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job ID from the running Jobs list.
 			WorkerCallback callback = new WorkerCallback() {
@@ -137,7 +138,7 @@ public class IngestThreadManager {
 				ConsumerRecords<String, String> consumerRecords = generalConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-
+					System.out.println("HI");
 					// Create a new worker to process this message and add it to
 					// the thread pool.
 					Future<?> workerFuture = ingestWorker.run(consumerRecord, producer, callback);
