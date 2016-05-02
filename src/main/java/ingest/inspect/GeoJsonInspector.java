@@ -27,6 +27,7 @@ import java.util.Map;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.type.GeoJsonDataType;
+import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
 import org.geotools.data.DefaultTransaction;
@@ -40,6 +41,8 @@ import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geojson.geom.GeometryJSON;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,6 +76,8 @@ public class GeoJsonInspector implements InspectorType {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
+	private static final Integer DEFAULT_GEOJSON_EPSG_CODE = 4326;
+
 	@Autowired
 	IngestUtilities ingestUtilities;
 	@Autowired
@@ -99,6 +104,26 @@ public class GeoJsonInspector implements InspectorType {
 			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
 					.getShapefileDataStore(newShapeFile.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
+
+			// Get the Bounding Box, set the Spatial Metadata
+			SpatialMetadata spatialMetadata = new SpatialMetadata();
+			ReferencedEnvelope envelope = shpFeatureSource.getBounds();
+			spatialMetadata.setMinX(envelope.getMinX());
+			spatialMetadata.setMinY(envelope.getMinY());
+			spatialMetadata.setMaxX(envelope.getMaxX());
+			spatialMetadata.setMaxY(envelope.getMaxY());
+
+			// Get the SRS and EPSG codes
+			if (shpFeatureSource.getInfo().getCRS() != null) {
+				spatialMetadata.setCoordinateReferenceSystem(shpFeatureSource.getInfo().getCRS().toString());
+				spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(shpFeatureSource.getInfo().getCRS(), true));
+			} else {
+				// Default to EPSG 4326. Most GeoJSON is this code, and is sort
+				// of an unofficial standard for GeoJSON.
+				spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
+			}
+
+			dataResource.spatialMetadata = spatialMetadata;
 
 			// Convert DataType to postgis from geojson
 			((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
