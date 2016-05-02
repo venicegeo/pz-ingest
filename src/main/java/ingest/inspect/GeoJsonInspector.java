@@ -76,6 +76,8 @@ public class GeoJsonInspector implements InspectorType {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
+	private static final Integer DEFAULT_GEOJSON_EPSG_CODE = 4326;
+
 	@Autowired
 	IngestUtilities ingestUtilities;
 	@Autowired
@@ -99,9 +101,10 @@ public class GeoJsonInspector implements InspectorType {
 			File newShapeFile = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
 
 			// Persist to PostGIS
-			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities.getShapefileDataStore(newShapeFile.getAbsolutePath());
+			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
+					.getShapefileDataStore(newShapeFile.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
-			
+
 			// Get the Bounding Box, set the Spatial Metadata
 			SpatialMetadata spatialMetadata = new SpatialMetadata();
 			ReferencedEnvelope envelope = shpFeatureSource.getBounds();
@@ -111,12 +114,15 @@ public class GeoJsonInspector implements InspectorType {
 			spatialMetadata.setMaxY(envelope.getMaxY());
 
 			// Get the SRS and EPSG codes
-			if(shpFeatureSource.getInfo().getCRS()!= null)
-			{
+			if (shpFeatureSource.getInfo().getCRS() != null) {
 				spatialMetadata.setCoordinateReferenceSystem(shpFeatureSource.getInfo().getCRS().toString());
 				spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(shpFeatureSource.getInfo().getCRS(), true));
+			} else {
+				// Default to EPSG 4326. Most GeoJSON is this code, and is sort
+				// of an unofficial standard for GeoJSON.
+				spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
 			}
-			
+
 			dataResource.spatialMetadata = spatialMetadata;
 
 			// Convert DataType to postgis from geojson
