@@ -1,0 +1,16 @@
+applications:
+- name: pz-ingest
+  host: pz-ingest
+  path: pz-ingest.jar
+  buildpack: java_buildpack_offline
+  domain: venicegeo.io
+  memory: 2048M
+  instances: 1
+  timeout: 80
+  services:
+    - pz-kafka
+    - pz-blobstore
+    - pz-geoserver
+    - pz-mongodb
+  env:
+    SPRING_PROFILES_ACTIVE: cloud,vg-prod
