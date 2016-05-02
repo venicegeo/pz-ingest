@@ -22,7 +22,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -100,27 +99,23 @@ public class GeoJsonInspector implements InspectorType {
 	@Autowired
 	private PiazzaLogger logger;
 
-	private ShapefileDataStore shpDataStore;
-	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 
 		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
-		String file = String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp");
-		File shapeFilePlaceHolder = new File(file);
+		File shapeFilePlaceHolder = new File(String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp"));
 		shapeFilePlaceHolder.createNewFile();
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
 
 			// Map GeoJSON to Shapefile
-			File newShapeFile = convertGeoJsonToShapeFile4(shapeFilePlaceHolder, dataResource);
+			convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
 
 			// Persist to PostGIS
-			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
-					.getShapefileDataStore(newShapeFile.getAbsolutePath());
+			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities.getShapefileDataStore(shapeFilePlaceHolder.getAbsolutePath());
 			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
 
 			// Get the Bounding Box, set the Spatial Metadata
@@ -164,7 +159,7 @@ public class GeoJsonInspector implements InspectorType {
 	 * @return File object location of the newly created shapefile
 	 * @throws Exception
 	 */
-	public File convertGeoJsonToShapeFile4(File shapefileOutput, DataResource dataResource) throws Exception {
+	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
 
 		File geoJsonOriginalFile = getFile(dataResource);
 
@@ -173,7 +168,7 @@ public class GeoJsonInspector implements InspectorType {
 		Map<String, Serializable> params = new HashMap<String, Serializable>();
 		params.put("url", shapefileOutput.toURI().toURL());
 		params.put("create spatial index", Boolean.TRUE);
-		shpDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
+		ShapefileDataStore shpDataStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
 		
 		InputStream in = new FileInputStream(geoJsonOriginalFile);
 		int decimals = 15;
@@ -184,7 +179,7 @@ public class GeoJsonInspector implements InspectorType {
         fc.getSchema();
         
         // write features to shape file
-        writeFeatures(fc);
+        writeFeatures(fc, shpDataStore);
         
 		// clean up efforts
 		in.close();
@@ -203,7 +198,7 @@ public class GeoJsonInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	@SuppressWarnings("resource")
-	private boolean writeFeatures(FeatureCollection<SimpleFeatureType, SimpleFeature> features) throws Exception {
+	private boolean writeFeatures(FeatureCollection<SimpleFeatureType, SimpleFeature> features, ShapefileDataStore shpDataStore) throws Exception {
 
 		if (shpDataStore == null) {
 			throw new IllegalStateException("Datastore can not be null when writing");
