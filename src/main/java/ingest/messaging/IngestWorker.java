@@ -146,8 +146,8 @@ public class IngestWorker {
 					S3FileStore s3FS = (S3FileStore) fileLoc;
 					if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 						ingestUtilities.copyS3Source(dataResource);
-						fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, s3FS.getFileName(), s3FS
-								.getDomainName()));
+						fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME,
+								dataResource.getDataId() + "-" + s3FS.getFileName(), s3FS.getDomainName()));
 					}
 					break;
 				case FolderShare.type:
