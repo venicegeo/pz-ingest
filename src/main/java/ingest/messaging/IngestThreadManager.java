@@ -92,6 +92,10 @@ public class IngestThreadManager {
 		KAFKA_PORT = KAFKA_ADDRESS.split(":")[1];
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
+		// Log the initialization.
+		logger.log(String.format("Dispatcher listening to Kafka at %s in space %s.", KAFKA_ADDRESS, space),
+				PiazzaLogger.INFO);
+
 		// Initialize the Thread Pool and Map of running Threads
 		runningJobs = new HashMap<String, Future<?>>();
 
