@@ -41,6 +41,16 @@ public class IngestController {
 	private IngestThreadManager threadManager;
 
 	/**
+	 * Healthcheck required for all Piazza Core Services
+	 * 
+	 * @return String
+	 */
+	@RequestMapping(value = "/", method = RequestMethod.GET)
+	public String getHealthCheck() {
+		return "Hello, Health Check here for pz-ingest.";
+	}
+	
+	/**
 	 * Returns administrative statistics for this component.
 	 * 
 	 * @return Component information
