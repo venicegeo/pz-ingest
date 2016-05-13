@@ -16,16 +16,26 @@
 package ingest.controller;
 
 import ingest.messaging.IngestThreadManager;
+import ingest.persist.PersistMetadata;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import model.data.DataResource;
+import model.job.metadata.ResourceMetadata;
+import model.response.ErrorResponse;
+import model.response.PiazzaResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+
+import util.PiazzaLogger;
 
 /**
  * REST Controller for ingest. Ingest has no functional REST endpoints, as all
@@ -39,6 +49,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class IngestController {
 	@Autowired
 	private IngestThreadManager threadManager;
+	@Autowired
+	private PiazzaLogger logger;
+	@Autowired
+	private PersistMetadata persistence;
 
 	/**
 	 * Healthcheck required for all Piazza Core Services
@@ -49,7 +63,7 @@ public class IngestController {
 	public String getHealthCheck() {
 		return "Hello, Health Check here for pz-ingest.";
 	}
-	
+
 	/**
 	 * Returns administrative statistics for this component.
 	 * 
@@ -61,5 +75,29 @@ public class IngestController {
 		// Return information on the jobs currently being processed
 		stats.put("jobs", threadManager.getRunningJobIDs());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+	}
+
+	/**
+	 * Update the metadata of a Data Resource
+	 * 
+	 * @param dataId
+	 *            The ID of the resource
+	 * @param user
+	 *            the user submitting the request
+	 * @return OK if successful; error if not.
+	 */
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.POST)
+	public PiazzaResponse updateMetadata(@PathVariable(value = "dataId") String dataId,
+			@RequestBody ResourceMetadata metadata) {
+		try {
+			// Update the Metadata
+			persistence.updateMetadata(dataId, metadata);
+			// Return OK
+			return null;
+		} catch (Exception exception) {
+			String error = String.format("Could not update Metadata %s", exception.getMessage());
+			logger.log(error, PiazzaLogger.ERROR);
+			return new ErrorResponse(null, error, "Access");
+		}
 	}
 }
