@@ -21,7 +21,6 @@ import ingest.persist.PersistMetadata;
 import java.util.HashMap;
 import java.util.Map;
 
-import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
@@ -61,7 +60,7 @@ public class IngestController {
 	 */
 	@RequestMapping(value = "/", method = RequestMethod.GET)
 	public String getHealthCheck() {
-		return "Hello, Health Check here for pz-ingest.";
+		return "Hello, Health Check here for Loader.";
 	}
 
 	/**
