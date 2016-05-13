@@ -83,7 +83,7 @@ public class GeoTiffInspector implements InspectorType {
 			coverage.dispose(true);
 			geoTiffFile.delete();
 		} catch (Exception exception) {
-			logger.log(String.format("Error cleaning up GeoTiff file for %s ingest: %s", dataResource.getDataId(),
+			logger.log(String.format("Error cleaning up GeoTiff file for %s Load: %s", dataResource.getDataId(),
 					exception.getMessage()), PiazzaLogger.WARNING);
 		}
 

@@ -108,7 +108,7 @@ public class IngestWorker {
 		try {
 			// Log
 			logger.log(
-					String.format("Processing Ingest for Topic %s with Key %s", consumerRecord.topic(),
+					String.format("Processing Data Load for Topic %s with Key %s", consumerRecord.topic(),
 							consumerRecord.key()), PiazzaLogger.INFO);
 
 			// Parse the Job from the Kafka Message
@@ -126,7 +126,7 @@ public class IngestWorker {
 
 			// Log what we're going to Ingest
 			logger.log(String.format(
-					"Inspected Ingest Job; begin Ingesting Data %s of Type %s. Hosted: %s with Ingest Job ID of %s",
+					"Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job ID of %s",
 					dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(),
 					job.getJobId()), PiazzaLogger.INFO);
 
@@ -171,7 +171,7 @@ public class IngestWorker {
 
 			// Console Logging
 			logger.log(
-					String.format("Successful Ingest of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
+					String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					PiazzaLogger.INFO);
 
 			// Fire the Event to Pz-Search that new metadata has been ingested
@@ -179,7 +179,7 @@ public class IngestWorker {
 				dispatchMetadataIngestMessage(dataResource, SEARCH_URL);
 			} catch (Exception exception) {
 				logger.log(String.format(
-						"Metadata Ingest for %s for Job %s could not be sent to the Search Service: %s",
+						"Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 
@@ -189,12 +189,12 @@ public class IngestWorker {
 				dispatchWorkflowEvent(job, dataResource, EVENT_ID, WORKFLOW_URL);
 			} catch (Exception exception) {
 				logger.log(String.format(
-						"Event for Ingest of Data %s for Job %s could not be sent to the Workflow Service: %s",
+						"Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
 			handleException(producer, consumerRecord.key(), jsonException);
-			System.out.println("Error Parsing Ingest Job Message.");
+			System.out.println("Error Parsing Data Load Job Message.");
 		} catch (MongoException mongoException) {
 			handleException(producer, consumerRecord.key(), mongoException);
 			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
@@ -232,7 +232,7 @@ public class IngestWorker {
 			restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
 		} catch (Exception exception) {
 			// Log failure of Ingest
-			logger.log(String.format("Search Metadata Ingest for data %s failed with error: %s",
+			logger.log(String.format("Search Metadata Upload for Data %s failed with error: %s",
 					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.ERROR);
 		}
 	}
@@ -259,7 +259,7 @@ public class IngestWorker {
 			// The Event was successfully received by pz-workflow
 			logger.log(
 					String.format(
-							"Event for Ingest of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
+							"Event for Loading of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
 							dataResource.getDataId(), job.getJobId(), response.getBody().toString()), PiazzaLogger.INFO);
 
 		} else {
@@ -279,14 +279,14 @@ public class IngestWorker {
 	private void handleException(Producer<String, String> producer, String jobId, Exception exception) {
 		exception.printStackTrace();
 		logger.log(
-				String.format("An Error occurred during Data Ingestion for Job %s: %s", jobId, exception.getMessage()),
+				String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage()),
 				PiazzaLogger.ERROR);
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
-			statusUpdate.setResult(new ErrorResult("Error while Ingesting the Data.", exception.getMessage()));
+			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, space));
 		} catch (JsonProcessingException jsonException) {
-			System.out.println("Could update Job Manager with failure event in Ingest Worker. Error creating message: "
+			System.out.println("Could update Job Manager with failure event in Loader Worker. Error creating message: "
 					+ jsonException.getMessage());
 			jsonException.printStackTrace();
 		}
