@@ -21,7 +21,10 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import model.data.DataResource;
+import model.job.metadata.ResourceMetadata;
 
+import org.mongojack.DBQuery;
+import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,10 +32,12 @@ import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
+import com.mongodb.MongoTimeoutException;
 
 /**
  * Helper class to interact with and access the Mongo instance, which handles
@@ -107,5 +112,49 @@ public class PersistMetadata {
 	 */
 	public void insertData(DataResource dataResource) throws MongoException {
 		getResourceCollection().insert(dataResource);
+	}
+
+	/**
+	 * Gets the DataResource from the Resources collection by ID. This ID is
+	 * typically what will be returned to the user as the result of their Job.
+	 * 
+	 * @param dataId
+	 *            The ID of the DataResource
+	 * @return DataResource object
+	 */
+	public DataResource getData(String dataId) {
+		BasicDBObject query = new BasicDBObject("dataId", dataId);
+		DataResource data;
+
+		try {
+			if ((data = getResourceCollection().findOne(query)) == null) {
+				return null;
+			}
+		} catch (MongoTimeoutException mte) {
+			throw new MongoException("MongoDB instance not available.");
+		}
+
+		return data;
+	}
+
+	/**
+	 * Updates the Metadata for the Data Resource object.
+	 * 
+	 * @param dataId
+	 *            The Data ID of the resource to update
+	 * @param metadata
+	 *            The metadata to update with
+	 */
+	public void updateMetadata(String dataId, ResourceMetadata metadata) throws Exception {
+		// Get the Data Resource
+		DataResource dataResource = getData(dataId);
+		if (dataResource == null) {
+			throw new Exception(String.format("No Data Resource found matching ID %s", dataId));
+		}
+		// Merge the ResourceMetadata together
+		dataResource.getMetadata().merge(metadata, false);
+		// Update the DataResource in the database
+		getResourceCollection().update(DBQuery.is("dataId", dataId),
+				DBUpdate.set("metadata", dataResource.getMetadata()));
 	}
 }
