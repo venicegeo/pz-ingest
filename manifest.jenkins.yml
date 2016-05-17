@@ -13,4 +13,4 @@ applications:
     - pz-geoserver
     - pz-mongodb
   env:
-    SPRING_PROFILES_ACTIVE: cloud,fade-stage
+    SPRING_PROFILES_ACTIVE: cloud

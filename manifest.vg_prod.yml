@@ -13,4 +13,4 @@ applications:
     - pz-geoserver
     - pz-mongodb
   env:
-    SPRING_PROFILES_ACTIVE: cloud,vg-prod
+    SPRING_PROFILES_ACTIVE: cloud
