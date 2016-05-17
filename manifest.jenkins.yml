@@ -3,7 +3,6 @@ applications:
   host: pz-ingest
   path: pz-ingest.jar
   buildpack: java_buildpack_offline
-  domain: stage.geointservices.io
   memory: 2048M
   instances: 1
   timeout: 80
