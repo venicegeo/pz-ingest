@@ -3,7 +3,6 @@ applications:
   host: pz-ingest
   path: pz-ingest.jar
   buildpack: java_buildpack_offline
-  domain: geointservices.io
   memory: 2048M
   instances: 1
   timeout: 80
@@ -13,4 +12,4 @@ applications:
     - pz-geoserver
     - pz-mongodb
   env:
-    SPRING_PROFILES_ACTIVE: cloud,fade-prod
+    SPRING_PROFILES_ACTIVE: cloud

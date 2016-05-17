@@ -61,16 +61,10 @@ public class IngestThreadManager {
 	private String KAFKA_ADDRESS;
 	private String KAFKA_HOST;
 	private String KAFKA_PORT;
-	@Value("${kafka.group}")
+	@Value("#{'${kafka.group}' + '-' + '${SPACE}'}")
 	private String KAFKA_GROUP;
-	@Value("${pz.workflow.event.id}")
-	private String EVENT_ID;
-	@Value("${pz.workflow.url:}")
-	private String WORKFLOW_URL;
-	@Value("${pz.search.ingest.url:}")
-	private String SEARCH_URL;
-	@Value("${space}")
-	private String space;
+	@Value("${SPACE}")
+	private String SPACE;
 
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
@@ -93,7 +87,7 @@ public class IngestThreadManager {
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
 		// Log the initialization.
-		logger.log(String.format("Dispatcher listening to Kafka at %s in space %s.", KAFKA_ADDRESS, space),
+		logger.log(String.format("Dispatcher listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE),
 				PiazzaLogger.INFO);
 
 		// Initialize the Thread Pool and Map of running Threads
@@ -134,7 +128,7 @@ public class IngestThreadManager {
 			// Create the General Group Consumer
 			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					KAFKA_GROUP);
-			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, space)));
+			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, SPACE)));
 
 			// Poll
 			while (!closed.get()) {
@@ -165,7 +159,7 @@ public class IngestThreadManager {
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String
-					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, space)));
+					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
 
 			// Poll
 			while (!closed.get()) {
