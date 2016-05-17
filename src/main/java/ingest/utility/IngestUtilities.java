@@ -55,9 +55,9 @@ public class IngestUtilities {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
-	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
+	@Value("${vcap.services.pz-blobstore.credentials.access_key_id}")
 	private String AMAZONS3_ACCESS_KEY;
-	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
+	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
@@ -242,6 +242,31 @@ public class IngestUtilities {
 
 		// Clean up
 		inputStream.close();
+	}
+	
+	public long getFileSize(DataResource dataResource) throws Exception {
+		// Connect to AWS S3 Bucket. Apply security only if credentials are
+		// present
+		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
+			s3Client = new AmazonS3Client();
+		} else {
+			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			s3Client = new AmazonS3Client(credentials);
+		}
+
+		// Obtain file input stream
+		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream inputStream = fileFactory.getFile(fileLocation);
+		
+		long counter = inputStream.read();
+		long numBytes = 0;
+		while (counter >= 0) {
+			counter = inputStream.read();
+			numBytes++;
+		}
+		
+		return numBytes;
 	}
 
 	/**

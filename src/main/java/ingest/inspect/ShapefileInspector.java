@@ -102,6 +102,7 @@ public class ShapefileInspector implements InspectorType {
 		spatialMetadata.setMinY(envelope.getMinY());
 		spatialMetadata.setMaxX(envelope.getMaxX());
 		spatialMetadata.setMaxY(envelope.getMaxY());
+		spatialMetadata.setNumFeatures(featureSource.getFeatures().size());
 
 		// Get the SRS and EPSG codes
 		spatialMetadata.setCoordinateReferenceSystem(featureSource.getInfo().getCRS().toString());

@@ -75,6 +75,7 @@ public class WfsInspector implements InspectorType {
 		spatialMetadata.setMinY(envelope.getMinY());
 		spatialMetadata.setMaxX(envelope.getMaxX());
 		spatialMetadata.setMaxY(envelope.getMaxY());
+		spatialMetadata.setNumFeatures(wfsFeatureSource.getFeatures().size());
 
 		// Get the SRS and EPSG codes
 		spatialMetadata.setCoordinateReferenceSystem(wfsFeatureSource.getInfo().getCRS().toString());

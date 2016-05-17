@@ -128,6 +128,7 @@ public class GeoJsonInspector implements InspectorType {
 			spatialMetadata.setMinY(envelope.getMinY());
 			spatialMetadata.setMaxX(envelope.getMaxX());
 			spatialMetadata.setMaxY(envelope.getMaxY());
+			spatialMetadata.setNumFeatures(shpFeatureSource.getFeatures().size());
 
 			// Get the SRS and EPSG codes
 			if (shpFeatureSource.getInfo().getCRS() != null) {
