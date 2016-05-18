@@ -31,6 +31,7 @@ import model.data.location.FolderShare;
 import model.data.location.S3FileStore;
 import model.job.Job;
 import model.job.JobProgress;
+import model.job.metadata.ResourceMetadata;
 import model.job.result.type.DataResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
@@ -72,9 +73,9 @@ public class IngestWorker {
 	private String SPACE;
 	@Value("${workflow.event.id}")
 	private String EVENT_ID;
-	@Value("#{'${workflow.protocol}' + '://' + '${workflow.prefix}' + '.' + '${DOMAIN}' + ':' + '${workflow.port}'}")
+	@Value("${workflow.url}")
 	private String WORKFLOW_URL;
-	@Value("#{'${search.protocol}' + '://' + '${search.prefix}' + '.' + '${DOMAIN}' + ':' + '${search.port}'}")
+	@Value("${search.url}")
 	private String SEARCH_URL;
 	@Value("${workflow.endpoint}")
 	private String WORKFLOW_ENDPOINT;
@@ -138,27 +139,33 @@ public class IngestWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
-			// Copy to Piazza S3 bucket if hosted = true; If already in S3, make
-			// sure it's different than the Piazza S3.
-			if (ingestJob.getHost().booleanValue() && ingestJob.getData().getDataType() instanceof FileRepresentation) {
+			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
-				FileLocation fileLoc = fileRep.getLocation();
-				// Depending on the Type of file
-				switch (fileLoc.getType()) {
-				case S3FileStore.type:
-					S3FileStore s3FS = (S3FileStore) fileLoc;
-					if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+				FileLocation fileLoc = fileRep.getLocation();				
+				fileLoc.setFileSize(ingestUtilities.getFileSize(dataResource));				
+				
+				if( ingestJob.getHost().booleanValue() ) {
+					// Copy to Piazza S3 bucket if hosted = true; If already in S3, make
+					// sure it's different than the Piazza S3; Depending on the Type of file
+					switch (fileLoc.getType()) {
+					case S3FileStore.type:
+						S3FileStore s3FS = (S3FileStore) fileLoc;
+						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+							ingestUtilities.copyS3Source(dataResource);
+							fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME,
+									dataResource.getDataId() + "-" + s3FS.getFileName(), s3FS.getFileSize(), s3FS.getDomainName()));
+						}
+						break;
+					case FolderShare.type:
 						ingestUtilities.copyS3Source(dataResource);
-						fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-"
-								+ s3FS.getFileName(), s3FS.getDomainName()));
+						break;
 					}
-					break;
-				case FolderShare.type:
-					ingestUtilities.copyS3Source(dataResource);
-					break;
 				}
 			}
-
+			
+			dataResource.metadata.createdBy = job.submitterUserName;
+			dataResource.metadata.createdDate = job.submitted.toString();
+			
 			// Inspect processes the Data item, adds appropriate metadata and
 			// stores if requested
 			inspector.inspect(dataResource, ingestJob.getHost());
