@@ -73,9 +73,9 @@ public class IngestWorker {
 	private String SPACE;
 	@Value("${workflow.event.id}")
 	private String EVENT_ID;
-	@Value("#{'${workflow.protocol}' + '://' + '${workflow.prefix}' + '.' + '${DOMAIN}' + ':' + '${workflow.port}'}")
+	@Value("${workflow.url}")
 	private String WORKFLOW_URL;
-	@Value("#{'${search.protocol}' + '://' + '${search.prefix}' + '.' + '${DOMAIN}' + ':' + '${search.port}'}")
+	@Value("${search.url}")
 	private String SEARCH_URL;
 	@Value("${workflow.endpoint}")
 	private String WORKFLOW_ENDPOINT;
