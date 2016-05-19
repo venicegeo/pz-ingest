@@ -164,8 +164,10 @@ public class IngestWorker {
 				}
 			}
 
-			dataResource.metadata.createdBy = job.submitterUserName;
-			dataResource.metadata.createdDate = job.submitted.toString();
+			if (dataResource.metadata != null) {
+				dataResource.metadata.createdBy = job.submitterUserName;
+				dataResource.metadata.createdDate = job.submitted.toString();
+			}
 
 			// Inspect processes the Data item, adds appropriate metadata and
 			// stores if requested
