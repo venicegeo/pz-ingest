@@ -128,6 +128,11 @@ public class IngestWorker {
 				dataResource.setDataId(dataId);
 			}
 
+			// Ensure we have a metadata wrapper.
+			if (dataResource.metadata != null) {
+				dataResource.metadata = new ResourceMetadata();
+			}
+
 			// Log what we're going to Ingest
 			logger.log(String.format(
 					"Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job ID of %s",
@@ -165,9 +170,8 @@ public class IngestWorker {
 				}
 			}
 
-			if (dataResource.metadata == null) {
-				dataResource.metadata = new ResourceMetadata();
-			}
+			dataResource.metadata.createdBy = job.submitterUserName;
+			dataResource.metadata.createdDate = job.submitted.toString();
 
 			// Inspect processes the Data item, adds appropriate metadata and
 			// stores if requested
