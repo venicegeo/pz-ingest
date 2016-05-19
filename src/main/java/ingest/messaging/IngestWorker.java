@@ -31,6 +31,7 @@ import model.data.location.FolderShare;
 import model.data.location.S3FileStore;
 import model.job.Job;
 import model.job.JobProgress;
+import model.job.metadata.ResourceMetadata;
 import model.job.result.type.DataResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
@@ -164,9 +165,8 @@ public class IngestWorker {
 				}
 			}
 
-			if (dataResource.metadata != null) {
-				dataResource.metadata.createdBy = job.submitterUserName;
-				dataResource.metadata.createdDate = job.submitted.toString();
+			if (dataResource.metadata == null) {
+				dataResource.metadata = new ResourceMetadata();
 			}
 
 			// Inspect processes the Data item, adds appropriate metadata and
