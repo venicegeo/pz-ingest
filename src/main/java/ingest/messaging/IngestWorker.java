@@ -129,7 +129,7 @@ public class IngestWorker {
 			}
 
 			// Ensure we have a metadata wrapper.
-			if (dataResource.metadata != null) {
+			if (dataResource.metadata == null) {
 				dataResource.metadata = new ResourceMetadata();
 			}
 
