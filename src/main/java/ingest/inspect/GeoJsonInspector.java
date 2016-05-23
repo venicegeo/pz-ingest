@@ -32,6 +32,7 @@ import model.data.type.GeoJsonDataType;
 import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
@@ -169,6 +170,8 @@ public class GeoJsonInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
+		
+		// Obtain Original GeoJSON
 		File geoJsonOriginalFile = getFile(dataResource);
 
 		// Mapping GeoJSON to Shapefile
@@ -310,6 +313,15 @@ public class GeoJsonInspector implements InspectorType {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
 		FileUtils.copyInputStreamToFile(fileStream, file);
+		
+		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {
+			fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
+			FileUtils.copyInputStreamToFile(fileStream, file);
+		} else {
+			String geoJsonContent = ((GeoJsonDataType) dataResource.getDataType()).getGeoJsonContent();
+			InputStream inputStream = IOUtils.toInputStream(geoJsonContent, "UTF-8");
+			FileUtils.copyInputStreamToFile(inputStream, file);
+		}
 
 		return file;
 	}
