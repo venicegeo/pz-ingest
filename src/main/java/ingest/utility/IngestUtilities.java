@@ -28,10 +28,12 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureStore;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import util.GeoToolsUtil;
+import util.PiazzaLogger;
 
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
@@ -46,6 +48,8 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
  */
 @Component
 public class IngestUtilities {
+	@Autowired
+	private PiazzaLogger logger;
 
 	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
@@ -338,6 +342,13 @@ public class IngestUtilities {
 				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
 		try {
 			postGisStore.removeSchema(tableName);
+		} catch (IllegalArgumentException exception) {
+			// If this exception is triggered, then its likely the database
+			// table was already deleted. Log that.
+			logger.log(
+					String.format(
+							"Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.",
+							tableName), PiazzaLogger.WARNING);
 		} finally {
 			postGisStore.dispose();
 		}

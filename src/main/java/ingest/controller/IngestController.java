@@ -80,6 +80,9 @@ public class IngestController {
 			ingestUtil.deleteDataResourceFiles(data);
 			// Remove the Data from the database
 			persistence.deleteDataEntry(dataId);
+			// Log the deletion
+			logger.log(String.format("Successfully deleted Data ID %s", dataId), PiazzaLogger.INFO);
+			// Return
 			return null;
 		} catch (Exception exception) {
 			exception.printStackTrace();
