@@ -17,10 +17,12 @@ package ingest.controller;
 
 import ingest.messaging.IngestThreadManager;
 import ingest.persist.PersistMetadata;
+import ingest.utility.IngestUtilities;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
@@ -52,28 +54,38 @@ public class IngestController {
 	private PiazzaLogger logger;
 	@Autowired
 	private PersistMetadata persistence;
+	@Autowired
+	private IngestUtilities ingestUtil;
 
 	/**
-	 * Healthcheck required for all Piazza Core Services
+	 * Deletes the Data resource object from the Resources collection.
 	 * 
-	 * @return String
+	 * @param dataId
+	 *            ID of the Resource
+	 * @return The resource matching the specified ID
 	 */
-	@RequestMapping(value = "/", method = RequestMethod.GET)
-	public String getHealthCheck() {
-		return "Hello, Health Check here for Loader.";
-	}
-
-	/**
-	 * Returns administrative statistics for this component.
-	 * 
-	 * @return Component information
-	 */
-	@RequestMapping(value = "/admin/stats", method = RequestMethod.GET)
-	public ResponseEntity<Map<String, Object>> getAdminStats() {
-		Map<String, Object> stats = new HashMap<String, Object>();
-		// Return information on the jobs currently being processed
-		stats.put("jobs", threadManager.getRunningJobIDs());
-		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE)
+	public PiazzaResponse deleteData(@PathVariable(value = "dataId") String dataId) {
+		try {
+			if (dataId.isEmpty()) {
+				throw new Exception("No Data ID specified.");
+			}
+			// Query for the Data ID
+			DataResource data = persistence.getData(dataId);
+			if (data == null) {
+				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				return new ErrorResponse(null, String.format("Data not found: %s", dataId), "Loader");
+			}
+			// Delete the Data if hosted
+			ingestUtil.deleteDataResourceFiles(data);
+			// Remove the Data from the database
+			persistence.deleteDataEntry(dataId);
+			return null;
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Error deleting Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			return new ErrorResponse(null, "Error deleting Data: " + exception.getMessage(), "Loader");
+		}
 	}
 
 	/**
@@ -98,5 +110,28 @@ public class IngestController {
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ErrorResponse(null, error, "Access");
 		}
+	}
+
+	/**
+	 * Returns administrative statistics for this component.
+	 * 
+	 * @return Component information
+	 */
+	@RequestMapping(value = "/admin/stats", method = RequestMethod.GET)
+	public ResponseEntity<Map<String, Object>> getAdminStats() {
+		Map<String, Object> stats = new HashMap<String, Object>();
+		// Return information on the jobs currently being processed
+		stats.put("jobs", threadManager.getRunningJobIDs());
+		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
+	}
+
+	/**
+	 * Healthcheck required for all Piazza Core Services
+	 * 
+	 * @return String
+	 */
+	@RequestMapping(value = "/", method = RequestMethod.GET)
+	public String getHealthCheck() {
+		return "Hello, Health Check here for Loader.";
 	}
 }

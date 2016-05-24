@@ -10,6 +10,15 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import model.data.DataResource;
+import model.data.DataType;
+import model.data.FileRepresentation;
+import model.data.location.FileAccessFactory;
+import model.data.location.FileLocation;
+import model.data.location.S3FileStore;
+import model.data.type.GeoJsonDataType;
+import model.data.type.ShapefileDataType;
+
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DefaultTransaction;
@@ -22,16 +31,12 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import util.GeoToolsUtil;
+
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-
-import model.data.DataResource;
-import model.data.FileRepresentation;
-import model.data.location.FileAccessFactory;
-import model.data.location.FileLocation;
-import util.GeoToolsUtil;
 
 /**
  * Utility component for some generic processing efforts.
@@ -61,8 +66,6 @@ public class IngestUtilities {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
-
-	private AmazonS3 s3Client;
 
 	/**
 	 * Recursive deletion of directory
@@ -223,12 +226,7 @@ public class IngestUtilities {
 
 		// Connect to AWS S3 Bucket. Apply security only if credentials are
 		// present
-		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
-			s3Client = new AmazonS3Client();
-		} else {
-			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			s3Client = new AmazonS3Client(credentials);
-		}
+		AmazonS3 s3Client = getAwsClient();
 
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
@@ -243,30 +241,37 @@ public class IngestUtilities {
 		// Clean up
 		inputStream.close();
 	}
-	
-	public long getFileSize(DataResource dataResource) throws Exception {
-		// Connect to AWS S3 Bucket. Apply security only if credentials are
-		// present
-		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
-			s3Client = new AmazonS3Client();
-		} else {
-			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			s3Client = new AmazonS3Client(credentials);
-		}
 
+	public long getFileSize(DataResource dataResource) throws Exception {
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream inputStream = fileFactory.getFile(fileLocation);
-		
+
 		long counter = inputStream.read();
 		long numBytes = 0;
 		while (counter >= 0) {
 			counter = inputStream.read();
 			numBytes++;
 		}
-		
+
 		return numBytes;
+	}
+
+	/**
+	 * Gets an instance of an S3 client to use.
+	 * 
+	 * @return The S3 client
+	 */
+	private AmazonS3 getAwsClient() {
+		AmazonS3 s3Client;
+		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
+			s3Client = new AmazonS3Client();
+		} else {
+			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			s3Client = new AmazonS3Client(credentials);
+		}
+		return s3Client;
 	}
 
 	/**
@@ -289,5 +294,52 @@ public class IngestUtilities {
 		}
 
 		throw new Exception("No shape file was found inside unzipped directory: " + directoryPath);
+	}
+
+	/**
+	 * Deletes all persistent files for a Data Resource item. This will not
+	 * remove the entry from MongoDB. That is handled separately.
+	 * 
+	 * <p>
+	 * This will delete files from S3 for rasters/vectors, and for vectors this
+	 * will also delete the PostGIS table.
+	 * </p>
+	 * 
+	 * @param dataResource
+	 */
+	public void deleteDataResourceFiles(DataResource dataResource) throws Exception {
+		// If the DataResource has PostGIS tables to clean
+		DataType dataType = dataResource.getDataType();
+		if (dataType instanceof ShapefileDataType) {
+			deleteDatabaseTable(((ShapefileDataType) dataType).getDatabaseTableName());
+		} else if (dataType instanceof GeoJsonDataType) {
+			deleteDatabaseTable(((GeoJsonDataType) dataType).databaseTableName);
+		}
+		// If the Data Resource has S3 files to clean
+		if (dataType instanceof S3FileStore) {
+			S3FileStore fileStore = (S3FileStore) dataType;
+			if (!fileStore.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+				// Held by Piazza S3. Delete the data.
+				AmazonS3 client = getAwsClient();
+				client.deleteObject(fileStore.getBucketName(), fileStore.getFileName());
+			}
+		}
+	}
+
+	/**
+	 * Drops a table, by name, in the Piazza database.
+	 * 
+	 * @param tableName
+	 *            The name of the table to drop.
+	 */
+	public void deleteDatabaseTable(String tableName) throws Exception {
+		// Delete the table
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
+				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+		try {
+			postGisStore.removeSchema(tableName);
+		} finally {
+			postGisStore.dispose();
+		}
 	}
 }

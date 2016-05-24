@@ -103,6 +103,17 @@ public class PersistMetadata {
 	}
 
 	/**
+	 * Deletes the item from the database matching the Data ID.
+	 * 
+	 * @param dataId
+	 *            The Data ID to delete.
+	 */
+	public void deleteDataEntry(String dataId) {
+		BasicDBObject query = new BasicDBObject("dataId", dataId);
+		getResourceCollection().remove(query);
+	}
+
+	/**
 	 * Inserts the DataResource into the Mongo Resource collection.
 	 * 
 	 * @param dataResource

@@ -151,9 +151,8 @@ public class IngestWorker {
 
 				if (ingestJob.getHost().booleanValue()) {
 					// Copy to Piazza S3 bucket if hosted = true; If already in
-					// S3, make
-					// sure it's different than the Piazza S3; Depending on the
-					// Type of file
+					// S3, make sure it's different than the Piazza S3;
+					// Depending on the Type of file
 					switch (fileLoc.getType()) {
 					case S3FileStore.type:
 						S3FileStore s3FS = (S3FileStore) fileLoc;
