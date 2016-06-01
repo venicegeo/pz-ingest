@@ -279,21 +279,19 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Searches directory file list for the first matching file extension and
+	 * Searches directory file list for the first shape file and
 	 * returns the name (non-recursive)
 	 * 
 	 * @param directoryPath
 	 *            Folder path to search
-	 * @param fileExtension
-	 *            File extension to match name
 	 * 
-	 * @return File name found in the directory
+	 * @return shape file name found in the directory
 	 */
 	public String findShapeFileName(String directoryPath) throws Exception {
 		File[] files = new File(directoryPath).listFiles();
 		for (int index = 0; index < files.length; index++) {
 			String fileName = files[index].getName();
-			if (fileName.toLowerCase().endsWith("." + "shp"))
+			if (fileName.toLowerCase().endsWith(".shp"))
 				return fileName;
 		}
 
