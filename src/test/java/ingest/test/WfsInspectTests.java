@@ -50,7 +50,7 @@ import com.vividsolutions.jts.geom.Point;
  * @author Patrick.Doody
  * 
  */
-public class IngestTests {
+public class WfsInspectTests {
 	private static final String MOCK_FEATURE_NAME = "Test";
 	MemoryDataStore mockDataStore;
 	@Spy
