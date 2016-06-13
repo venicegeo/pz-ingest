@@ -93,6 +93,9 @@ public class IngestWorker {
 	@Autowired
 	private UUIDFactory uuidFactory;
 
+	private RestTemplate restTemplate = new RestTemplate();
+	private Producer<String, String> producer;
+
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an
 	 * Ingest Job.
@@ -109,7 +112,7 @@ public class IngestWorker {
 	public Future<DataResource> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
 			WorkerCallback callback) {
 		DataResource dataResource = null;
-
+		this.producer = producer;
 		try {
 			// Log
 			logger.log(String.format("Processing Data Load for Topic %s with Key %s", consumerRecord.topic(),
@@ -142,14 +145,16 @@ public class IngestWorker {
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
 				FileLocation fileLoc = fileRep.getLocation();
-				fileLoc.setFileSize(ingestUtilities.getFileSize(dataResource));
+				if (fileLoc != null) {
+					fileLoc.setFileSize(ingestUtilities.getFileSize(dataResource));
+				}
 
-				if (ingestJob.getHost().booleanValue()) {
+				if (ingestJob.getHost().booleanValue() && (fileLoc != null)) {
 					// Copy to Piazza S3 bucket if hosted = true; If already in
 					// S3, make sure it's different than the Piazza S3;
 					// Depending on the Type of file
@@ -183,7 +188,7 @@ public class IngestWorker {
 			// The result of this Job was creating a resource at the specified
 			// ID.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
-			producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 			// Console Logging
 			logger.log(
@@ -209,17 +214,19 @@ public class IngestWorker {
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
-			handleException(producer, consumerRecord.key(), jsonException);
+			handleException(consumerRecord.key(), jsonException);
 			System.out.println("Error Parsing Data Load Job Message.");
 		} catch (MongoException mongoException) {
-			handleException(producer, consumerRecord.key(), mongoException);
+			handleException(consumerRecord.key(), mongoException);
 			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
 		} catch (Exception exception) {
-			handleException(producer, consumerRecord.key(), exception);
+			handleException(consumerRecord.key(), exception);
 			System.out.println("An unexpected error occurred while processing the Job Message: "
 					+ exception.getMessage());
 		} finally {
-			callback.onComplete(consumerRecord.key());
+			if (callback != null) {
+				callback.onComplete(consumerRecord.key());
+			}
 		}
 
 		return new AsyncResult<DataResource>(dataResource);
@@ -238,7 +245,6 @@ public class IngestWorker {
 		job.data = dataResource;
 
 		// Create Request Objects
-		RestTemplate restTemplate = new RestTemplate();
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<SearchMetadataIngestJob> entity = new HttpEntity<SearchMetadataIngestJob>(job, headers);
@@ -264,7 +270,6 @@ public class IngestWorker {
 	 */
 	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String eventId, String workflowUrl)
 			throws Exception {
-		RestTemplate restTemplate = new RestTemplate();
 		HttpHeaders headers = new HttpHeaders();
 		IngestEvent ingestEvent = new IngestEvent(eventId, job, dataResource);
 		String ingestString = new ObjectMapper().writeValueAsString(ingestEvent);
@@ -292,14 +297,14 @@ public class IngestWorker {
 	 * @param jobId
 	 * @param exception
 	 */
-	private void handleException(Producer<String, String> producer, String jobId, Exception exception) {
+	private void handleException(String jobId, Exception exception) {
 		exception.printStackTrace();
 		logger.log(String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage()),
 				PiazzaLogger.ERROR);
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
-			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
+			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
 		} catch (JsonProcessingException jsonException) {
 			System.out.println("Could update Job Manager with failure event in Loader Worker. Error creating message: "
 					+ jsonException.getMessage());

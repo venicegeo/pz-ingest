@@ -97,7 +97,7 @@ public class GeoJsonInspector implements InspectorType {
 	private static final Integer DEFAULT_GEOJSON_EPSG_CODE = 4326;
 
 	@Autowired
-	IngestUtilities ingestUtilities;
+	private IngestUtilities ingestUtilities;
 	@Autowired
 	private PiazzaLogger logger;
 
@@ -170,7 +170,7 @@ public class GeoJsonInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
-		
+
 		// Obtain Original GeoJSON
 		File geoJsonOriginalFile = getFile(dataResource);
 
@@ -311,11 +311,9 @@ public class GeoJsonInspector implements InspectorType {
 		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator,
 				dataResource.getDataId(), "json"));
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
-		FileUtils.copyInputStreamToFile(fileStream, file);
-		
+
 		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {
-			fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
+			InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
 			FileUtils.copyInputStreamToFile(fileStream, file);
 		} else {
 			String geoJsonContent = ((GeoJsonDataType) dataResource.getDataType()).getGeoJsonContent();

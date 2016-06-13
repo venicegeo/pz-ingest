@@ -15,6 +15,8 @@
  **/
 package ingest.inspect;
 
+import java.io.File;
+
 import ingest.model.PointCloudResponse;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
@@ -56,12 +58,14 @@ public class PointCloudInspector implements InspectorType {
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
 
+	private RestTemplate restTemplate = new RestTemplate();
+
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String pointCloudTemplate = IOUtils.toString(classLoader
-				.getResourceAsStream("templates/pointCloudRequest.json"));
+		String pointCloudTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates" + File.separator
+				+ "pointCloudRequest.json"));
 
 		// Obtain File URL from AWS S3 Bucket
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
@@ -117,7 +121,6 @@ public class PointCloudInspector implements InspectorType {
 
 		// Create the Request template and execute post
 		HttpEntity<String> request = new HttpEntity<String>(payload, headers);
-		RestTemplate restTemplate = new RestTemplate();
 		String response = "";
 		try {
 			response = restTemplate.postForObject(url, request, String.class);
