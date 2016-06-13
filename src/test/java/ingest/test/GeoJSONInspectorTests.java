@@ -15,8 +15,15 @@
  **/
 package ingest.test;
 
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.when;
 import ingest.inspect.GeoJsonInspector;
 import ingest.utility.IngestUtilities;
+
+import java.io.File;
+
 import model.data.DataResource;
 import model.data.type.GeoJsonDataType;
 import model.job.metadata.ResourceMetadata;
@@ -69,8 +76,18 @@ public class GeoJSONInspectorTests {
 	@Test
 	public void testInspect() throws Exception {
 		// Mock
+		when(ingestUtilities.getShapefileDataStore(anyString())).thenCallRealMethod();
+		when(ingestUtilities.deleteDirectoryRecursive(any(File.class))).thenCallRealMethod();
 
 		// Test
 		DataResource data = inspector.inspect(mockData, true);
+
+		// Verify
+		assertTrue(data.getSpatialMetadata() != null);
+		assertTrue(data.getSpatialMetadata().getMaxX().equals(106.00));
+		assertTrue(data.getSpatialMetadata().getMaxY().equals(4.0));
+		assertTrue(data.getSpatialMetadata().getMinX().equals(102.0));
+		assertTrue(data.getSpatialMetadata().getMinY().equals(0.5));
+		assertTrue(data.getSpatialMetadata().getEpsgCode().equals(4326));
 	}
 }
