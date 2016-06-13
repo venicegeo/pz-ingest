@@ -70,14 +70,15 @@ public class ShapefileInspector implements InspectorType {
 	private PiazzaLogger logger;
 	@Autowired
 	private IngestUtilities ingestUtilities;
-	
+
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
 				.getLocation());
-		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "zip"));
+		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator,
+				dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
@@ -90,10 +91,12 @@ public class ShapefileInspector implements InspectorType {
 
 		ingestUtilities.extractZip(shapefileZip.getAbsolutePath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, ingestUtilities.findShapeFileName(extractPath));
+		String shapefilePath = String.format("%s%s%s", extractPath, File.separator,
+				ingestUtilities.findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = ingestUtilities.getShapefileDataStore(shapefilePath);
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = ingestUtilities
+				.getShapefileDataStore(shapefilePath);
 
 		// Get the Bounding Box, set the Spatial Metadata
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
