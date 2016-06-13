@@ -83,6 +83,7 @@ public class GeoJSONInspectorTests {
 		DataResource data = inspector.inspect(mockData, true);
 
 		// Verify
+		assertTrue(data != null);
 		assertTrue(data.getSpatialMetadata() != null);
 		assertTrue(data.getSpatialMetadata().getMaxX().equals(106.00));
 		assertTrue(data.getSpatialMetadata().getMaxY().equals(4.0));
