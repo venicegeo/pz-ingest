@@ -267,7 +267,7 @@ public class IngestUtilities {
 	 * 
 	 * @return The S3 client
 	 */
-	private AmazonS3 getAwsClient() {
+	public AmazonS3 getAwsClient() {
 		AmazonS3 s3Client;
 		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
 			s3Client = new AmazonS3Client();

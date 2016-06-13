@@ -52,7 +52,7 @@ import com.vividsolutions.jts.geom.Point;
  */
 public class WfsInspectTests {
 	private static final String MOCK_FEATURE_NAME = "Test";
-	MemoryDataStore mockDataStore;
+	private MemoryDataStore mockDataStore;
 	@Spy
 	private WfsInspector wfsInspector;
 
@@ -103,5 +103,4 @@ public class WfsInspectTests {
 		assertTrue(inspectedResource.getSpatialMetadata().getEpsgCode()
 				.equals(CRS.lookupEpsgCode(featureSource.getInfo().getCRS(), true)));
 	}
-
 }
