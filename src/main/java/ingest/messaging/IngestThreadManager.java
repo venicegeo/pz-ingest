@@ -150,6 +150,13 @@ public class IngestThreadManager {
 	}
 
 	/**
+	 * Stops all polling.
+	 */
+	public void stopPolling() {
+		closed.set(true);
+	}
+
+	/**
 	 * Begins listening for Abort Jobs. If a Job is owned by this component,
 	 * then it will be terminated.
 	 */
