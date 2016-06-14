@@ -113,38 +113,43 @@ public class GeoJsonInspector implements InspectorType {
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
+			SpatialMetadata spatialMetadata = new SpatialMetadata();
 
 			// Map GeoJSON to Shapefile
-			convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
+			boolean featuresCreated = convertGeoJsonToShapeFile(shapeFilePlaceHolder, dataResource);
 
-			// Persist to PostGIS
-			FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
-					.getShapefileDataStore(shapeFilePlaceHolder.getAbsolutePath());
-			ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
+			if (featuresCreated) {
+				// Persist to PostGIS
+				FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource = ingestUtilities
+						.getShapefileDataStore(shapeFilePlaceHolder.getAbsolutePath());
 
-			// Get the Bounding Box, set the Spatial Metadata
-			SpatialMetadata spatialMetadata = new SpatialMetadata();
-			ReferencedEnvelope envelope = shpFeatureSource.getBounds();
-			spatialMetadata.setMinX(envelope.getMinX());
-			spatialMetadata.setMinY(envelope.getMinY());
-			spatialMetadata.setMaxX(envelope.getMaxX());
-			spatialMetadata.setMaxY(envelope.getMaxY());
-			spatialMetadata.setNumFeatures(shpFeatureSource.getFeatures().size());
+				ingestUtilities.persistShapeFile(shpFeatureSource, dataResource);
 
-			// Get the SRS and EPSG codes
-			if (shpFeatureSource.getInfo().getCRS() != null) {
-				spatialMetadata.setCoordinateReferenceSystem(shpFeatureSource.getInfo().getCRS().toString());
-				spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(shpFeatureSource.getInfo().getCRS(), true));
-			} else {
-				// Default to EPSG 4326. Most GeoJSON is this code, and is sort
-				// of an unofficial standard for GeoJSON.
-				spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
+				// Get the Bounding Box, set the Spatial Metadata
+				ReferencedEnvelope envelope = shpFeatureSource.getBounds();
+				spatialMetadata.setMinX(envelope.getMinX());
+				spatialMetadata.setMinY(envelope.getMinY());
+				spatialMetadata.setMaxX(envelope.getMaxX());
+				spatialMetadata.setMaxY(envelope.getMaxY());
+				spatialMetadata.setNumFeatures(shpFeatureSource.getFeatures().size());
+
+				// Get the SRS and EPSG codes
+				if (shpFeatureSource.getInfo().getCRS() != null) {
+					spatialMetadata.setCoordinateReferenceSystem(shpFeatureSource.getInfo().getCRS().toString());
+					spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(shpFeatureSource.getInfo().getCRS(), true));
+				} else {
+					// Default to EPSG 4326. Most GeoJSON is this code, and is
+					// sort
+					// of an unofficial standard for GeoJSON.
+					spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
+				}
+
+				// Convert DataType to postgis from geojson
+				((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
 			}
 
 			dataResource.spatialMetadata = spatialMetadata;
 
-			// Convert DataType to postgis from geojson
-			((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
 		}
 
 		// Delete temporary Shapefile contents local temp folder
@@ -166,10 +171,10 @@ public class GeoJsonInspector implements InspectorType {
 	 * @param dataResource
 	 *            DataResource for unique names from id.
 	 * 
-	 * @return File object location of the newly created shapefile
+	 * @return True if features were created, false if not.
 	 * @throws Exception
 	 */
-	public File convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
+	public boolean convertGeoJsonToShapeFile(File shapefileOutput, DataResource dataResource) throws Exception {
 
 		// Obtain Original GeoJSON
 		File geoJsonOriginalFile = getFile(dataResource);
@@ -189,13 +194,23 @@ public class GeoJsonInspector implements InspectorType {
 		fc.getSchema();
 
 		// Write features to shape file
-		writeFeatures(fc, shpDataStore);
+		if (fc.size() > 0) {
+			writeFeatures(fc, shpDataStore);
+		} else {
+			logger.log("No features were found in GeoJSON. Ingest will succeed, but it is an empty set.",
+					PiazzaLogger.INFO);
+		}
 
 		// clean up efforts
 		in.close();
 		ingestUtilities.deleteDirectoryRecursive(geoJsonOriginalFile.getParentFile());
 
-		return shapefileOutput;
+		if (fc.size() > 0) {
+			return true;
+		} else {
+			return false;
+		}
+
 	}
 
 	/**
