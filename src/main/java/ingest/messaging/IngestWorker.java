@@ -126,7 +126,7 @@ public class IngestWorker {
 			dataResource = ingestJob.getData();
 
 			// Assign a Resource ID to the incoming DataResource.
-			if (dataResource.getDataId() == null) {
+			if ((dataResource.getDataId() == null) || (dataResource.getDataId().isEmpty())) {
 				String dataId = uuidFactory.getUUID();
 				dataResource.setDataId(dataId);
 			}
