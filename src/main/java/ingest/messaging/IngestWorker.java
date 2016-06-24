@@ -159,7 +159,7 @@ public class IngestWorker {
 					// S3, make sure it's different than the Piazza S3;
 					// Depending on the Type of file
 					switch (fileLoc.getType()) {
-					case S3FileStore.type:
+					case S3FileStore.TYPE:
 						S3FileStore s3FS = (S3FileStore) fileLoc;
 						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 							ingestUtilities.copyS3Source(dataResource);
@@ -167,7 +167,7 @@ public class IngestWorker {
 									+ s3FS.getFileName(), s3FS.getFileSize(), s3FS.getDomainName()));
 						}
 						break;
-					case FolderShare.type:
+					case FolderShare.TYPE:
 						ingestUtilities.copyS3Source(dataResource);
 						break;
 					}
