@@ -88,17 +88,17 @@ public class Inspector {
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
 		switch (dataResource.getDataType().getType()) {
-		case ShapefileDataType.type:
+		case ShapefileDataType.TYPE:
 			return shapefileInspector;
-		case WfsDataType.type:
+		case WfsDataType.TYPE:
 			return wfsInspector;
-		case RasterDataType.type:
+		case RasterDataType.TYPE:
 			return geotiffInspector;
-		case PointCloudDataType.type:
+		case PointCloudDataType.TYPE:
 			return pointCloudInspector;
-		case GeoJsonDataType.type:
+		case GeoJsonDataType.TYPE:
 			return geoJsonInspector;
-		case TextDataType.type:
+		case TextDataType.TYPE:
 			return textInspector;
 		}
 		throw new Exception("An Inspector was not found for the following data type: "

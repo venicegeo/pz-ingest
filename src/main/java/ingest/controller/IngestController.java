@@ -74,7 +74,7 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
-				return new ErrorResponse(null, String.format("Data not found: %s", dataId), "Loader");
+				return new ErrorResponse(String.format("Data not found: %s", dataId), "Loader");
 			}
 			// Delete the Data if hosted
 			ingestUtil.deleteDataResourceFiles(data);
@@ -87,7 +87,7 @@ public class IngestController {
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error deleting Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse(null, "Error deleting Data: " + exception.getMessage(), "Loader");
+			return new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader");
 		}
 	}
 
@@ -111,7 +111,7 @@ public class IngestController {
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
-			return new ErrorResponse(null, error, "Access");
+			return new ErrorResponse(error, "Access");
 		}
 	}
 
