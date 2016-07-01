@@ -58,7 +58,7 @@ public class EventTests {
 
 		// Verify
 		assertTrue(testEvent.data.get("epsg").equals(4326));
-		assertTrue(testEvent.data.get("dataType").equals(mockData.getDataType().getType()));
+		assertTrue(testEvent.data.get("dataType").equals(mockData.getDataType().getClass().getSimpleName()));
 		assertTrue(testEvent.data.get("minX").equals(0.0));
 		assertTrue(testEvent.data.get("hosted").equals(true));
 	}

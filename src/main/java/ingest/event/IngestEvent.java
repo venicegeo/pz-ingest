@@ -63,7 +63,7 @@ public class IngestEvent {
 		date = job.getSubmittedString();
 		// Populate the Map fields with the Data Resource metadata.
 		data.put("dataId", dataResource.getDataId());
-		data.put("dataType", dataResource.getDataType().getType());
+		data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
 		data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
 		data.put("minX", dataResource.getSpatialMetadata().getMinX());
 		data.put("minY", dataResource.getSpatialMetadata().getMinY());

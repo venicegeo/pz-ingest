@@ -87,21 +87,27 @@ public class Inspector {
 	 * @return The inspector capable of inspecting the data
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
-		switch (dataResource.getDataType().getType()) {
-		case ShapefileDataType.TYPE:
+		
+		String dataResourceType = dataResource.getDataType().getClass().getSimpleName();
+		
+		if( dataResourceType.equals((new ShapefileDataType()).getClass().getSimpleName())) { 
 			return shapefileInspector;
-		case WfsDataType.TYPE:
+		}
+		if( dataResourceType.equals((new WfsDataType()).getClass().getSimpleName())) { 
 			return wfsInspector;
-		case RasterDataType.TYPE:
+		}
+		if( dataResourceType.equals((new RasterDataType()).getClass().getSimpleName())) { 
 			return geotiffInspector;
-		case PointCloudDataType.TYPE:
+		}
+		if( dataResourceType.equals((new PointCloudDataType()).getClass().getSimpleName())) { 
 			return pointCloudInspector;
-		case GeoJsonDataType.TYPE:
+		}
+		if( dataResourceType.equals((new GeoJsonDataType()).getClass().getSimpleName())) { 
 			return geoJsonInspector;
-		case TextDataType.TYPE:
+		}
+		if( dataResourceType.equals((new TextDataType()).getClass().getSimpleName())) { 
 			return textInspector;
 		}
-		throw new Exception("An Inspector was not found for the following data type: "
-				+ dataResource.getDataType().getType());
+		throw new Exception("An Inspector was not found for the following data type: " + dataResourceType);
 	}
 }
