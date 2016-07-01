@@ -139,7 +139,7 @@ public class IngestWorker {
 			// Log what we're going to Ingest
 			logger.log(String.format(
 					"Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job ID of %s",
-					dataResource.getDataId(), dataResource.getDataType().getType(), ingestJob.getHost().toString(),
+					dataResource.getDataId(), dataResource.getDataType().getClass().getSimpleName(), ingestJob.getHost().toString(),
 					job.getJobId()), PiazzaLogger.INFO);
 
 			// Update Status on Handling
@@ -158,18 +158,18 @@ public class IngestWorker {
 					// Copy to Piazza S3 bucket if hosted = true; If already in
 					// S3, make sure it's different than the Piazza S3;
 					// Depending on the Type of file
-					switch (fileLoc.getType()) {
-					case S3FileStore.TYPE:
+					String fileType = fileLoc.getClass().getSimpleName();
+					
+					if(fileType.equals((new S3FileStore()).getClass().getSimpleName())) {
 						S3FileStore s3FS = (S3FileStore) fileLoc;
 						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 							ingestUtilities.copyS3Source(dataResource);
 							fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-"
 									+ s3FS.getFileName(), s3FS.getFileSize(), s3FS.getDomainName()));
 						}
-						break;
-					case FolderShare.TYPE:
+					}
+					else if(fileType.equals((new FolderShare()).getClass().getSimpleName())) { 
 						ingestUtilities.copyS3Source(dataResource);
-						break;
 					}
 				}
 			}
