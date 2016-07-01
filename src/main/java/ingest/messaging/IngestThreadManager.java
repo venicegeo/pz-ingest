@@ -29,6 +29,7 @@ import javax.annotation.PostConstruct;
 import messaging.job.JobMessageFactory;
 import messaging.job.KafkaClientFactory;
 import messaging.job.WorkerCallback;
+import model.job.type.IngestJob;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -51,7 +52,7 @@ import util.PiazzaLogger;
  */
 @Component
 public class IngestThreadManager {
-	private static final String INGEST_TOPIC_NAME = "ingest";
+	private static final String INGEST_TOPIC_NAME = IngestJob.class.getSimpleName();
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
