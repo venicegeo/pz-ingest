@@ -60,7 +60,7 @@ public class IngestEvent {
 		// The Type/ID as registered initially with the service.
 		type = id;
 		// Set the date
-		date = job.getSubmittedString();
+		date = job.getCreatedOnString();
 		// Populate the Map fields with the Data Resource metadata.
 		data.put("dataId", dataResource.getDataId());
 		data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
