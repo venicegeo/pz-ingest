@@ -94,8 +94,8 @@ public class WorkerTests {
 		mockIngest.data = mockData;
 		mockJob.jobId = "123456";
 		mockJob.jobType = mockIngest;
-		mockJob.submitted = new DateTime();
-		mockJob.submitterUserName = "Test User";
+		mockJob.createdOn = new DateTime();
+		mockJob.createdBy = "Test User";
 
 		// Mock the Kafka response that Producers will send. This will always
 		// return a Future that completes immediately and simply returns true.

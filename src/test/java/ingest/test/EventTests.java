@@ -42,7 +42,7 @@ public class EventTests {
 		Job mockJob = new Job();
 		mockJob.jobType = new IngestJob();
 		((IngestJob) mockJob.jobType).host = true;
-		mockJob.submitted = new DateTime();
+		mockJob.createdOn = new DateTime();
 		DataResource mockData = new DataResource();
 		mockData.dataId = "123456";
 		mockData.dataType = new ShapefileDataType();
