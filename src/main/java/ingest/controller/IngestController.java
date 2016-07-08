@@ -30,6 +30,7 @@ import model.response.SuccessResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,7 +66,7 @@ public class IngestController {
 	 *            ID of the Resource
 	 * @return The resource matching the specified ID
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE, produces = "application/json")
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
@@ -102,7 +103,7 @@ public class IngestController {
 	 *            the user submitting the request
 	 * @return OK if successful; error if not.
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.POST, produces = "application/json")
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
