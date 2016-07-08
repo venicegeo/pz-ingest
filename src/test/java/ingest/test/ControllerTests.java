@@ -74,13 +74,13 @@ public class ControllerTests {
 	@Test
 	public void testDelete() {
 		// Test empty Data
-		PiazzaResponse response = ingestController.deleteData("");
+		PiazzaResponse response = ingestController.deleteData("").getBody();
 		assertTrue(response instanceof ErrorResponse);
 		assertTrue(((ErrorResponse) response).message.contains("No Data ID"));
 
 		// Test no Data Resource for the ID
 		Mockito.when(persistence.getData(eq("123456"))).thenReturn(null);
-		response = ingestController.deleteData("123456");
+		response = ingestController.deleteData("123456").getBody();
 		assertTrue(response instanceof ErrorResponse);
 		assertTrue(((ErrorResponse) response).message.contains("Data not found"));
 
@@ -88,7 +88,7 @@ public class ControllerTests {
 		Mockito.when(persistence.getData(eq("123456"))).thenReturn(new DataResource());
 		// Mockito.doNothing().when(ingestUtil.deleteDataResourceFiles(any(DataResource.class)));
 		// Mockito.doNothing().when(persistence.deleteDataEntry(eq("123456")));
-		response = ingestController.deleteData("123456");
+		response = ingestController.deleteData("123456").getBody();
 		assertTrue(response == null);
 	}
 
@@ -98,13 +98,13 @@ public class ControllerTests {
 	@Test
 	public void testUpdate() throws Exception {
 		// Test
-		PiazzaResponse response = ingestController.updateMetadata("123456", new ResourceMetadata());
+		PiazzaResponse response = ingestController.updateMetadata("123456", new ResourceMetadata()).getBody();
 		assertTrue(response == null);
 
 		// Test Exception
 		Mockito.doThrow(new Exception("Error")).when(persistence)
 				.updateMetadata(eq("123456"), any(ResourceMetadata.class));
-		response = ingestController.updateMetadata("123456", new ResourceMetadata());
+		response = ingestController.updateMetadata("123456", new ResourceMetadata()).getBody();
 		assertTrue(response instanceof ErrorResponse);
 	}
 
