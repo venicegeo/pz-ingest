@@ -26,9 +26,11 @@ import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
 import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
+import model.response.SuccessResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -64,8 +66,8 @@ public class IngestController {
 	 *            ID of the Resource
 	 * @return The resource matching the specified ID
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE)
-	public PiazzaResponse deleteData(@PathVariable(value = "dataId") String dataId) {
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> deleteData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
 				throw new Exception("No Data ID specified.");
@@ -74,7 +76,7 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
-				return new ErrorResponse(String.format("Data not found: %s", dataId), "Loader");
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
 			}
 			// Delete the Data if hosted
 			ingestUtil.deleteDataResourceFiles(data);
@@ -83,11 +85,12 @@ public class IngestController {
 			// Log the deletion
 			logger.log(String.format("Successfully deleted Data ID %s", dataId), PiazzaLogger.INFO);
 			// Return
-			return null;
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId
+					+ " was deleted successfully", "Access"), HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error deleting Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
-			return new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -100,18 +103,26 @@ public class IngestController {
 	 *            the user submitting the request
 	 * @return OK if successful; error if not.
 	 */
-	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.POST)
-	public PiazzaResponse updateMetadata(@PathVariable(value = "dataId") String dataId,
+	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
+			// Query for the Data ID
+			DataResource data = persistence.getData(dataId);
+			if (data == null) {
+				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
+			}			
+			
 			// Update the Metadata
 			persistence.updateMetadata(dataId, metadata);
 			// Return OK
-			return null;
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId
+					+ " was successfully updated.", "Access"), HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
-			return new ErrorResponse(error, "Access");
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
