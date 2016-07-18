@@ -9,7 +9,7 @@ applications:
   services:
     - pz-kafka
     - pz-blobstore
-    - pz-geoserver
+    - pz-geoserver-efs
     - pz-mongodb
   env:
     SPRING_PROFILES_ACTIVE: cloud

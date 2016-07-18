@@ -51,15 +51,15 @@ public class IngestUtilities {
 	@Autowired
 	private PiazzaLogger logger;
 
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.hostname}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.port}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
 	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.database}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
 	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.username}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
 	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-geoserver.credentials.postgres.password}")
+	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
 	private String POSTGRES_PASSWORD;
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
