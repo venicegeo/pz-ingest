@@ -125,7 +125,7 @@ public class IngestWorker {
 			// Get the description of the Data to be ingested
 			dataResource = ingestJob.getData();
 
-			// Assign a Resource ID to the incoming DataResource.
+			// Assign a Resource Id to the incoming DataResource.
 			if ((dataResource.getDataId() == null) || (dataResource.getDataId().isEmpty())) {
 				String dataId = uuidFactory.getUUID();
 				dataResource.setDataId(dataId);
@@ -138,7 +138,7 @@ public class IngestWorker {
 
 			// Log what we're going to Ingest
 			logger.log(String.format(
-					"Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job ID of %s",
+					"Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job Id of %s",
 					dataResource.getDataId(), dataResource.getDataType().getClass().getSimpleName(), ingestJob.getHost().toString(),
 					job.getJobId()), PiazzaLogger.INFO);
 
@@ -186,7 +186,7 @@ public class IngestWorker {
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 
 			// The result of this Job was creating a resource at the specified
-			// ID.
+			// Id.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 

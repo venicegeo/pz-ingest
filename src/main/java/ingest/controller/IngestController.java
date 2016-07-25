@@ -63,19 +63,19 @@ public class IngestController {
 	 * Deletes the Data resource object from the Resources collection.
 	 * 
 	 * @param dataId
-	 *            ID of the Resource
-	 * @return The resource matching the specified ID
+	 *            Id of the Resource
+	 * @return The resource matching the specified Id
 	 */
 	@RequestMapping(value = "/data/{dataId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<PiazzaResponse> deleteData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
-				throw new Exception("No Data ID specified.");
+				throw new Exception("No Data Id specified.");
 			}
-			// Query for the Data ID
+			// Query for the Data Id
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
-				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
 			}
 			// Delete the Data if hosted
@@ -83,7 +83,7 @@ public class IngestController {
 			// Remove the Data from the database
 			persistence.deleteDataEntry(dataId);
 			// Log the deletion
-			logger.log(String.format("Successfully deleted Data ID %s", dataId), PiazzaLogger.INFO);
+			logger.log(String.format("Successfully deleted Data Id %s", dataId), PiazzaLogger.INFO);
 			// Return
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId
 					+ " was deleted successfully", "Access"), HttpStatus.OK);
@@ -98,7 +98,7 @@ public class IngestController {
 	 * Update the metadata of a Data Resource
 	 * 
 	 * @param dataId
-	 *            The ID of the resource
+	 *            The Id of the resource
 	 * @param user
 	 *            the user submitting the request
 	 * @return OK if successful; error if not.
@@ -107,10 +107,10 @@ public class IngestController {
 	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
-			// Query for the Data ID
+			// Query for the Data Id
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
-				logger.log(String.format("Data not found for requested ID %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
 			}			
 			
@@ -135,7 +135,7 @@ public class IngestController {
 	public ResponseEntity<Map<String, Object>> getAdminStats() {
 		Map<String, Object> stats = new HashMap<String, Object>();
 		// Return information on the jobs currently being processed
-		stats.put("jobs", threadManager.getRunningJobIDs());
+		stats.put("jobs", threadManager.getRunningJobIds());
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
 	}
 

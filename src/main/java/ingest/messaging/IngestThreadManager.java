@@ -118,7 +118,7 @@ public class IngestThreadManager {
 	public void pollIngestJobs() {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
-			// remove the Job ID from the running Jobs list.
+			// remove the Job Id from the running Jobs list.
 			WorkerCallback callback = new WorkerCallback() {
 				@Override
 				public void onComplete(String jobId) {
@@ -174,7 +174,7 @@ public class IngestThreadManager {
 				ConsumerRecords<String, String> consumerRecords = uniqueConsumer.poll(1000);
 				// Handle new Messages on this topic.
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					// Determine if this Job ID is being processed by this
+					// Determine if this Job Id is being processed by this
 					// component.
 					String jobId = consumerRecord.key();
 					if (runningJobs.containsKey(jobId)) {
@@ -192,12 +192,12 @@ public class IngestThreadManager {
 	}
 
 	/**
-	 * Returns a list of the Job IDs that are currently being processed by this
+	 * Returns a list of the Job Ids that are currently being processed by this
 	 * instance
 	 * 
-	 * @return The list of Job IDs
+	 * @return The list of Job Ids
 	 */
-	public List<String> getRunningJobIDs() {
+	public List<String> getRunningJobIds() {
 		return new ArrayList<String>(runningJobs.keySet());
 	}
 

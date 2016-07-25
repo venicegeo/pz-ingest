@@ -48,7 +48,7 @@ public class IngestEvent {
 	 * defined by the Ingest EventType.
 	 * 
 	 * @param id
-	 *            The ID of the Job (type) as registered initially with
+	 *            The Id of the Job (type) as registered initially with
 	 *            pz-workflow
 	 * @param job
 	 *            The Job that was processed and resulted in the creation of the
@@ -57,7 +57,7 @@ public class IngestEvent {
 	 *            The Data Resource created as a result of the Job
 	 */
 	public IngestEvent(String id, Job job, DataResource dataResource) {
-		// The Type/ID as registered initially with the service.
+		// The Type/Id as registered initially with the service.
 		type = id;
 		// Set the date
 		date = job.getCreatedOnString();

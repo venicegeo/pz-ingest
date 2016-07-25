@@ -103,10 +103,10 @@ public class PersistMetadata {
 	}
 
 	/**
-	 * Deletes the item from the database matching the Data ID.
+	 * Deletes the item from the database matching the Data Id.
 	 * 
 	 * @param dataId
-	 *            The Data ID to delete.
+	 *            The Data Id to delete.
 	 */
 	public void deleteDataEntry(String dataId) {
 		BasicDBObject query = new BasicDBObject("dataId", dataId);
@@ -126,11 +126,11 @@ public class PersistMetadata {
 	}
 
 	/**
-	 * Gets the DataResource from the Resources collection by ID. This ID is
+	 * Gets the DataResource from the Resources collection by Id. This Id is
 	 * typically what will be returned to the user as the result of their Job.
 	 * 
 	 * @param dataId
-	 *            The ID of the DataResource
+	 *            The Id of the DataResource
 	 * @return DataResource object
 	 */
 	public DataResource getData(String dataId) {
@@ -152,7 +152,7 @@ public class PersistMetadata {
 	 * Updates the Metadata for the Data Resource object.
 	 * 
 	 * @param dataId
-	 *            The Data ID of the resource to update
+	 *            The Data Id of the resource to update
 	 * @param metadata
 	 *            The metadata to update with
 	 */
@@ -160,7 +160,7 @@ public class PersistMetadata {
 		// Get the Data Resource
 		DataResource dataResource = getData(dataId);
 		if (dataResource == null) {
-			throw new Exception(String.format("No Data Resource found matching ID %s", dataId));
+			throw new Exception(String.format("No Data Resource found matching Id %s", dataId));
 		}
 		// Merge the ResourceMetadata together
 		dataResource.getMetadata().merge(metadata, false);

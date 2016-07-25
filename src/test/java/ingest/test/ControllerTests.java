@@ -77,9 +77,9 @@ public class ControllerTests {
 		// Test empty Data
 		ResponseEntity<PiazzaResponse> response = ingestController.deleteData("");
 		assertTrue(response.getBody() instanceof ErrorResponse);
-		assertTrue(((ErrorResponse) response.getBody()).message.contains("No Data ID"));
+		assertTrue(((ErrorResponse) response.getBody()).message.contains("No Data Id"));
 
-		// Test no Data Resource for the ID
+		// Test no Data Resource for the Id
 		Mockito.when(persistence.getData(eq("123456"))).thenReturn(null);
 		response = ingestController.deleteData("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);

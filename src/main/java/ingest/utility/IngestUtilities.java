@@ -182,7 +182,7 @@ public class IngestUtilities {
 		// Get the dataStore to the postGIS database.
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
 				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
-		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile ID %s",
+		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile Id %s",
 				POSTGRES_HOST, POSTGRES_PORT, dataResource.getDataId()));
 
 		// Create the schema in the data store
