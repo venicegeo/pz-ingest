@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -34,6 +35,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 @ComponentScan({ "ingest, util" })
 public class Application extends SpringBootServletInitializer implements AsyncConfigurer {
+	@Value("${thread.count.size}")
+	private int threadCountSize;
+	@Value("${thread.count.limit}")
+	private int threadCountLimit;
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
@@ -47,8 +52,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	@Override
 	public Executor getAsyncExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(25);
-		executor.setMaxPoolSize(100);
+		executor.setCorePoolSize(threadCountSize);
+		executor.setMaxPoolSize(threadCountLimit);
 		executor.initialize();
 		return executor;
 	}
