@@ -18,18 +18,8 @@ package ingest.test;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import ingest.controller.IngestController;
-import ingest.messaging.IngestThreadManager;
-import ingest.persist.PersistMetadata;
-import ingest.utility.IngestUtilities;
 
 import java.util.Map;
-
-import model.data.DataResource;
-import model.job.metadata.ResourceMetadata;
-import model.response.ErrorResponse;
-import model.response.PiazzaResponse;
-import model.response.SuccessResponse;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +29,17 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import ingest.controller.IngestController;
+import ingest.messaging.IngestThreadManager;
+import ingest.persist.PersistMetadata;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.job.metadata.ResourceMetadata;
+import model.response.ErrorResponse;
+import model.response.PiazzaResponse;
+import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
@@ -57,6 +57,8 @@ public class ControllerTests {
 	private PersistMetadata persistence;
 	@Mock
 	private IngestUtilities ingestUtil;
+	@Mock
+	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
 	@InjectMocks
 	private IngestController ingestController;

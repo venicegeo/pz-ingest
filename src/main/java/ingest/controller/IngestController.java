@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,9 +42,8 @@ import org.springframework.web.bind.annotation.RestController;
 import util.PiazzaLogger;
 
 /**
- * REST Controller for ingest. Ingest has no functional REST endpoints, as all
- * communication is done through Kafka. However, this controller exposes useful
- * debug/status endpoints which can be used administratively.
+ * REST Controller for ingest. Ingest has no functional REST endpoints, as all communication is done through Kafka.
+ * However, this controller exposes useful debug/status endpoints which can be used administratively.
  * 
  * @author Patrick.Doody
  * 
@@ -58,6 +58,8 @@ public class IngestController {
 	private PersistMetadata persistence;
 	@Autowired
 	private IngestUtilities ingestUtil;
+	@Autowired
+	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
 	/**
 	 * Deletes the Data resource object from the Resources collection.
@@ -76,7 +78,8 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+						HttpStatus.NOT_FOUND);
 			}
 			// Delete the Data if hosted
 			ingestUtil.deleteDataResourceFiles(data);
@@ -85,12 +88,13 @@ public class IngestController {
 			// Log the deletion
 			logger.log(String.format("Successfully deleted Data Id %s", dataId), PiazzaLogger.INFO);
 			// Return
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId
-					+ " was deleted successfully", "Access"), HttpStatus.OK);
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Access"),
+					HttpStatus.OK);
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Error deleting Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
+					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -111,14 +115,15 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"), HttpStatus.NOT_FOUND);
-			}			
-			
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+						HttpStatus.NOT_FOUND);
+			}
+
 			// Update the Metadata
 			persistence.updateMetadata(dataId, metadata);
 			// Return OK
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId
-					+ " was successfully updated.", "Access"), HttpStatus.OK);
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", "Access"),
+					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
@@ -136,6 +141,10 @@ public class IngestController {
 		Map<String, Object> stats = new HashMap<String, Object>();
 		// Return information on the jobs currently being processed
 		stats.put("jobs", threadManager.getRunningJobIds());
+		stats.put("activeThreads", threadPoolTaskExecutor.getActiveCount());
+		if (threadPoolTaskExecutor.getThreadPoolExecutor() != null) {
+			stats.put("threadQueue", threadPoolTaskExecutor.getThreadPoolExecutor().getQueue().size());
+		}
 		return new ResponseEntity<Map<String, Object>>(stats, HttpStatus.OK);
 	}
 
