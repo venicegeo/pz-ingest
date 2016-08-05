@@ -115,7 +115,7 @@ public class IngestWorker {
 		this.producer = producer;
 		try {
 			// Log
-			logger.log(String.format("Processing Data Load for Topic %s with Key %s", consumerRecord.topic(),
+			logger.log(String.format("Processing Data Load for Topic %s for Job Id %s", consumerRecord.topic(),
 					consumerRecord.key()), PiazzaLogger.INFO);
 
 			// Parse the Job from the Kafka Message
@@ -176,6 +176,7 @@ public class IngestWorker {
 
 			dataResource.metadata.createdBy = job.createdBy;
 			dataResource.metadata.createdOn = job.createdOn.toString();
+			dataResource.metadata.createdByJobId = job.getJobId();
 
 			// Inspect processes the Data item, adds appropriate metadata and
 			// stores if requested
