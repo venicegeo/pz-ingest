@@ -26,11 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.PostConstruct;
 
-import messaging.job.JobMessageFactory;
-import messaging.job.KafkaClientFactory;
-import messaging.job.WorkerCallback;
-import model.job.type.IngestJob;
-
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -40,6 +35,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import messaging.job.JobMessageFactory;
+import messaging.job.KafkaClientFactory;
+import messaging.job.WorkerCallback;
+import model.job.type.AbortJob;
+import model.job.type.IngestJob;
+import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
 
 /**
@@ -168,6 +171,7 @@ public class IngestThreadManager {
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String
 					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
+			ObjectMapper mapper = new ObjectMapper();
 
 			// Poll
 			while (!closed.get()) {
@@ -176,7 +180,17 @@ public class IngestThreadManager {
 				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
 					// Determine if this Job Id is being processed by this
 					// component.
-					String jobId = consumerRecord.key();
+					String jobId = null;
+					try {
+						PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
+						jobId = ((AbortJob) request.jobType).getJobId();
+					} catch (Exception exception) {
+						exception.printStackTrace();
+						logger.log(String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
+								exception.getMessage()), PiazzaLogger.ERROR);
+						continue;
+					}
+					
 					if (runningJobs.containsKey(jobId)) {
 						// Cancel the Running Job
 						runningJobs.get(jobId).cancel(true);
