@@ -21,11 +21,6 @@ import java.nio.file.Files;
 
 import javax.media.jai.PlanarImage;
 
-import model.data.DataResource;
-import model.data.location.FileAccessFactory;
-import model.data.type.RasterDataType;
-import model.job.metadata.SpatialMetadata;
-
 import org.apache.commons.io.FileUtils;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
@@ -38,6 +33,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FileAccessFactory;
+import model.data.type.RasterDataType;
+import model.job.metadata.SpatialMetadata;
 import util.PiazzaLogger;
 
 /**
@@ -50,6 +50,8 @@ import util.PiazzaLogger;
 public class GeoTiffInspector implements InspectorType {
 	@Autowired
 	private PiazzaLogger logger;
+	@Autowired
+	private IngestUtilities ingestUtilities;
 	@Value("${data.temp.path}")
 	private String DATA_TEMP_PATH;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
@@ -82,6 +84,15 @@ public class GeoTiffInspector implements InspectorType {
 
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
+		
+		// Populate the projected EPSG:4326 spatial metadata
+		try {
+			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+		}
 
 		// Delete the file; cleanup.
 		try {

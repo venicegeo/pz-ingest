@@ -19,11 +19,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import model.data.DataResource;
-import model.data.type.PostGISDataType;
-import model.data.type.WfsDataType;
-import model.job.metadata.SpatialMetadata;
-
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DefaultTransaction;
@@ -35,10 +30,17 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.type.PostGISDataType;
+import model.data.type.WfsDataType;
+import model.job.metadata.SpatialMetadata;
 import util.GeoToolsUtil;
+import util.PiazzaLogger;
 
 /**
  * Inspects a remote WFS URL and parses out the relevant information for it.
@@ -48,6 +50,10 @@ import util.GeoToolsUtil;
  */
 @Component
 public class WfsInspector implements InspectorType {
+	@Autowired
+	private IngestUtilities ingestUtilities;
+	@Autowired
+	private PiazzaLogger logger;
 	private static final String CAPABILITIES_TEMPLATE = "%s?SERVICE=wfs&REQUEST=GetCapabilities&VERSION=%s";
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
@@ -83,6 +89,15 @@ public class WfsInspector implements InspectorType {
 
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
+		
+		// Populate the projected EPSG:4326 spatial metadata
+		try {
+			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+		}
 
 		// If this Data Source is to be hosted within the Piazza PostGIS, then
 		// copy that data as a new table in the database.
@@ -124,6 +139,7 @@ public class WfsInspector implements InspectorType {
 			// Get the Features from the WFS and add them to the PostGIS store
 			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
 			if (wfsFeatures.size() == 0) {
+				transaction.close();
 				throw new Exception("No features could be collected from the WFS. Nothing to store.");
 			}
 			postGisFeatureStore.addFeatures(wfsFeatures);

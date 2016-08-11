@@ -60,6 +60,8 @@ import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.AttributeType;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.GeometryType;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.MathTransform;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -67,8 +69,8 @@ import org.springframework.stereotype.Component;
 import util.PiazzaLogger;
 
 /**
- * Inspects GeoJSON. Will parse the GeoJSON input to ensure validity, and parse
- * information such as spatial bounding box.
+ * Inspects GeoJSON. Will parse the GeoJSON input to ensure validity, and parse information such as spatial bounding
+ * box.
  * 
  * Vectors for GeoJSON will be stored in Piazza PostGIS table.
  * 
@@ -107,8 +109,8 @@ public class GeoJsonInspector implements InspectorType {
 		// Create local placeholder file for Shapefile contents
 		File localWriteDir = new File(String.format("%s%s", "tmp_output_", dataResource.getDataId()));
 		localWriteDir.mkdir();
-		File shapeFilePlaceHolder = new File(String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator,
-				dataResource.getDataId(), ".shp"));
+		File shapeFilePlaceHolder = new File(
+				String.format("%s%s%s%s", localWriteDir.getAbsolutePath(), File.separator, dataResource.getDataId(), ".shp"));
 		shapeFilePlaceHolder.createNewFile();
 
 		// Persist mapped Shapefile into the Piazza PostGIS Database.
@@ -144,6 +146,15 @@ public class GeoJsonInspector implements InspectorType {
 					spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
 				}
 
+				// Populate the projected EPSG:4326 spatial metadata
+				try {
+					spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+				} catch (Exception exception) {
+					exception.printStackTrace();
+					logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+							dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+				}
+
 				// Convert DataType to postgis from geojson
 				((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
 			}
@@ -162,9 +173,8 @@ public class GeoJsonInspector implements InspectorType {
 	}
 
 	/**
-	 * This method is required because GeoTools does not contain a GeoJSON Data
-	 * Store. Internally, we convert the GeoJSON to a Shapefile, which gets us a
-	 * Data Store that can be used to fully manipulate and parse the vectors.
+	 * This method is required because GeoTools does not contain a GeoJSON Data Store. Internally, we convert the
+	 * GeoJSON to a Shapefile, which gets us a Data Store that can be used to fully manipulate and parse the vectors.
 	 * 
 	 * @param shapefileOutput
 	 *            Shapefile file to map geojson into.
@@ -197,8 +207,7 @@ public class GeoJsonInspector implements InspectorType {
 		if (fc.size() > 0) {
 			writeFeatures(fc, shpDataStore);
 		} else {
-			logger.log("No features were found in GeoJSON. Ingest will succeed, but it is an empty set.",
-					PiazzaLogger.INFO);
+			logger.log("No features were found in GeoJSON. Ingest will succeed, but it is an empty set.", PiazzaLogger.INFO);
 		}
 
 		// clean up efforts
@@ -214,8 +223,7 @@ public class GeoJsonInspector implements InspectorType {
 	}
 
 	/**
-	 * Writes features collected from GeoJSON into a Shapefile for internal
-	 * GeoTools Data Store parsing.
+	 * Writes features collected from GeoJSON into a Shapefile for internal GeoTools Data Store parsing.
 	 * 
 	 * @see "https://gitlab.com/snippets/9275"
 	 * 
@@ -226,8 +234,8 @@ public class GeoJsonInspector implements InspectorType {
 	 * @return
 	 * @throws Exception
 	 */
-	private void writeFeatures(FeatureCollection<SimpleFeatureType, SimpleFeature> features,
-			ShapefileDataStore shpDataStore) throws Exception {
+	private void writeFeatures(FeatureCollection<SimpleFeatureType, SimpleFeature> features, ShapefileDataStore shpDataStore)
+			throws Exception {
 		// Ensure the Data Store is valid before proceeding.
 		if (shpDataStore == null) {
 			throw new IllegalStateException("GeoJson inspection error: Temporary Shapefile Store is not accessible.");
@@ -241,14 +249,12 @@ public class GeoJsonInspector implements InspectorType {
 		Transaction transaction = new DefaultTransaction("create");
 
 		/*
-		 * The Shapefile format has a couple limitations: - "the_geom" is always
-		 * first, and used for the geometry attribute name - "the_geom" must be
-		 * of type Point, MultiPoint, MuiltiLineString, MultiPolygon - Attribute
-		 * names are limited in length - Not all data types are supported
-		 * (example Timestamp represented as Date)
+		 * The Shapefile format has a couple limitations: - "the_geom" is always first, and used for the geometry
+		 * attribute name - "the_geom" must be of type Point, MultiPoint, MuiltiLineString, MultiPolygon - Attribute
+		 * names are limited in length - Not all data types are supported (example Timestamp represented as Date)
 		 * 
-		 * Because of this we have to rename the geometry element and then
-		 * rebuild the features to make sure that it is the first attribute.
+		 * Because of this we have to rename the geometry element and then rebuild the features to make sure that it is
+		 * the first attribute.
 		 */
 		List<AttributeDescriptor> attributes = schema.getAttributeDescriptors();
 		GeometryType geomType = null;
@@ -263,11 +269,10 @@ public class GeoJsonInspector implements InspectorType {
 			}
 		}
 
-		GeometryTypeImpl gt = new GeometryTypeImpl(new NameImpl("the_geom"), geomType.getBinding(),
-				geomType.getCoordinateReferenceSystem(), geomType.isIdentified(), geomType.isAbstract(),
-				geomType.getRestrictions(), geomType.getSuper(), geomType.getDescription());
-		GeometryDescriptor geomDesc = new GeometryDescriptorImpl(gt, new NameImpl("the_geom"), geom.getMinOccurs(),
-				geom.getMaxOccurs(), geom.isNillable(), geom.getDefaultValue());
+		GeometryTypeImpl gt = new GeometryTypeImpl(new NameImpl("the_geom"), geomType.getBinding(), geomType.getCoordinateReferenceSystem(),
+				geomType.isIdentified(), geomType.isAbstract(), geomType.getRestrictions(), geomType.getSuper(), geomType.getDescription());
+		GeometryDescriptor geomDesc = new GeometryDescriptorImpl(gt, new NameImpl("the_geom"), geom.getMinOccurs(), geom.getMaxOccurs(),
+				geom.isNillable(), geom.getDefaultValue());
 		attribs.add(0, geomDesc);
 
 		SimpleFeatureType shpType = new SimpleFeatureTypeImpl(schema.getName(), attribs, geomDesc, schema.isAbstract(),
@@ -323,8 +328,8 @@ public class GeoJsonInspector implements InspectorType {
 	 * @throws Exception
 	 */
 	private File getFile(DataResource dataResource) throws Exception {
-		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator,
-				dataResource.getDataId(), "json"));
+		File file = new File(
+				String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator, dataResource.getDataId(), "json"));
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 
 		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {

@@ -113,6 +113,15 @@ public class ShapefileInspector implements InspectorType {
 
 		// Set the spatial metadata
 		dataResource.spatialMetadata = spatialMetadata;
+		
+		// Populate the projected EPSG:4326 spatial metadata
+		try {
+			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+		}
 
 		// Process and persist shapefile file into the Piazza PostGIS database.
 		if (host) {

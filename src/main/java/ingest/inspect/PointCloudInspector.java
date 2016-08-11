@@ -17,13 +17,6 @@ package ingest.inspect;
 
 import java.io.File;
 
-import ingest.model.PointCloudResponse;
-import model.data.DataResource;
-import model.data.location.FileAccessFactory;
-import model.data.location.FileLocation;
-import model.data.type.PointCloudDataType;
-import model.job.metadata.SpatialMetadata;
-
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -36,10 +29,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import util.PiazzaLogger;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import ingest.model.PointCloudResponse;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FileAccessFactory;
+import model.data.location.FileLocation;
+import model.data.type.PointCloudDataType;
+import model.job.metadata.SpatialMetadata;
+import util.PiazzaLogger;
 
 /**
  * Inspects Point Cloud response file, parsing essential metadata from json.
@@ -51,6 +51,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class PointCloudInspector implements InspectorType {
 	@Autowired
 	private PiazzaLogger logger;
+	@Autowired
+	private IngestUtilities ingestUtilities;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
@@ -95,6 +97,15 @@ public class PointCloudInspector implements InspectorType {
 			// Decode CoordinateReferenceSystem and parse EPSG code
 			CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
 			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
+			
+			// Populate the projected EPSG:4326 spatial metadata
+			try {
+				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+			} catch (Exception exception) {
+				exception.printStackTrace();
+				logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+			}
 		} catch (Exception exception) {
 			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s",
 					dataResource.getDataId(), awsS3Url, exception.getMessage()), PiazzaLogger.WARNING);

@@ -10,6 +10,30 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.geotools.data.DataStore;
+import org.geotools.data.DataStoreFinder;
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.FeatureSource;
+import org.geotools.data.Transaction;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureStore;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.MathTransform;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.vividsolutions.jts.geom.Envelope;
+
 import model.data.DataResource;
 import model.data.DataType;
 import model.data.FileRepresentation;
@@ -18,27 +42,9 @@ import model.data.location.FileLocation;
 import model.data.location.S3FileStore;
 import model.data.type.GeoJsonDataType;
 import model.data.type.ShapefileDataType;
-
-import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
-import org.geotools.data.DefaultTransaction;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Transaction;
-import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureStore;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
+import model.job.metadata.SpatialMetadata;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
-
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 
 /**
  * Utility component for some generic processing efforts.
@@ -92,8 +98,7 @@ public class IngestUtilities {
 				}
 
 				if (!files[i].delete())
-					throw new Exception("Unable to delete file " + files[i].getName() + " from "
-							+ directory.getAbsolutePath());
+					throw new Exception("Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
 			}
 
 			result = directory.delete();
@@ -158,8 +163,7 @@ public class IngestUtilities {
 	 *            The full string path to the expanded *.shp shape file.
 	 * @return The GeoTools Shapefile Data Store Feature Source
 	 */
-	public FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath)
-			throws IOException {
+	public FeatureSource<SimpleFeatureType, SimpleFeature> getShapefileDataStore(String shapefilePath) throws IOException {
 		File shapefile = new File(shapefilePath);
 		Map<String, Object> map = new HashMap<String, Object>();
 		map.put("url", shapefile.toURI().toURL());
@@ -177,13 +181,13 @@ public class IngestUtilities {
 	 * @param dataResource
 	 *            The DataResource object with Shapefile metadata
 	 */
-	public void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource,
-			DataResource dataResource) throws Exception {
+	public void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource, DataResource dataResource)
+			throws Exception {
 		// Get the dataStore to the postGIS database.
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
-		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile Id %s",
-				POSTGRES_HOST, POSTGRES_PORT, dataResource.getDataId()));
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
+				POSTGRES_USER, POSTGRES_PASSWORD);
+		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile Id %s", POSTGRES_HOST,
+				POSTGRES_PORT, dataResource.getDataId()));
 
 		// Create the schema in the data store
 		String tableName = dataResource.getDataId();
@@ -279,8 +283,7 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Searches directory file list for the first shape file and
-	 * returns the name (non-recursive)
+	 * Searches directory file list for the first shape file and returns the name (non-recursive)
 	 * 
 	 * @param directoryPath
 	 *            Folder path to search
@@ -299,12 +302,11 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Deletes all persistent files for a Data Resource item. This will not
-	 * remove the entry from MongoDB. That is handled separately.
+	 * Deletes all persistent files for a Data Resource item. This will not remove the entry from MongoDB. That is
+	 * handled separately.
 	 * 
 	 * <p>
-	 * This will delete files from S3 for rasters/vectors, and for vectors this
-	 * will also delete the PostGIS table.
+	 * This will delete files from S3 for rasters/vectors, and for vectors this will also delete the PostGIS table.
 	 * </p>
 	 * 
 	 * @param dataResource
@@ -329,6 +331,38 @@ public class IngestUtilities {
 	}
 
 	/**
+	 * Based on the input Spatial metadata in native projection, this will reproject to EPSG:4326 and return a newly
+	 * created SpatialMetadata object with WGS84/EPSG:4326 projection information for that native bounding box.
+	 * 
+	 * @param spatialMetadata
+	 *            The native bounding box information
+	 * @return Projected (WGS84) bounding box information
+	 */
+	public SpatialMetadata getProjectedSpatialMetadata(SpatialMetadata spatialMetadata) throws Exception {
+		// Coordinate system inputs to transform
+		CoordinateReferenceSystem sourceCrs = CRS.decode(String.format("EPSG:%s", spatialMetadata.getEpsgCode()));
+		CoordinateReferenceSystem targetCrs = CRS.decode(String.format("EPSG:4326"));
+		MathTransform transform = CRS.findMathTransform(sourceCrs, targetCrs);
+
+		// Build the bounding box geometry to reproject with the transform
+		ReferencedEnvelope envelope = new ReferencedEnvelope(spatialMetadata.getMinX(), spatialMetadata.getMaxX(),
+				spatialMetadata.getMinY(), spatialMetadata.getMaxY(), sourceCrs);
+
+		// Project
+		Envelope projectedEnvelope = JTS.transform(envelope, transform);
+
+		// Create a new container and add the information
+		SpatialMetadata projected = new SpatialMetadata();
+		projected.setMinX(projectedEnvelope.getMinX());
+		projected.setMinY(projectedEnvelope.getMinY());
+		projected.setMaxX(projectedEnvelope.getMaxX());
+		projected.setMaxY(projectedEnvelope.getMaxY());
+		projected.setEpsgCode(4326);
+
+		return projected;
+	}
+
+	/**
 	 * Drops a table, by name, in the Piazza database.
 	 * 
 	 * @param tableName
@@ -336,17 +370,17 @@ public class IngestUtilities {
 	 */
 	public void deleteDatabaseTable(String tableName) throws Exception {
 		// Delete the table
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
+				POSTGRES_USER, POSTGRES_PASSWORD);
 		try {
 			postGisStore.removeSchema(tableName);
 		} catch (IllegalArgumentException exception) {
 			// If this exception is triggered, then its likely the database
 			// table was already deleted. Log that.
 			logger.log(
-					String.format(
-							"Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.",
-							tableName), PiazzaLogger.WARNING);
+					String.format("Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.",
+							tableName),
+					PiazzaLogger.WARNING);
 		} finally {
 			postGisStore.dispose();
 		}
