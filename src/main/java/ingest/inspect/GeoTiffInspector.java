@@ -87,7 +87,7 @@ public class GeoTiffInspector implements InspectorType {
 		
 		// Populate the projected EPSG:4326 spatial metadata
 		try {
-			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
 			exception.printStackTrace();
 			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",

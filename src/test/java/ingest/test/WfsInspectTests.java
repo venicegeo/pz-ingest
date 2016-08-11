@@ -17,14 +17,10 @@ package ingest.test;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.isA;
-import ingest.inspect.WfsInspector;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import model.data.DataResource;
-import model.data.type.WfsDataType;
 
 import org.geotools.data.DataUtilities;
 import org.geotools.data.memory.MemoryDataStore;
@@ -34,6 +30,7 @@ import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.referencing.CRS;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
@@ -44,6 +41,12 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
 
+import ingest.inspect.WfsInspector;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.type.WfsDataType;
+import util.PiazzaLogger;
+
 /**
  * Tests internal Ingest components such as data type Inspectors
  * 
@@ -51,6 +54,10 @@ import com.vividsolutions.jts.geom.Point;
  * 
  */
 public class WfsInspectTests {
+	@Mock
+	private PiazzaLogger logger;
+	@Mock
+	private IngestUtilities ingestUtilities;
 	private static final String MOCK_FEATURE_NAME = "Test";
 	private MemoryDataStore mockDataStore;
 	@Spy

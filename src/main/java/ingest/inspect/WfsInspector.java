@@ -89,14 +89,16 @@ public class WfsInspector implements InspectorType {
 
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
-		
+
 		// Populate the projected EPSG:4326 spatial metadata
 		try {
-			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
 			exception.printStackTrace();
-			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+			if (logger != null) {
+				logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+			}
 		}
 
 		// If this Data Source is to be hosted within the Piazza PostGIS, then
@@ -120,11 +122,11 @@ public class WfsInspector implements InspectorType {
 	 * @param featureSource
 	 *            GeoTools Feature source for WFS.
 	 */
-	private void copyWfsToPostGis(DataResource dataResource,
-			FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource) throws Exception {
+	private void copyWfsToPostGis(DataResource dataResource, FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource)
+			throws Exception {
 		// Create a Connection to the Piazza PostGIS Database for writing.
-		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA,
-				POSTGRES_DB_NAME, POSTGRES_USER, POSTGRES_PASSWORD);
+		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
+				POSTGRES_USER, POSTGRES_PASSWORD);
 
 		// Create the Schema in the Data Store
 		String tableName = dataResource.getDataId();
@@ -169,11 +171,9 @@ public class WfsInspector implements InspectorType {
 	/**
 	 * Gets the GeoTools Feature Source for the provided WFS Resource
 	 * 
-	 * @return GeoTools Feature Source that can be queried for spatial features
-	 *         and metadata
+	 * @return GeoTools Feature Source that can be queried for spatial features and metadata
 	 */
-	public FeatureSource<SimpleFeatureType, SimpleFeature> getWfsFeatureSource(DataResource dataResource)
-			throws IOException {
+	public FeatureSource<SimpleFeatureType, SimpleFeature> getWfsFeatureSource(DataResource dataResource) throws IOException {
 		// Form the Get Capabilities URL
 		WfsDataType wfsResource = (WfsDataType) dataResource.getDataType();
 		String capabilitiesUrl = String.format(CAPABILITIES_TEMPLATE, wfsResource.getUrl(), wfsResource.getVersion());
@@ -182,8 +182,7 @@ public class WfsInspector implements InspectorType {
 
 		// Connect to the Data and Feature Source
 		DataStore dataStore = DataStoreFinder.getDataStore(connectionParameters);
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(wfsResource
-				.getFeatureType());
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(wfsResource.getFeatureType());
 		return featureSource;
 	}
 
