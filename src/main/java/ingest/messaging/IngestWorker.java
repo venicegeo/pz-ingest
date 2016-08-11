@@ -142,6 +142,10 @@ public class IngestWorker {
 					dataResource.getDataId(), dataResource.getDataType().getClass().getSimpleName(), ingestJob.getHost().toString(),
 					job.getJobId()), PiazzaLogger.INFO);
 
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+			
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
@@ -177,6 +181,10 @@ public class IngestWorker {
 			dataResource.metadata.createdBy = job.createdBy;
 			dataResource.metadata.createdOn = job.createdOn.toString();
 			dataResource.metadata.createdByJobId = job.getJobId();
+			
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
 
 			// Inspect processes the Data item, adds appropriate metadata and
 			// stores if requested
@@ -186,6 +194,10 @@ public class IngestWorker {
 			jobProgress.percentComplete = 100;
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
 
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+			
 			// The result of this Job was creating a resource at the specified
 			// Id.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
@@ -196,6 +208,10 @@ public class IngestWorker {
 					String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					PiazzaLogger.INFO);
 
+			if (Thread.interrupted()) {
+				throw new InterruptedException();
+			}
+			
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
 				dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
@@ -214,6 +230,8 @@ public class IngestWorker {
 						"Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
 			}
+		} catch (InterruptedException exception) {
+			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			System.out.println("Error Parsing Data Load Job Message.");
