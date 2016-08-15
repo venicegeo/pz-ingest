@@ -31,9 +31,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
@@ -209,18 +214,23 @@ public class IngestWorker {
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
 				dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
-			} catch (Exception exception) {
+			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				logger.log(String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
+						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString()), PiazzaLogger.ERROR);
 			}
 
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
 			// place.
 			try {
 				dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
-			} catch (Exception exception) {
+			} catch (JsonParseException | JsonMappingException exception) {
+				logger.log(String.format("Could not create JSON to send to Workflow Service Event: ", exception.getMessage()),
+						PiazzaLogger.ERROR);
+			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				logger.log(String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getMessage()), PiazzaLogger.ERROR);
+						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString()), PiazzaLogger.ERROR);
+			} catch (Exception exception) {
+				logger.log(exception.getMessage(), PiazzaLogger.WARNING);
 			}
 		} catch (InterruptedException exception) {
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
@@ -260,13 +270,7 @@ public class IngestWorker {
 		HttpEntity<SearchMetadataIngestJob> entity = new HttpEntity<SearchMetadataIngestJob>(job, headers);
 
 		// Send the Request
-		try {
-			restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
-		} catch (Exception exception) {
-			// Log failure of Ingest
-			logger.log(String.format("Search Metadata Upload for Data %s failed with error: %s", dataResource.getDataId(),
-					exception.getMessage()), PiazzaLogger.ERROR);
-		}
+		restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
 	}
 
 	/**
@@ -278,7 +282,8 @@ public class IngestWorker {
 	 * @param dataResource
 	 *            The DataResource that has been ingested
 	 */
-	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String workflowUrl) throws Exception {
+	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String workflowUrl)
+			throws JsonParseException, JsonMappingException, RestClientException, IOException, Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// Make an initial request to Workflow in order to get the UUID of the System Event.
@@ -313,10 +318,11 @@ public class IngestWorker {
 					String.format("Event for Loading of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
 							dataResource.getDataId(), job.getJobId(), response.getBody().toString()),
 					PiazzaLogger.INFO);
-
 		} else {
 			// 201 not received. Throw an exception that something went wrong.
-			throw new Exception(String.format("Status code %s received.", response.getStatusCode()));
+			throw new Exception(String.format(
+					"Non-201 CREATED Status code received from Workflow upon Event creation: %s. This creation may not have succeeded.",
+					response.getStatusCode()));
 		}
 	}
 
