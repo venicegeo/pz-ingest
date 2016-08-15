@@ -207,10 +207,6 @@ public class IngestWorker {
 			// Console Logging
 			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()), PiazzaLogger.INFO);
 
-			if (Thread.interrupted()) {
-				throw new InterruptedException();
-			}
-
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
 				dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
