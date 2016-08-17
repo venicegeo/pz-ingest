@@ -15,22 +15,23 @@
  **/
 package ingest.inspect;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.mongodb.MongoException;
+import com.mongodb.MongoInterruptedException;
+
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
 import model.data.type.GeoJsonDataType;
 import model.data.type.PointCloudDataType;
-import model.data.type.PostGISDataType;
 import model.data.type.RasterDataType;
 import model.data.type.ShapefileDataType;
 import model.data.type.TextDataType;
 import model.data.type.WfsDataType;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 /**
- * Inspects the incoming data in Job Request for information for the Ingest.
- * Capable of inspecting files, or URLs.
+ * Inspects the incoming data in Job Request for information for the Ingest. Capable of inspecting files, or URLs.
  * 
  * @author Patrick.Doody
  * 
@@ -73,39 +74,46 @@ public class Inspector {
 		}
 
 		// Store the metadata in the Resources collection
-		metadataPersist.insertData(dataResource);
+		try {
+			metadataPersist.insertData(dataResource);
+		} catch (MongoException exception) {
+			if (exception instanceof MongoInterruptedException) {
+				throw new InterruptedException();
+			} else {
+				throw exception;
+			}
+		}
 	}
 
 	/**
-	 * Small factory method that returns the InspectorType that is applicable
-	 * for the DataResource based on the type of data it is. For a data format
-	 * like a Shapefile, GeoTIFF, or External WFS to be parsed, an Inspector
-	 * must be defined to do that work here.
+	 * Small factory method that returns the InspectorType that is applicable for the DataResource based on the type of
+	 * data it is. For a data format like a Shapefile, GeoTIFF, or External WFS to be parsed, an Inspector must be
+	 * defined to do that work here.
 	 * 
 	 * @param dataResource
 	 *            The Data to inspect
 	 * @return The inspector capable of inspecting the data
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
-		
+
 		String dataResourceType = dataResource.getDataType().getClass().getSimpleName();
-		
-		if( dataResourceType.equals((new ShapefileDataType()).getClass().getSimpleName())) { 
+
+		if (dataResourceType.equals((new ShapefileDataType()).getClass().getSimpleName())) {
 			return shapefileInspector;
 		}
-		if( dataResourceType.equals((new WfsDataType()).getClass().getSimpleName())) { 
+		if (dataResourceType.equals((new WfsDataType()).getClass().getSimpleName())) {
 			return wfsInspector;
 		}
-		if( dataResourceType.equals((new RasterDataType()).getClass().getSimpleName())) { 
+		if (dataResourceType.equals((new RasterDataType()).getClass().getSimpleName())) {
 			return geotiffInspector;
 		}
-		if( dataResourceType.equals((new PointCloudDataType()).getClass().getSimpleName())) { 
+		if (dataResourceType.equals((new PointCloudDataType()).getClass().getSimpleName())) {
 			return pointCloudInspector;
 		}
-		if( dataResourceType.equals((new GeoJsonDataType()).getClass().getSimpleName())) { 
+		if (dataResourceType.equals((new GeoJsonDataType()).getClass().getSimpleName())) {
 			return geoJsonInspector;
 		}
-		if( dataResourceType.equals((new TextDataType()).getClass().getSimpleName())) { 
+		if (dataResourceType.equals((new TextDataType()).getClass().getSimpleName())) {
 			return textInspector;
 		}
 		throw new Exception("An Inspector was not found for the following data type: " + dataResourceType);
