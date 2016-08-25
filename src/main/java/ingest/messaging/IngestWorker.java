@@ -151,7 +151,7 @@ public class IngestWorker {
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE)).get();
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
