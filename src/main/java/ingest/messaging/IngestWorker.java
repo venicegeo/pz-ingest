@@ -230,6 +230,15 @@ public class IngestWorker {
 			}
 		} catch (InterruptedException exception) {
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
+			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+			try {
+				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			} catch (JsonProcessingException jsonException) {
+				jsonException.printStackTrace();
+				logger.log(String.format(
+						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+						consumerRecord.key(), jsonException.getMessage()), PiazzaLogger.ERROR);
+			}
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			System.out.println("Error Parsing Data Load Job Message.");
