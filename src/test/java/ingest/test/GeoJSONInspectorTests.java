@@ -16,13 +16,8 @@
 package ingest.test;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.when;
 import ingest.inspect.GeoJsonInspector;
 import ingest.utility.IngestUtilities;
-
-import java.io.File;
 
 import model.data.DataResource;
 import model.data.type.GeoJsonDataType;
@@ -75,10 +70,6 @@ public class GeoJSONInspectorTests {
 	 */
 	@Test
 	public void testInspect() throws Exception {
-		// Mock
-		when(ingestUtilities.getShapefileDataStore(anyString())).thenCallRealMethod();
-		when(ingestUtilities.deleteDirectoryRecursive(any(File.class))).thenCallRealMethod();
-
 		// Test
 		DataResource data = inspector.inspect(mockData, true);
 
