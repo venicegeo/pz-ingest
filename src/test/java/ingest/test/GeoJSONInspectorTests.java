@@ -75,10 +75,6 @@ public class GeoJSONInspectorTests {
 	 */
 	@Test
 	public void testInspect() throws Exception {
-		// Mock
-		when(ingestUtilities.getShapefileDataStore(anyString())).thenCallRealMethod();
-		when(ingestUtilities.deleteDirectoryRecursive(any(File.class))).thenCallRealMethod();
-
 		// Test
 		DataResource data = inspector.inspect(mockData, true);
 

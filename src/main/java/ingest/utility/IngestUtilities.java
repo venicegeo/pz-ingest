@@ -174,35 +174,35 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Loads the contents of the Shapefile into the PostGIS Database.
+	 * Loads the contents of a DataResource into the PostGIS Database.
 	 * 
-	 * @param shpFeatureSource
-	 *            The GeoTools FeatureSource for the shapefile information.
+	 * @param featureSource
+	 *            The GeoTools FeatureSource for the ingest information.
 	 * @param dataResource
-	 *            The DataResource object with Shapefile metadata
+	 *            The DataResource object with FeatureSource metadata
 	 */
-	public void persistShapeFile(FeatureSource<SimpleFeatureType, SimpleFeature> shpFeatureSource, DataResource dataResource)
+	public void persistFeatures(FeatureSource<SimpleFeatureType, SimpleFeature> featureSource, DataResource dataResource)
 			throws Exception {
 		// Get the dataStore to the postGIS database.
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 				POSTGRES_USER, POSTGRES_PASSWORD);
-		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist shapefile Id %s", POSTGRES_HOST,
+		System.out.println(String.format("Connecting to PostGIS at host %s on port %s to persist DataResource Id %s", POSTGRES_HOST,
 				POSTGRES_PORT, dataResource.getDataId()));
-
+		
 		// Create the schema in the data store
 		String tableName = dataResource.getDataId();
 
-		// Associate the table name with the shapefile resource
-		SimpleFeatureType shpSchema = shpFeatureSource.getSchema();
-		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(shpSchema, tableName);
+		// Associate the table name with the DataResource
+		SimpleFeatureType featureSchema = featureSource.getSchema();
+		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(featureSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
 		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
 
 		// Commit the features to the data store
 		Transaction transaction = new DefaultTransaction();
 		try {
-			// Get the features from the shapefile and add to the PostGIS store
-			SimpleFeatureCollection features = (SimpleFeatureCollection) shpFeatureSource.getFeatures();
+			// Get the features from the FeatureCollection and add to the PostGIS store
+			SimpleFeatureCollection features = (SimpleFeatureCollection) featureSource.getFeatures();
 			postGisFeatureStore.addFeatures(features);
 
 			// Commit the changes and clean up
@@ -212,7 +212,7 @@ public class IngestUtilities {
 			// Clean up resources
 			transaction.rollback();
 			transaction.close();
-			System.out.println("Error copying shapefile to PostGIS: " + exception.getMessage());
+			System.out.println("Error copying DataResource to PostGIS: " + exception.getMessage());
 
 			// Rethrow
 			throw exception;
