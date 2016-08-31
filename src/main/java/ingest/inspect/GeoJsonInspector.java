@@ -93,16 +93,9 @@ public class GeoJsonInspector implements InspectorType {
 			spatialMetadata.setMaxX(envelope.getMaxX());
 			spatialMetadata.setMaxY(envelope.getMaxY());
 			spatialMetadata.setNumFeatures(geojsonFeatureSource.getFeatures().size());
-
-//			// Get the SRS and EPSG codes
-//			if (geojsonFeatureSource.getInfo().getCRS() != null) {
-//				spatialMetadata.setCoordinateReferenceSystem(geojsonFeatureSource.getInfo().getCRS().toString());
-//				spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(geojsonFeatureSource.getInfo().getCRS(), true));
-//			} else {
-				// Default to EPSG 4326. Most GeoJSON is this code, and is
-				// sort of an unofficial standard for GeoJSON.
-				spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
-//			}
+			
+			// Defaulting to 4326 since GeoTools has no FeatureSource available for GeoJSON files.
+			spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
 
 			// Populate the projected EPSG:4326 spatial metadata
 			try {
