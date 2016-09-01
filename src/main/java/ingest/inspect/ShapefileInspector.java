@@ -126,7 +126,7 @@ public class ShapefileInspector implements InspectorType {
 		// Process and persist shapefile file into the Piazza PostGIS database.
 		if (host) {
 			((ShapefileDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
-			ingestUtilities.persistFeatures(featureSource, dataResource);
+			ingestUtilities.persistFeatures(featureSource, dataResource, featureSource.getSchema());
 		}
 
 		// Clean up the temporary Shapefile, and the directory that contained

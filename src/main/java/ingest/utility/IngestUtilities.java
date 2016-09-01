@@ -181,7 +181,7 @@ public class IngestUtilities {
 	 * @param dataResource
 	 *            The DataResource object with FeatureSource metadata
 	 */
-	public void persistFeatures(FeatureSource<SimpleFeatureType, SimpleFeature> featureSource, DataResource dataResource)
+	public void persistFeatures(FeatureSource<SimpleFeatureType, SimpleFeature> featureSource, DataResource dataResource, SimpleFeatureType featureSchema)
 			throws Exception {
 		// Get the dataStore to the postGIS database.
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
@@ -193,7 +193,6 @@ public class IngestUtilities {
 		String tableName = dataResource.getDataId();
 
 		// Associate the table name with the DataResource
-		SimpleFeatureType featureSchema = featureSource.getSchema();
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(featureSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
 		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);

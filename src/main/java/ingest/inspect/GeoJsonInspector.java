@@ -50,22 +50,10 @@ import util.PiazzaLogger;
  */
 @Component
 public class GeoJsonInspector implements InspectorType {
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
-	private String POSTGRES_HOST;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
-	private String POSTGRES_PORT;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.database}")
-	private String POSTGRES_DB_NAME;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.username}")
-	private String POSTGRES_USER;
-	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.password}")
-	private String POSTGRES_PASSWORD;
 	@Value("${vcap.services.pz-blobstore.credentials.access_key_id:}")
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
-	@Value("${postgres.schema}")
-	private String POSTGRES_SCHEMA;
 
 	private static final Integer DEFAULT_GEOJSON_EPSG_CODE = 4326;
 
@@ -81,10 +69,13 @@ public class GeoJsonInspector implements InspectorType {
 
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
-
-			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) (new FeatureJSON()).readFeatureCollection(getFile(dataResource));
+			FeatureJSON featureJSON = new FeatureJSON();
+			File geojsonFile = getFile(dataResource);
+			
+			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geojsonFile);
+			SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geojsonFile, true);
 			FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
-			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource);
+			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
 
 			// Get the Bounding Box, set the Spatial Metadata
 			ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
