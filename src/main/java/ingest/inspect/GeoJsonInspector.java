@@ -35,6 +35,7 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import util.PiazzaLogger;
@@ -99,6 +100,7 @@ public class GeoJsonInspector implements InspectorType {
 
 			// Convert DataType to postgis from geojson
 			((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
+			((GeoJsonDataType) dataResource.getDataType()).setMimeType(MediaType.APPLICATION_JSON_VALUE);
 
 			dataResource.spatialMetadata = spatialMetadata;
 		}
