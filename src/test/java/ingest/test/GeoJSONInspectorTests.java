@@ -16,12 +16,6 @@
 package ingest.test;
 
 import static org.junit.Assert.assertTrue;
-import ingest.inspect.GeoJsonInspector;
-import ingest.utility.IngestUtilities;
-
-import model.data.DataResource;
-import model.data.type.GeoJsonDataType;
-import model.job.metadata.ResourceMetadata;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -29,6 +23,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import ingest.inspect.GeoJsonInspector;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.type.GeoJsonDataType;
+import model.job.metadata.ResourceMetadata;
 import util.PiazzaLogger;
 
 /**

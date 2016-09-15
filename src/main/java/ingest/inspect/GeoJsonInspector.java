@@ -15,16 +15,8 @@
  **/
 package ingest.inspect;
 
-import ingest.utility.IngestUtilities;
-
-import java.io.File;
 import java.io.InputStream;
-import model.data.DataResource;
-import model.data.location.FileAccessFactory;
-import model.data.type.GeoJsonDataType;
-import model.job.metadata.SpatialMetadata;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.collection.CollectionFeatureSource;
@@ -38,11 +30,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FileAccessFactory;
+import model.data.type.GeoJsonDataType;
+import model.job.metadata.SpatialMetadata;
 import util.PiazzaLogger;
 
 /**
- * Inspects GeoJSON. Will parse the GeoJSON input to ensure validity, and parse
- * information such as spatial bounding box.
+ * Inspects GeoJSON. Will parse the GeoJSON input to ensure validity, and parse information such as spatial bounding
+ * box.
  * 
  * Vectors for GeoJSON will be stored in Piazza PostGIS table.
  * 
@@ -71,12 +68,10 @@ public class GeoJsonInspector implements InspectorType {
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
 			FeatureJSON featureJSON = new FeatureJSON();
-			File geojsonFile = getFile(dataResource);
-			
-			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geojsonFile);
-			SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geojsonFile, true);
+			InputStream geoJsonInputStream = getGeoJsonInputStream(dataResource);
+			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geoJsonInputStream);
 			FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
-			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
+			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureCollection.getSchema());
 
 			// Get the Bounding Box, set the Spatial Metadata
 			ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
@@ -85,7 +80,7 @@ public class GeoJsonInspector implements InspectorType {
 			spatialMetadata.setMaxX(envelope.getMaxX());
 			spatialMetadata.setMaxY(envelope.getMaxY());
 			spatialMetadata.setNumFeatures(geojsonFeatureSource.getFeatures().size());
-			
+
 			// Defaulting to 4326 since GeoTools has no FeatureSource available for GeoJSON files.
 			spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
 
@@ -103,6 +98,12 @@ public class GeoJsonInspector implements InspectorType {
 			((GeoJsonDataType) dataResource.getDataType()).setMimeType(MediaType.APPLICATION_JSON_VALUE);
 
 			dataResource.spatialMetadata = spatialMetadata;
+
+			// Clean up resources
+			featureJSON = null;
+			geojsonFeatureSource = null;
+			featureCollection = null;
+			geoJsonInputStream.close();
 		}
 
 		// Return DataResource
@@ -110,27 +111,24 @@ public class GeoJsonInspector implements InspectorType {
 	}
 
 	/**
-	 * Gets the File for a Data Resource.
+	 * Gets the Input Stream for a GeoJSON Resource
 	 * 
 	 * @param dataResource
-	 *            data resource to pull file from
+	 *            data resource to pull input stream from
 	 * @return File object
 	 * @throws Exception
 	 */
-	private File getFile(DataResource dataResource) throws Exception {
-		File file = new File(String.format("%s%s%s%s.%s", "tmp_geojson_", dataResource.getDataId(), File.separator,
-				dataResource.getDataId(), "json"));
+	private InputStream getGeoJsonInputStream(DataResource dataResource) throws Exception {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		InputStream inputStream;
 
 		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {
-			InputStream fileStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
-			FileUtils.copyInputStreamToFile(fileStream, file);
+			inputStream = fileFactory.getFile(((GeoJsonDataType) dataResource.getDataType()).getLocation());
 		} else {
 			String geoJsonContent = ((GeoJsonDataType) dataResource.getDataType()).getGeoJsonContent();
-			InputStream inputStream = IOUtils.toInputStream(geoJsonContent, "UTF-8");
-			FileUtils.copyInputStreamToFile(inputStream, file);
+			inputStream = IOUtils.toInputStream(geoJsonContent, "UTF-8");
 		}
 
-		return file;
-	}	
+		return inputStream;
+	}
 }
