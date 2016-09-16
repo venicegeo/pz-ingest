@@ -68,10 +68,13 @@ public class GeoJsonInspector implements InspectorType {
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
 			FeatureJSON featureJSON = new FeatureJSON();
-			InputStream geoJsonInputStream = getGeoJsonInputStream(dataResource);
-			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geoJsonInputStream);
+			InputStream geoJsonInputStream1 = getGeoJsonInputStream(dataResource);
+			InputStream geoJsonInputStream2 = getGeoJsonInputStream(dataResource);
+
+			SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geoJsonInputStream1, false);
+			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geoJsonInputStream2);
 			FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
-			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureCollection.getSchema());
+			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
 
 			// Get the Bounding Box, set the Spatial Metadata
 			ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
@@ -103,7 +106,8 @@ public class GeoJsonInspector implements InspectorType {
 			featureJSON = null;
 			geojsonFeatureSource = null;
 			featureCollection = null;
-			geoJsonInputStream.close();
+			geoJsonInputStream1.close();
+			geoJsonInputStream2.close();
 		}
 
 		// Return DataResource
