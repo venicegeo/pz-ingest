@@ -97,8 +97,8 @@ public class IngestWorker {
 	private IngestUtilities ingestUtilities;
 	@Autowired
 	private UUIDFactory uuidFactory;
-
-	private RestTemplate restTemplate = new RestTemplate();
+	@Autowired
+	private RestTemplate restTemplate;
 	private Producer<String, String> producer;
 
 	/**

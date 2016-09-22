@@ -59,15 +59,15 @@ public class PointCloudInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
-
-	private RestTemplate restTemplate = new RestTemplate();
+	@Autowired
+	private RestTemplate restTemplate;
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String pointCloudTemplate = IOUtils.toString(classLoader.getResourceAsStream("templates" + File.separator
-				+ "pointCloudRequest.json"));
+		String pointCloudTemplate = IOUtils
+				.toString(classLoader.getResourceAsStream("templates" + File.separator + "pointCloudRequest.json"));
 
 		// Obtain File URL from AWS S3 Bucket
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
@@ -97,7 +97,7 @@ public class PointCloudInspector implements InspectorType {
 			// Decode CoordinateReferenceSystem and parse EPSG code
 			CoordinateReferenceSystem worldCRS = CRS.parseWKT(formattedSpatialreference);
 			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
-			
+
 			// Populate the projected EPSG:4326 spatial metadata
 			try {
 				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
@@ -107,8 +107,8 @@ public class PointCloudInspector implements InspectorType {
 						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
 			}
 		} catch (Exception exception) {
-			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s",
-					dataResource.getDataId(), awsS3Url, exception.getMessage()), PiazzaLogger.WARNING);
+			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),
+					awsS3Url, exception.getMessage()), PiazzaLogger.WARNING);
 		}
 
 		// Set the DataResource Spatial Metadata

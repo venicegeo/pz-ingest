@@ -40,11 +40,9 @@ import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
 
 /**
- * Helper class to interact with and access the Mongo instance, which handles
- * storing the DataResource information. This contains the metadata on the
- * ingested data, the locations, URLs and paths, and other important metadata.
- * This is not the data itself. Storing of the spatial data is handled via
- * PostGIS, S3, or other stores.
+ * Helper class to interact with and access the Mongo instance, which handles storing the DataResource information. This
+ * contains the metadata on the ingested data, the locations, URLs and paths, and other important metadata. This is not
+ * the data itself. Storing of the spatial data is handled via PostGIS, S3, or other stores.
  * 
  * @author Patrick.Doody
  * 
@@ -60,6 +58,8 @@ public class PersistMetadata {
 	@Value("${mongo.db.collection.name}")
 	private String RESOURCE_COLLECTION_NAME;
 	private MongoClient mongoClient;
+	@Value("${mongo.thread.multiplier}")
+	private int mongoThreadMultiplier;
 
 	/**
 	 * Required for Component init
@@ -70,10 +70,9 @@ public class PersistMetadata {
 	@PostConstruct
 	private void initialize() {
 		try {
-			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI));
+			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (UnknownHostException exception) {
-			logger.log(String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			logger.log(String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage()), PiazzaLogger.FATAL);
 			exception.printStackTrace();
 		}
 	}
@@ -126,8 +125,8 @@ public class PersistMetadata {
 	}
 
 	/**
-	 * Gets the DataResource from the Resources collection by Id. This Id is
-	 * typically what will be returned to the user as the result of their Job.
+	 * Gets the DataResource from the Resources collection by Id. This Id is typically what will be returned to the user
+	 * as the result of their Job.
 	 * 
 	 * @param dataId
 	 *            The Id of the DataResource
@@ -165,7 +164,6 @@ public class PersistMetadata {
 		// Merge the ResourceMetadata together
 		dataResource.getMetadata().merge(metadata, false);
 		// Update the DataResource in the database
-		getResourceCollection().update(DBQuery.is("dataId", dataId),
-				DBUpdate.set("metadata", dataResource.getMetadata()));
+		getResourceCollection().update(DBQuery.is("dataId", dataId), DBUpdate.set("metadata", dataResource.getMetadata()));
 	}
 }
