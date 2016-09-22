@@ -18,6 +18,8 @@ package ingest;
 import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -27,9 +29,11 @@ import org.springframework.boot.context.web.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @Configuration
@@ -40,6 +44,10 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int threadCountSize;
 	@Value("${thread.count.limit}")
 	private int threadCountLimit;
+	@Value("${http.max.total}")
+	private int httpMaxTotal;
+	@Value("${http.max.route}")
+	private int httpMaxRoute;
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
@@ -48,6 +56,14 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args); // NOSONAR
+	}
+
+	@Bean
+	public RestTemplate restTemplate() {
+		RestTemplate restTemplate = new RestTemplate();
+		HttpClient httpClient = HttpClientBuilder.create().setMaxConnTotal(httpMaxTotal).setMaxConnPerRoute(httpMaxRoute).build();
+		restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
+		return restTemplate;
 	}
 
 	@Override
