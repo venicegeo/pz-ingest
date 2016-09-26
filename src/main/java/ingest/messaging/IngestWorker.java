@@ -213,7 +213,9 @@ public class IngestWorker {
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				logger.log(String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString()), PiazzaLogger.ERROR);
+			} catch (Exception genException) {
 				logger.log(String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
+						dataResource.getDataId(), job.getJobId(), genException.getMessage()), PiazzaLogger.ERROR);
 			}
 
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
