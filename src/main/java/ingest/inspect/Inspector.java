@@ -23,6 +23,7 @@ import com.mongodb.MongoInterruptedException;
 
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
+import model.data.DataType;
 import model.data.type.GeoJsonDataType;
 import model.data.type.PointCloudDataType;
 import model.data.type.RasterDataType;
@@ -96,26 +97,27 @@ public class Inspector {
 	 */
 	private InspectorType getInspector(DataResource dataResource) throws Exception {
 
-		String dataResourceType = dataResource.getDataType().getClass().getSimpleName();
-
-		if (dataResourceType.equals((new ShapefileDataType()).getClass().getSimpleName())) {
+		DataType dataType = dataResource.getDataType();
+		if (dataType instanceof ShapefileDataType) {
 			return shapefileInspector;
 		}
-		if (dataResourceType.equals((new WfsDataType()).getClass().getSimpleName())) {
+		if (dataType instanceof WfsDataType) {
 			return wfsInspector;
 		}
-		if (dataResourceType.equals((new RasterDataType()).getClass().getSimpleName())) {
+		if (dataType instanceof RasterDataType) {
 			return geotiffInspector;
 		}
-		if (dataResourceType.equals((new PointCloudDataType()).getClass().getSimpleName())) {
+		if (dataType instanceof PointCloudDataType) {
 			return pointCloudInspector;
 		}
-		if (dataResourceType.equals((new GeoJsonDataType()).getClass().getSimpleName())) {
+		if (dataType instanceof GeoJsonDataType) {
 			return geoJsonInspector;
 		}
-		if (dataResourceType.equals((new TextDataType()).getClass().getSimpleName())) {
+		if (dataType instanceof TextDataType) {
 			return textInspector;
 		}
-		throw new Exception("An Inspector was not found for the following data type: " + dataResourceType);
+
+		throw new Exception(
+				"An Inspector was not found for the following data type: " + dataType.getClass().getSimpleName());
 	}
 }

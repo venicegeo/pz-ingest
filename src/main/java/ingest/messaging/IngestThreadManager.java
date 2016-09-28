@@ -147,6 +147,7 @@ public class IngestThreadManager {
 					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
+			generalConsumer.close();
 		} catch (WakeupException exception) {
 			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);
@@ -199,6 +200,7 @@ public class IngestThreadManager {
 					}
 				}
 			}
+			uniqueConsumer.close();
 		} catch (WakeupException exception) {
 			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);

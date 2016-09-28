@@ -25,6 +25,8 @@ import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -60,6 +62,8 @@ public class GeoJsonInspector implements InspectorType {
 	@Autowired
 	private PiazzaLogger logger;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(GeoJsonInspector.class);
+
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 
@@ -91,9 +95,10 @@ public class GeoJsonInspector implements InspectorType {
 			try {
 				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 			} catch (Exception exception) {
-				exception.printStackTrace();
-				logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+						dataResource.getDataId(), exception.getMessage());
+				LOGGER.error(error);
+				logger.log(error, PiazzaLogger.WARNING);
 			}
 
 			// Convert DataType to postgis from geojson

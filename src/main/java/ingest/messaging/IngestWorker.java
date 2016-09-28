@@ -164,16 +164,14 @@ public class IngestWorker {
 					// Copy to Piazza S3 bucket if hosted = true; If already in
 					// S3, make sure it's different than the Piazza S3;
 					// Depending on the Type of file
-					String fileType = fileLoc.getClass().getSimpleName();
-
-					if (fileType.equals((new S3FileStore()).getClass().getSimpleName())) {
+					if (fileLoc instanceof S3FileStore) {
 						S3FileStore s3FS = (S3FileStore) fileLoc;
 						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 							ingestUtilities.copyS3Source(dataResource);
 							fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-" + s3FS.getFileName(),
 									s3FS.getFileSize(), s3FS.getDomainName()));
 						}
-					} else if (fileType.equals((new FolderShare()).getClass().getSimpleName())) {
+					} else if (fileLoc instanceof FolderShare) {
 						ingestUtilities.copyS3Source(dataResource);
 					}
 				}
@@ -223,7 +221,7 @@ public class IngestWorker {
 			try {
 				dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
 			} catch (JsonParseException | JsonMappingException exception) {
-				logger.log(String.format("Could not create JSON to send to Workflow Service Event: ", exception.getMessage()),
+				logger.log(String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage()),
 						PiazzaLogger.ERROR);
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				logger.log(String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
@@ -231,7 +229,7 @@ public class IngestWorker {
 			} catch (Exception exception) {
 				logger.log(exception.getMessage(), PiazzaLogger.WARNING);
 			}
-		} catch (InterruptedException exception) {
+		} catch (InterruptedException exception) { //NOSONAR
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {

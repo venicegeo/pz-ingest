@@ -340,7 +340,7 @@ public class IngestUtilities {
 	public SpatialMetadata getProjectedSpatialMetadata(SpatialMetadata spatialMetadata) throws Exception {
 		// Coordinate system inputs to transform
 		CoordinateReferenceSystem sourceCrs = CRS.decode(String.format("EPSG:%s", spatialMetadata.getEpsgCode()));
-		CoordinateReferenceSystem targetCrs = CRS.decode(String.format("EPSG:4326"));
+		CoordinateReferenceSystem targetCrs = CRS.decode("EPSG:4326");
 		MathTransform transform = CRS.findMathTransform(sourceCrs, targetCrs);
 
 		// Build the bounding box geometry to reproject with the transform
