@@ -29,6 +29,8 @@ import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
 import org.geotools.resources.image.ImageUtilities;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -58,6 +60,8 @@ public class GeoTiffInspector implements InspectorType {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
+
+	private final static Logger LOGGER = LoggerFactory.getLogger(GeoTiffInspector.class);
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
@@ -89,9 +93,10 @@ public class GeoTiffInspector implements InspectorType {
 		try {
 			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.WARNING);
 		}
 
 		// Delete the file; cleanup.

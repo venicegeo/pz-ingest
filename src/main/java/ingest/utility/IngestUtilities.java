@@ -151,7 +151,6 @@ public class IngestUtilities {
 			zipInputStream.closeEntry();
 			zipInputStream.close();
 		} catch (IOException ex) {
-			ex.printStackTrace();
 			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
 		}
 	}
