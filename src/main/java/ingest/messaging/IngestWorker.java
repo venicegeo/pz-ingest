@@ -21,6 +21,8 @@ import java.util.concurrent.Future;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -101,6 +103,8 @@ public class IngestWorker {
 	private RestTemplate restTemplate;
 	private Producer<String, String> producer;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(IngestWorker.class);
+	
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
 	 * 
@@ -164,16 +168,14 @@ public class IngestWorker {
 					// Copy to Piazza S3 bucket if hosted = true; If already in
 					// S3, make sure it's different than the Piazza S3;
 					// Depending on the Type of file
-					String fileType = fileLoc.getClass().getSimpleName();
-
-					if (fileType.equals((new S3FileStore()).getClass().getSimpleName())) {
+					if (fileLoc instanceof S3FileStore) {
 						S3FileStore s3FS = (S3FileStore) fileLoc;
 						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 							ingestUtilities.copyS3Source(dataResource);
 							fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-" + s3FS.getFileName(),
 									s3FS.getFileSize(), s3FS.getDomainName()));
 						}
-					} else if (fileType.equals((new FolderShare()).getClass().getSimpleName())) {
+					} else if (fileLoc instanceof FolderShare) {
 						ingestUtilities.copyS3Source(dataResource);
 					}
 				}
@@ -223,7 +225,7 @@ public class IngestWorker {
 			try {
 				dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
 			} catch (JsonParseException | JsonMappingException exception) {
-				logger.log(String.format("Could not create JSON to send to Workflow Service Event: ", exception.getMessage()),
+				logger.log(String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage()),
 						PiazzaLogger.ERROR);
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				logger.log(String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
@@ -231,16 +233,17 @@ public class IngestWorker {
 			} catch (Exception exception) {
 				logger.log(exception.getMessage(), PiazzaLogger.WARNING);
 			}
-		} catch (InterruptedException exception) {
+		} catch (InterruptedException exception) { //NOSONAR
 			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 			} catch (JsonProcessingException jsonException) {
-				jsonException.printStackTrace();
-				logger.log(String.format(
+				String error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage()), PiazzaLogger.ERROR);
+						consumerRecord.key(), jsonException.getMessage());
+				LOGGER.error(error);
+				logger.log(error, PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
@@ -342,16 +345,15 @@ public class IngestWorker {
 	 * @param exception
 	 */
 	private void handleException(String jobId, Exception exception) {
-		exception.printStackTrace();
-		logger.log(String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage()), PiazzaLogger.ERROR);
+		String error = String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage());
+		LOGGER.error(error);
+		logger.log(error, PiazzaLogger.ERROR);
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
 		} catch (JsonProcessingException jsonException) {
-			System.out.println(
-					"Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage());
-			jsonException.printStackTrace();
+			LOGGER.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage());
 		}
 	}
 }

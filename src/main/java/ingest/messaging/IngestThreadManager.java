@@ -31,6 +31,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.errors.WakeupException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -73,6 +75,8 @@ public class IngestThreadManager {
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
+	
+	private final static Logger LOGGER = LoggerFactory.getLogger(IngestThreadManager.class);
 
 	/**
 	 * Worker class that listens for and processes Ingestion messages.
@@ -147,6 +151,7 @@ public class IngestThreadManager {
 					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
+			generalConsumer.close();
 		} catch (WakeupException exception) {
 			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);
@@ -185,9 +190,10 @@ public class IngestThreadManager {
 						PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
 						jobId = ((AbortJob) request.jobType).getJobId();
 					} catch (Exception exception) {
-						exception.printStackTrace();
-						logger.log(String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
-								exception.getMessage()), PiazzaLogger.ERROR);
+						String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
+								exception.getMessage());
+						LOGGER.error(error);
+						logger.log(error, PiazzaLogger.ERROR);
 						continue;
 					}
 					
@@ -199,6 +205,7 @@ public class IngestThreadManager {
 					}
 				}
 			}
+			uniqueConsumer.close();
 		} catch (WakeupException exception) {
 			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
 					PiazzaLogger.FATAL);

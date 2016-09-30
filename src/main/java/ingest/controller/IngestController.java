@@ -28,6 +28,8 @@ import model.response.ErrorResponse;
 import model.response.PiazzaResponse;
 import model.response.SuccessResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -61,6 +63,8 @@ public class IngestController {
 	@Autowired
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
+	
 	/**
 	 * Deletes the Data resource object from the Resources collection.
 	 * 
@@ -91,8 +95,9 @@ public class IngestController {
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Access"),
 					HttpStatus.OK);
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Error deleting Data %s: %s", dataId, exception.getMessage()), PiazzaLogger.ERROR);
+			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}

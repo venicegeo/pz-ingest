@@ -31,6 +31,8 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -71,6 +73,8 @@ public class ShapefileInspector implements InspectorType {
 	@Autowired
 	private IngestUtilities ingestUtilities;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(ShapefileInspector.class);
+	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Get the Shapefile and write it to disk for temporary use.
@@ -118,9 +122,10 @@ public class ShapefileInspector implements InspectorType {
 		try {
 			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-					dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage());
+			LOGGER.error(error);
+			logger.log(error, PiazzaLogger.WARNING);
 		}
 
 		// Process and persist shapefile file into the Piazza PostGIS database.

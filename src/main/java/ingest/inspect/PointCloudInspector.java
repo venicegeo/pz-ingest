@@ -20,6 +20,8 @@ import java.io.File;
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -61,7 +63,8 @@ public class PointCloudInspector implements InspectorType {
 	private String POINT_CLOUD_ENDPOINT;
 	@Autowired
 	private RestTemplate restTemplate;
-
+	
+	private final static Logger LOGGER = LoggerFactory.getLogger(PointCloudInspector.class);
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Load point cloud post request template
@@ -102,9 +105,10 @@ public class PointCloudInspector implements InspectorType {
 			try {
 				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 			} catch (Exception exception) {
-				exception.printStackTrace();
-				logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+						dataResource.getDataId(), exception.getMessage());
+				LOGGER.error(error);
+				logger.log(error, PiazzaLogger.WARNING);
 			}
 		} catch (Exception exception) {
 			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),

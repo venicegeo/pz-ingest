@@ -30,6 +30,8 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -68,6 +70,8 @@ public class WfsInspector implements InspectorType {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(WfsInspector.class);
+	
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Connect to the WFS and grab a reference to the Feature Source for the
@@ -94,10 +98,11 @@ public class WfsInspector implements InspectorType {
 		try {
 			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
-			exception.printStackTrace();
+			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataResource.getDataId(), exception.getMessage());
+			LOGGER.error(error);
 			if (logger != null) {
-				logger.log(String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage()), PiazzaLogger.WARNING);
+				logger.log(error, PiazzaLogger.WARNING);
 			}
 		}
 
@@ -185,5 +190,4 @@ public class WfsInspector implements InspectorType {
 		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = dataStore.getFeatureSource(wfsResource.getFeatureType());
 		return featureSource;
 	}
-
 }

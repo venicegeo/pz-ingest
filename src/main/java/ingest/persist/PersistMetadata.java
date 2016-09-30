@@ -26,6 +26,8 @@ import model.job.metadata.ResourceMetadata;
 import org.mongojack.DBQuery;
 import org.mongojack.DBUpdate;
 import org.mongojack.JacksonDBCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -61,6 +63,8 @@ public class PersistMetadata {
 	@Value("${mongo.thread.multiplier}")
 	private int mongoThreadMultiplier;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(PersistMetadata.class);
+	
 	/**
 	 * Required for Component init
 	 */
@@ -72,8 +76,9 @@ public class PersistMetadata {
 		try {
 			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (UnknownHostException exception) {
-			logger.log(String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage()), PiazzaLogger.FATAL);
-			exception.printStackTrace();
+			String error = String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage());
+			logger.log(error, PiazzaLogger.FATAL);
+			LOGGER.error(error);
 		}
 	}
 
