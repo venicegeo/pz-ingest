@@ -4,7 +4,7 @@ applications:
   path: pz-ingest.jar
   buildpack: java_buildpack_offline
   memory: 2048M
-  instances: 2
+  instances: 1
   timeout: 80
   services:
     - pz-kafka
