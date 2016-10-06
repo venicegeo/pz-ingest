@@ -95,7 +95,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	}
 
 	@Configuration
-	protected static class GatewayConfig extends WebMvcConfigurerAdapter {
+	protected static class IngestConfig extends WebMvcConfigurerAdapter {
 		@Override
 		public void addInterceptors(InterceptorRegistry registry) {
 			registry.addInterceptor(new HandlerInterceptorAdapter() {
