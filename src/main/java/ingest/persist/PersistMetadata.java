@@ -75,7 +75,7 @@ public class PersistMetadata {
 	private void initialize() {
 		try {
 			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
-		} catch (UnknownHostException exception) {
+		} catch (Exception exception) {
 			String error = String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.FATAL);
 			LOGGER.error(error);
