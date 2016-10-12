@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -307,7 +308,7 @@ public class IngestUtilities {
 		File[] files = new File(directoryPath).listFiles();
 		for (int index = 0; index < files.length; index++) {
 			String fileName = files[index].getName();
-			if (fileName.toLowerCase().endsWith(".shp"))
+			if (fileName.toLowerCase(Locale.ROOT).endsWith(".shp"))
 				return fileName;
 		}
 
