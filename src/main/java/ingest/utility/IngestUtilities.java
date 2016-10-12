@@ -124,7 +124,8 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Unzip the given zip into output directory
+	 * Unzip the given zip into output directory. This is only applicable for SHAPEFILES as it includes black/whitelist
+	 * for preventing malicious inputs.
 	 * 
 	 * @param zipPath
 	 *            Zip file full path
@@ -151,19 +152,32 @@ public class IngestUtilities {
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
-				File newFile = new File(extractPath + File.separator + fileName).getCanonicalFile();
+				// Sanitize - blacklist
+				if ((fileName.contains("..")) || (fileName.contains("/")) || (fileName.contains("\\"))) {
+					logger.log(String.format(
+							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
+							zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
+					zipEntry = zipInputStream.getNextEntry();
+					continue;
+				}
+				// Sanitize - whitelist
+				if ((fileName.contains(".shp")) || (fileName.contains(".prj")) || (fileName.contains(".shx")) || (fileName.contains(".dbf"))
+						|| (fileName.contains(".sbn"))) {
+					File newFile = new File(extractPath + File.separator + fileName).getCanonicalFile();
 
-				// Create all non existing folders
-				new File(newFile.getParent()).mkdirs();
-				outputStream = new FileOutputStream(newFile);
+					// Create all non existing folders
+					new File(newFile.getParent()).mkdirs();
+					outputStream = new FileOutputStream(newFile);
 
-				int length;
-				while ((length = zipInputStream.read(buffer)) > 0) {
-					outputStream.write(buffer, 0, length);
+					int length;
+					while ((length = zipInputStream.read(buffer)) > 0) {
+						outputStream.write(buffer, 0, length);
+					}
+
+					outputStream.close();
+					zipEntry = zipInputStream.getNextEntry();
 				}
 
-				outputStream.close();
-				zipEntry = zipInputStream.getNextEntry();
 			}
 
 			zipInputStream.closeEntry();
