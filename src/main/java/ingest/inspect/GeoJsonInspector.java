@@ -116,12 +116,8 @@ public class GeoJsonInspector implements InspectorType {
 				geojsonFeatureSource = null;
 				featureCollection = null;
 			} finally {
-				if (geoJsonInputStream1 != null) {
-					geoJsonInputStream1.close();
-				}
-				if (geoJsonInputStream2 != null) {
-					geoJsonInputStream2.close();
-				}
+				geoJsonInputStream1.close();
+				geoJsonInputStream2.close();
 			}
 		}
 
