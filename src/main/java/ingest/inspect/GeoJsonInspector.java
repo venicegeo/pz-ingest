@@ -120,13 +120,13 @@ public class GeoJsonInspector implements InspectorType {
 					if (geoJsonInputStream1 != null) {
 						geoJsonInputStream1.close();
 					}
-				} finally {
+				} catch (Exception exception) {
 				}
 				try {
 					if (geoJsonInputStream2 != null) {
 						geoJsonInputStream2.close();
 					}
-				} finally {
+				} catch (Exception exception) {
 				}
 			}
 		}
