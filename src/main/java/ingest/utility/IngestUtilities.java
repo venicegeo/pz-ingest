@@ -152,8 +152,9 @@ public class IngestUtilities {
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
+				String filePath = String.format("%s%s%s", extractPath, File.separator, fileName);
 				// Sanitize - blacklist
-				if ((fileName.contains("..")) || (fileName.contains("/")) || (fileName.contains("\\"))) {
+				if (filePath.contains("..")) {
 					logger.log(String.format(
 							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
 							zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
@@ -161,9 +162,8 @@ public class IngestUtilities {
 					continue;
 				}
 				// Sanitize - whitelist
-				if ((fileName.contains(".shp")) || (fileName.contains(".prj")) || (fileName.contains(".shx")) || (fileName.contains(".dbf"))
-						|| (fileName.contains(".sbn"))) {
-					String filePath = extractPath + File.separator + fileName;
+				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf"))
+						|| (filePath.contains(".sbn"))) {
 					File newFile = new File(filePath).getCanonicalFile();
 
 					// Create all non existing folders
@@ -177,8 +177,9 @@ public class IngestUtilities {
 
 					outputStream.close();
 					zipEntry = zipInputStream.getNextEntry();
+				} else {
+					zipEntry = zipInputStream.getNextEntry();
 				}
-
 			}
 
 			zipInputStream.closeEntry();
