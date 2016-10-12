@@ -148,7 +148,7 @@ public class IngestUtilities {
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
-				File newFile = new File(extractPath + File.separator + fileName);
+				File newFile = new File(extractPath + File.separator + fileName).getCanonicalFile();
 
 				// Create all non existing folders
 				new File(newFile.getParent()).mkdirs();
