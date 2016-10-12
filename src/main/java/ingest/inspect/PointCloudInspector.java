@@ -16,6 +16,7 @@
 package ingest.inspect;
 
 import java.io.File;
+import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
@@ -63,14 +64,23 @@ public class PointCloudInspector implements InspectorType {
 	private String POINT_CLOUD_ENDPOINT;
 	@Autowired
 	private RestTemplate restTemplate;
-	
+
 	private final static Logger LOGGER = LoggerFactory.getLogger(PointCloudInspector.class);
+
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
-		String pointCloudTemplate = IOUtils
-				.toString(classLoader.getResourceAsStream("templates" + File.separator + "pointCloudRequest.json"));
+		String pointCloudTemplate = null;
+		InputStream templateStream = null;
+		try {
+			templateStream = classLoader.getResourceAsStream("templates" + File.separator + "pointCloudRequest.json");
+			pointCloudTemplate = IOUtils.toString(templateStream);
+		} finally {
+			if (templateStream != null) {
+				templateStream.close();
+			}
+		}
 
 		// Obtain File URL from AWS S3 Bucket
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);

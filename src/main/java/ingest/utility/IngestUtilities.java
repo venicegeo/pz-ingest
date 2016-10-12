@@ -135,6 +135,8 @@ public class IngestUtilities {
 	 */
 	public void extractZip(String zipPath, String extractPath) throws Exception {
 		byte[] buffer = new byte[1024];
+		ZipInputStream zipInputStream = null;
+		FileOutputStream outputStream = null;
 		try {
 			// Create output directory
 			File directory = new File(extractPath);
@@ -143,7 +145,7 @@ public class IngestUtilities {
 			}
 
 			// Stream from zip content
-			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
+			zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
 
 			// Get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
@@ -153,7 +155,7 @@ public class IngestUtilities {
 
 				// Create all non existing folders
 				new File(newFile.getParent()).mkdirs();
-				FileOutputStream outputStream = new FileOutputStream(newFile);
+				outputStream = new FileOutputStream(newFile);
 
 				int length;
 				while ((length = zipInputStream.read(buffer)) > 0) {
@@ -168,6 +170,13 @@ public class IngestUtilities {
 			zipInputStream.close();
 		} catch (IOException ex) {
 			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
+		} finally {
+			if (zipInputStream != null) {
+				zipInputStream.close();
+			}
+			if (outputStream != null) {
+				outputStream.close();
+			}
 		}
 	}
 
