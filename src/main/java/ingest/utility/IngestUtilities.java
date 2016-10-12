@@ -163,7 +163,8 @@ public class IngestUtilities {
 				// Sanitize - whitelist
 				if ((fileName.contains(".shp")) || (fileName.contains(".prj")) || (fileName.contains(".shx")) || (fileName.contains(".dbf"))
 						|| (fileName.contains(".sbn"))) {
-					File newFile = new File(extractPath + File.separator + fileName).getCanonicalFile();
+					String filePath = extractPath + File.separator + fileName;
+					File newFile = new File(filePath).getCanonicalFile();
 
 					// Create all non existing folders
 					new File(newFile.getParent()).mkdirs();
