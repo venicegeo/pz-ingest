@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.DefaultTransaction;
@@ -152,7 +153,8 @@ public class IngestUtilities {
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				String fileName = zipEntry.getName();
-				String filePath = String.format("%s%s%s", extractPath, File.separator, fileName);
+				String extension = FilenameUtils.getExtension(fileName);
+				String filePath = String.format("%s%s%s.%s", extractPath, File.separator, "ShapefileData", extension);
 				// Sanitize - blacklist
 				if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
 					logger.log(String.format("Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
