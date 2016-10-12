@@ -156,6 +156,7 @@ public class IngestUtilities {
 				// Sanitize - blacklist
 				if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
 					logger.log(String.format("Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
+					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 					continue;
 				}
@@ -173,8 +174,10 @@ public class IngestUtilities {
 					}
 
 					outputStream.close();
+					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 				} else {
+					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 				}
 			}
