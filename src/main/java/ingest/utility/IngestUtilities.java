@@ -154,7 +154,7 @@ public class IngestUtilities {
 				String fileName = zipEntry.getName();
 				String filePath = String.format("%s%s%s", extractPath, File.separator, fileName);
 				// Sanitize - blacklist
-				if (filePath.contains("..")) {
+				if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
 					logger.log(String.format(
 							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
 							zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
