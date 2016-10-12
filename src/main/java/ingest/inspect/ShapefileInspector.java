@@ -93,7 +93,7 @@ public class ShapefileInspector implements InspectorType {
 		logger.log(String.format("Inspecting shapefile. Copied Zip to temporary path %s. Inflating contents into %s.",
 				shapefileZip.getAbsolutePath(), extractPath), PiazzaLogger.INFO);
 
-		ingestUtilities.extractZip(shapefileZip.getAbsolutePath(), extractPath);
+		ingestUtilities.extractZip(shapefileZip.getCanonicalPath(), extractPath);
 		// Get the path to the actual *.shp file
 		String shapefilePath = String.format("%s%s%s", extractPath, File.separator,
 				ingestUtilities.findShapeFileName(extractPath));
