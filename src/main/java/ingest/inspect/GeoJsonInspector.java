@@ -72,47 +72,57 @@ public class GeoJsonInspector implements InspectorType {
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
 			FeatureJSON featureJSON = new FeatureJSON();
-			InputStream geoJsonInputStream1 = getGeoJsonInputStream(dataResource);
-			InputStream geoJsonInputStream2 = getGeoJsonInputStream(dataResource);
-
-			SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geoJsonInputStream1, false);
-			SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON.readFeatureCollection(geoJsonInputStream2);
-			FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
-			ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
-
-			// Get the Bounding Box, set the Spatial Metadata
-			ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
-			spatialMetadata.setMinX(envelope.getMinX());
-			spatialMetadata.setMinY(envelope.getMinY());
-			spatialMetadata.setMaxX(envelope.getMaxX());
-			spatialMetadata.setMaxY(envelope.getMaxY());
-			spatialMetadata.setNumFeatures(geojsonFeatureSource.getFeatures().size());
-
-			// Defaulting to 4326 since GeoTools has no FeatureSource available for GeoJSON files.
-			spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
-
-			// Populate the projected EPSG:4326 spatial metadata
+			InputStream geoJsonInputStream1 = null;
+			InputStream geoJsonInputStream2 = null;
 			try {
-				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
-			} catch (Exception exception) {
-				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage());
-				LOGGER.error(error);
-				logger.log(error, PiazzaLogger.WARNING);
+				geoJsonInputStream1 = getGeoJsonInputStream(dataResource);
+				geoJsonInputStream2 = getGeoJsonInputStream(dataResource);
+
+				SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geoJsonInputStream1, false);
+				SimpleFeatureCollection featureCollection = (SimpleFeatureCollection) featureJSON
+						.readFeatureCollection(geoJsonInputStream2);
+				FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
+				ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
+
+				// Get the Bounding Box, set the Spatial Metadata
+				ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
+				spatialMetadata.setMinX(envelope.getMinX());
+				spatialMetadata.setMinY(envelope.getMinY());
+				spatialMetadata.setMaxX(envelope.getMaxX());
+				spatialMetadata.setMaxY(envelope.getMaxY());
+				spatialMetadata.setNumFeatures(geojsonFeatureSource.getFeatures().size());
+
+				// Defaulting to 4326 since GeoTools has no FeatureSource available for GeoJSON files.
+				spatialMetadata.setEpsgCode(DEFAULT_GEOJSON_EPSG_CODE);
+
+				// Populate the projected EPSG:4326 spatial metadata
+				try {
+					spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+				} catch (Exception exception) {
+					String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+							dataResource.getDataId(), exception.getMessage());
+					LOGGER.error(error);
+					logger.log(error, PiazzaLogger.WARNING);
+				}
+
+				// Convert DataType to postgis from geojson
+				((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
+				((GeoJsonDataType) dataResource.getDataType()).setMimeType(MediaType.APPLICATION_JSON_VALUE);
+
+				dataResource.spatialMetadata = spatialMetadata;
+
+				// Clean up resources
+				featureJSON = null;
+				geojsonFeatureSource = null;
+				featureCollection = null;
+			} finally {
+				if (geoJsonInputStream1 != null) {
+					geoJsonInputStream1.close();
+				}
+				if (geoJsonInputStream2 != null) {
+					geoJsonInputStream2.close();
+				}
 			}
-
-			// Convert DataType to postgis from geojson
-			((GeoJsonDataType) dataResource.getDataType()).setDatabaseTableName(dataResource.getDataId());
-			((GeoJsonDataType) dataResource.getDataType()).setMimeType(MediaType.APPLICATION_JSON_VALUE);
-
-			dataResource.spatialMetadata = spatialMetadata;
-
-			// Clean up resources
-			featureJSON = null;
-			geojsonFeatureSource = null;
-			featureCollection = null;
-			geoJsonInputStream1.close();
-			geoJsonInputStream2.close();
 		}
 
 		// Return DataResource
