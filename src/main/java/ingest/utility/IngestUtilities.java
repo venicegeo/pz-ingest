@@ -39,8 +39,11 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.TransformException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -394,7 +397,8 @@ public class IngestUtilities {
 	 *            The native bounding box information
 	 * @return Projected (WGS84) bounding box information
 	 */
-	public SpatialMetadata getProjectedSpatialMetadata(SpatialMetadata spatialMetadata) throws Exception {
+	public SpatialMetadata getProjectedSpatialMetadata(SpatialMetadata spatialMetadata)
+			throws NoSuchAuthorityCodeException, FactoryException, TransformException {
 		// Coordinate system inputs to transform
 		CoordinateReferenceSystem sourceCrs = CRS.decode(String.format("EPSG:%s", spatialMetadata.getEpsgCode()));
 		CoordinateReferenceSystem targetCrs = CRS.decode("EPSG:4326");
