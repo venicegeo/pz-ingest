@@ -104,7 +104,7 @@ public class IngestWorker {
 	private Producer<String, String> producer;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestWorker.class);
-	
+
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
 	 * 
@@ -213,11 +213,15 @@ public class IngestWorker {
 			try {
 				dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
-				logger.log(String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString()), PiazzaLogger.ERROR);
+				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
+						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
+				LOGGER.error(error, exception);
+				logger.log(error, PiazzaLogger.ERROR);
 			} catch (Exception genException) {
-				logger.log(String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), genException.getMessage()), PiazzaLogger.ERROR);
+				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
+						dataResource.getDataId(), job.getJobId(), genException.getMessage());
+				LOGGER.error(error, genException);
+				logger.log(error, PiazzaLogger.ERROR);
 			}
 
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
@@ -225,35 +229,41 @@ public class IngestWorker {
 			try {
 				dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
 			} catch (JsonParseException | JsonMappingException exception) {
-				logger.log(String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage()),
-						PiazzaLogger.ERROR);
+				String error = String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage());
+				LOGGER.error(error, exception);
+				logger.log(error, PiazzaLogger.ERROR);
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
-				logger.log(String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString()), PiazzaLogger.ERROR);
+				String error = String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
+						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
+				LOGGER.error(error, exception);
+				logger.log(error, PiazzaLogger.ERROR);
 			} catch (Exception exception) {
+				LOGGER.error(exception.getMessage(), exception);
 				logger.log(exception.getMessage(), PiazzaLogger.WARNING);
 			}
-		} catch (InterruptedException exception) { //NOSONAR
-			logger.log(String.format("Thread interrupt received for Job %s", consumerRecord.key()), PiazzaLogger.INFO);
+		} catch (InterruptedException exception) { // NOSONAR
+			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
+			LOGGER.error(error, exception);
+			logger.log(error, PiazzaLogger.INFO);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 			} catch (JsonProcessingException jsonException) {
-				String error = String.format(
+				error = String.format(
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
-				LOGGER.error(error);
+				LOGGER.error(error, jsonException);
 				logger.log(error, PiazzaLogger.ERROR);
 			}
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
-			System.out.println("Error Parsing Data Load Job Message.");
+			LOGGER.error("Error Parsing Data Load Job Message.", jsonException);
 		} catch (MongoException mongoException) {
 			handleException(consumerRecord.key(), mongoException);
-			System.out.println("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage());
+			LOGGER.error("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage(), mongoException);
 		} catch (Exception exception) {
 			handleException(consumerRecord.key(), exception);
-			System.out.println("An unexpected error occurred while processing the Job Message: " + exception.getMessage());
+			LOGGER.error("An unexpected error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} finally {
 			if (callback != null) {
 				callback.onComplete(consumerRecord.key());
@@ -294,7 +304,7 @@ public class IngestWorker {
 	 *            The DataResource that has been ingested
 	 */
 	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String workflowUrl)
-			throws JsonParseException, JsonMappingException, RestClientException, IOException, Exception {
+			throws JsonParseException, JsonMappingException, RestClientException, IOException {
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// Make an initial request to Workflow in order to get the UUID of the System Event.
@@ -331,9 +341,10 @@ public class IngestWorker {
 					PiazzaLogger.INFO);
 		} else {
 			// 201 not received. Throw an exception that something went wrong.
-			throw new Exception(String.format(
-					"Non-201 CREATED Status code received from Workflow upon Event creation: %s. This creation may not have succeeded.",
-					response.getStatusCode()));
+			throw new HttpServerErrorException(response.getStatusCode(),
+					String.format(
+							"Non-201 CREATED Status code received from Workflow upon Event creation: %s. This creation may not have succeeded.",
+							response.getStatusCode()));
 		}
 	}
 
@@ -353,7 +364,9 @@ public class IngestWorker {
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
 		} catch (JsonProcessingException jsonException) {
-			LOGGER.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage());
+			LOGGER.info(
+					"Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
+					jsonException);
 		}
 	}
 }

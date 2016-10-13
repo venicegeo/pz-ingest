@@ -123,12 +123,14 @@ public class PointCloudInspector implements InspectorType {
 			} catch (Exception exception) {
 				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 						dataResource.getDataId(), exception.getMessage());
-				LOGGER.error(error);
+				LOGGER.error(error, exception);
 				logger.log(error, PiazzaLogger.WARNING);
 			}
 		} catch (Exception exception) {
-			logger.log(String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),
-					awsS3Url, exception.getMessage()), PiazzaLogger.WARNING);
+			String error = String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),
+					awsS3Url, exception.getMessage());
+			logger.log(error, PiazzaLogger.WARNING);
+			LOGGER.error(error, exception);
 		}
 
 		// Set the DataResource Spatial Metadata
@@ -143,9 +145,8 @@ public class PointCloudInspector implements InspectorType {
 	 * @param url
 	 *            The URL to post for point cloud api
 	 * @return The PointCloudResponse object containing metadata.
-	 * @throws Exception
 	 */
-	private PointCloudResponse postPointCloudTemplate(String url, String payload) throws Exception {
+	private PointCloudResponse postPointCloudTemplate(String url, String payload) throws IOException {
 		// Setup Basic Headers
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
@@ -156,12 +157,14 @@ public class PointCloudInspector implements InspectorType {
 		try {
 			response = restTemplate.postForObject(url, request, String.class);
 		} catch (HttpServerErrorException e) {
+			String error = "Error occurred posting to: " + url + "\nPayload: \n" + payload
+					+ "\nMost likely the payload source file is not accessible.";
 			// this exception will be thrown until the s3 file is accessible to
 			// external services
 			// that use the s3 file url line above: String awsS3Url =
 			// fileFactory.getFileUri(fileLocation);
-			throw new Exception("Error occurred posting to: " + url + "\nPayload: \n" + payload
-					+ "\nMost likely the payload source file is not accessible.");
+			LOGGER.error(error, e);
+			throw new HttpServerErrorException(e.getStatusCode(), error);
 		}
 
 		// Parse required fields from point cloud json response

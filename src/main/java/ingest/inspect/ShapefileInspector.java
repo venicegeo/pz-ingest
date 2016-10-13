@@ -123,7 +123,7 @@ public class ShapefileInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 			logger.log(error, PiazzaLogger.WARNING);
 		}
 

@@ -31,6 +31,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import exception.InvalidInputException;
 import ingest.controller.IngestController;
 import ingest.messaging.IngestThreadManager;
 import ingest.persist.PersistMetadata;
@@ -107,7 +108,7 @@ public class ControllerTests {
 		assertTrue(response.getBody() instanceof SuccessResponse);
 
 		// Test Exception
-		Mockito.doThrow(new Exception("Error")).when(persistence).updateMetadata(eq("123456"), any(ResourceMetadata.class));
+		Mockito.doThrow(new InvalidInputException("Error")).when(persistence).updateMetadata(eq("123456"), any(ResourceMetadata.class));
 		response = ingestController.updateMetadata("123456", new ResourceMetadata());
 		assertTrue(response.getBody() instanceof ErrorResponse);
 	}

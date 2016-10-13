@@ -106,7 +106,7 @@ public class WfsInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 			if (logger != null) {
 				logger.log(error, PiazzaLogger.WARNING);
 			}
@@ -154,7 +154,7 @@ public class WfsInspector implements InspectorType {
 			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
 			if (wfsFeatures.size() == 0) {
 				transaction.close();
-				throw new Exception("No features could be collected from the WFS. Nothing to store.");
+				throw new IOException("No features could be collected from the WFS. Nothing to store.");
 			}
 			postGisFeatureStore.addFeatures(wfsFeatures);
 			// Commit the changes and clean up
@@ -164,7 +164,7 @@ public class WfsInspector implements InspectorType {
 			// Clean up resources
 			transaction.rollback();
 			transaction.close();
-			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
+			LOGGER.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
 			// Rethrow
 			throw new IOException(exception.getMessage());
 		} finally {

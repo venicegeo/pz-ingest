@@ -48,9 +48,8 @@ import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
 
 /**
- * Main listener class for Ingest Jobs. Handles an incoming Ingest Job request
- * by indexing metadata, storing files, and updating appropriate database
- * tables. This class manages the Thread Pool of running Ingest Jobs.
+ * Main listener class for Ingest Jobs. Handles an incoming Ingest Job request by indexing metadata, storing files, and
+ * updating appropriate database tables. This class manages the Thread Pool of running Ingest Jobs.
  * 
  * @author Patrick.Doody
  * 
@@ -75,7 +74,7 @@ public class IngestThreadManager {
 	private Producer<String, String> producer;
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
-	
+
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestThreadManager.class);
 
 	/**
@@ -95,8 +94,7 @@ public class IngestThreadManager {
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
 		// Log the initialization.
-		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE),
-				PiazzaLogger.INFO);
+		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE), PiazzaLogger.INFO);
 
 		// Initialize the Thread Pool and Map of running Threads
 		runningJobs = new HashMap<String, Future<?>>();
@@ -134,8 +132,7 @@ public class IngestThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
-					KAFKA_GROUP);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, SPACE)));
 
 			// Poll
@@ -153,8 +150,9 @@ public class IngestThreadManager {
 			}
 			generalConsumer.close();
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			logger.log(error, PiazzaLogger.FATAL);
 		}
 	}
 
@@ -166,16 +164,14 @@ public class IngestThreadManager {
 	}
 
 	/**
-	 * Begins listening for Abort Jobs. If a Job is owned by this component,
-	 * then it will be terminated.
+	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
 	 */
 	public void pollAbortJobs() {
 		try {
 			// Create the Unique Consumer
 			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(String
-					.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
+			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
 			ObjectMapper mapper = new ObjectMapper();
 
 			// Poll
@@ -192,11 +188,11 @@ public class IngestThreadManager {
 					} catch (Exception exception) {
 						String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
 								exception.getMessage());
-						LOGGER.error(error);
+						LOGGER.error(error, exception);
 						logger.log(error, PiazzaLogger.ERROR);
 						continue;
 					}
-					
+
 					if (runningJobs.containsKey(jobId)) {
 						// Cancel the Running Job
 						runningJobs.get(jobId).cancel(true);
@@ -207,14 +203,14 @@ public class IngestThreadManager {
 			}
 			uniqueConsumer.close();
 		} catch (WakeupException exception) {
-			logger.log(String.format("Polling Thread forcefully closed: %s", exception.getMessage()),
-					PiazzaLogger.FATAL);
+			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
+			LOGGER.error(error, exception);
+			logger.log(error, PiazzaLogger.FATAL);
 		}
 	}
 
 	/**
-	 * Returns a list of the Job Ids that are currently being processed by this
-	 * instance
+	 * Returns a list of the Job Ids that are currently being processed by this instance
 	 * 
 	 * @return The list of Job Ids
 	 */

@@ -15,13 +15,8 @@
  **/
 package ingest.persist;
 
-import java.net.UnknownHostException;
-
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-
-import model.data.DataResource;
-import model.job.metadata.ResourceMetadata;
 
 import org.mongojack.DBQuery;
 import org.mongojack.DBUpdate;
@@ -32,14 +27,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import util.PiazzaLogger;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.MongoException;
 import com.mongodb.MongoTimeoutException;
+
+import exception.InvalidInputException;
+import model.data.DataResource;
+import model.job.metadata.ResourceMetadata;
+import util.PiazzaLogger;
 
 /**
  * Helper class to interact with and access the Mongo instance, which handles storing the DataResource information. This
@@ -64,7 +62,7 @@ public class PersistMetadata {
 	private int mongoThreadMultiplier;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(PersistMetadata.class);
-	
+
 	/**
 	 * Required for Component init
 	 */
@@ -78,7 +76,7 @@ public class PersistMetadata {
 		} catch (Exception exception) {
 			String error = String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.FATAL);
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 		}
 	}
 
@@ -146,7 +144,9 @@ public class PersistMetadata {
 				return null;
 			}
 		} catch (MongoTimeoutException mte) {
-			throw new MongoException("MongoDB instance not available.");
+			String error = "MongoDB instance not available.";
+			LOGGER.error(error, mte);
+			throw new MongoException(error);
 		}
 
 		return data;
@@ -160,11 +160,11 @@ public class PersistMetadata {
 	 * @param metadata
 	 *            The metadata to update with
 	 */
-	public void updateMetadata(String dataId, ResourceMetadata metadata) throws Exception {
+	public void updateMetadata(String dataId, ResourceMetadata metadata) throws InvalidInputException {
 		// Get the Data Resource
 		DataResource dataResource = getData(dataId);
 		if (dataResource == null) {
-			throw new Exception(String.format("No Data Resource found matching Id %s", dataId));
+			throw new InvalidInputException(String.format("No Data Resource found matching Id %s", dataId));
 		}
 		// Merge the ResourceMetadata together
 		dataResource.getMetadata().merge(metadata, false);

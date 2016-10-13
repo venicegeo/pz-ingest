@@ -41,16 +41,20 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.vividsolutions.jts.geom.Envelope;
 
+import exception.InvalidInputException;
 import model.data.DataResource;
 import model.data.DataType;
 import model.data.FileRepresentation;
@@ -93,6 +97,8 @@ public class IngestUtilities {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
+
+	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
 
 	/**
 	 * Recursive deletion of directory
@@ -191,19 +197,19 @@ public class IngestUtilities {
 			zipInputStream.closeEntry();
 			zipInputStream.close();
 		} catch (IOException ex) {
-			throw new IOException("Unable to extract zip: " + zipPath + " to path " + extractPath);
+			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
+			LOGGER.error(error, ex);
+			throw new IOException(error);
 		} finally {
 			try {
-				if (zipInputStream != null) {
-					zipInputStream.close();
-				}
+				zipInputStream.close();
 			} catch (Exception exception) {
+				LOGGER.error("Error Closing Resource Stream", exception);
 			}
 			try {
-				if (outputStream != null) {
-					outputStream.close();
-				}
+				outputStream.close();
 			} catch (Exception exception) {
+				LOGGER.error("Error Closing Resource Stream", exception);
 			}
 		}
 	}
@@ -264,7 +270,7 @@ public class IngestUtilities {
 			// Clean up resources
 			transaction.rollback();
 			transaction.close();
-			System.out.println("Error copying DataResource to PostGIS: " + exception.getMessage());
+			LOGGER.error("Error copying DataResource to PostGIS: " + exception.getMessage(), exception);
 
 			// Rethrow
 			throw exception;
@@ -280,10 +286,8 @@ public class IngestUtilities {
 	 * @param dataResource
 	 * @param host
 	 *            if piazza should host the data
-	 * @throws Exception
 	 */
-	public void copyS3Source(DataResource dataResource) throws Exception {
-
+	public void copyS3Source(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		// Connect to AWS S3 Bucket. Apply security only if credentials are
 		// present
 		AmazonS3 s3Client = getAwsClient();
@@ -302,7 +306,7 @@ public class IngestUtilities {
 		inputStream.close();
 	}
 
-	public long getFileSize(DataResource dataResource) throws Exception {
+	public long getFileSize(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
@@ -363,7 +367,7 @@ public class IngestUtilities {
 	 * 
 	 * @param dataResource
 	 */
-	public void deleteDataResourceFiles(DataResource dataResource) throws Exception {
+	public void deleteDataResourceFiles(DataResource dataResource) throws IOException {
 		// If the DataResource has PostGIS tables to clean
 		DataType dataType = dataResource.getDataType();
 		if (dataType instanceof ShapefileDataType) {
@@ -420,7 +424,7 @@ public class IngestUtilities {
 	 * @param tableName
 	 *            The name of the table to drop.
 	 */
-	public void deleteDatabaseTable(String tableName) throws Exception {
+	public void deleteDatabaseTable(String tableName) throws IOException {
 		// Delete the table
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 				POSTGRES_USER, POSTGRES_PASSWORD);
@@ -429,10 +433,10 @@ public class IngestUtilities {
 		} catch (IllegalArgumentException exception) {
 			// If this exception is triggered, then its likely the database
 			// table was already deleted. Log that.
-			logger.log(
-					String.format("Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.",
-							tableName),
-					PiazzaLogger.WARNING);
+			String error = String.format(
+					"Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.", tableName);
+			LOGGER.error(error, exception);
+			logger.log(error, PiazzaLogger.WARNING);
 		} finally {
 			postGisStore.dispose();
 		}
