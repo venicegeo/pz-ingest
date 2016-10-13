@@ -15,12 +15,16 @@
  **/
 package ingest.inspect;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.mongodb.MongoException;
 import com.mongodb.MongoInterruptedException;
 
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.persist.PersistMetadata;
 import model.data.DataResource;
 import model.data.DataType;
@@ -54,6 +58,8 @@ public class Inspector {
 	@Autowired
 	private GeoJsonInspector geoJsonInspector;
 
+	private final static Logger LOGGER = LoggerFactory.getLogger(Inspector.class);
+
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
 	 * 
@@ -62,7 +68,7 @@ public class Inspector {
 	 * @param host
 	 *            True if Piazza should host the resource, false if not
 	 */
-	public void inspect(DataResource dataResource, boolean host) throws Exception {
+	public void inspect(DataResource dataResource, boolean host) throws DataInspectException, InterruptedException {
 		// Inspect the resource based on the type it is, and add any metadata if
 		// possible. If hosted, the Inspector will handle this as well.
 		try {
@@ -70,14 +76,16 @@ public class Inspector {
 			dataResource = inspector.inspect(dataResource, host);
 		} catch (Exception exception) {
 			// If any errors occur during inspection.
-			System.out.println("Error Inspecting Data: " + exception.getMessage());
-			throw exception;
+			String error = "Error Inspecting Data: " + exception.getMessage();
+			LOGGER.error(error, exception);
+			throw new DataInspectException(exception.getMessage());
 		}
 
 		// Store the metadata in the Resources collection
 		try {
 			metadataPersist.insertData(dataResource);
 		} catch (MongoException exception) {
+			LOGGER.error("Error Loading Data into Mongo.", exception);
 			if (exception instanceof MongoInterruptedException) {
 				throw new InterruptedException();
 			} else {
@@ -95,7 +103,7 @@ public class Inspector {
 	 *            The Data to inspect
 	 * @return The inspector capable of inspecting the data
 	 */
-	private InspectorType getInspector(DataResource dataResource) throws Exception {
+	private InspectorType getInspector(DataResource dataResource) throws InvalidInputException {
 
 		DataType dataType = dataResource.getDataType();
 		if (dataType instanceof ShapefileDataType) {
@@ -117,7 +125,6 @@ public class Inspector {
 			return textInspector;
 		}
 
-		throw new Exception(
-				"An Inspector was not found for the following data type: " + dataType.getClass().getSimpleName());
+		throw new InvalidInputException("An Inspector was not found for the following data type: " + dataType.getClass().getSimpleName());
 	}
 }

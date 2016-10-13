@@ -16,10 +16,12 @@
 package ingest.inspect;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.geotools.referencing.CRS;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +34,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import com.amazonaws.AmazonClientException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.model.PointCloudResponse;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
@@ -68,7 +73,8 @@ public class PointCloudInspector implements InspectorType {
 	private final static Logger LOGGER = LoggerFactory.getLogger(PointCloudInspector.class);
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
 		String pointCloudTemplate = null;

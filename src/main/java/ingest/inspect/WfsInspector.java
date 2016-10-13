@@ -30,12 +30,17 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.FactoryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.data.type.PostGISDataType;
@@ -71,9 +76,10 @@ public class WfsInspector implements InspectorType {
 	private String POSTGRES_SCHEMA;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(WfsInspector.class);
-	
+
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Connect to the WFS and grab a reference to the Feature Source for the
 		// specified Feature Type
 		FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource = getWfsFeatureSource(dataResource);
@@ -126,9 +132,10 @@ public class WfsInspector implements InspectorType {
 	 *            The WFS Data Resource to copy.
 	 * @param featureSource
 	 *            GeoTools Feature source for WFS.
+	 * @throws IOException
 	 */
 	private void copyWfsToPostGis(DataResource dataResource, FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource)
-			throws Exception {
+			throws IOException {
 		// Create a Connection to the Piazza PostGIS Database for writing.
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 				POSTGRES_USER, POSTGRES_PASSWORD);
@@ -159,7 +166,7 @@ public class WfsInspector implements InspectorType {
 			transaction.close();
 			System.out.println("Error copying WFS to PostGIS: " + exception.getMessage());
 			// Rethrow
-			throw exception;
+			throw new IOException(exception.getMessage());
 		} finally {
 			// Clean up the PostGIS Store
 			postGisStore.dispose();

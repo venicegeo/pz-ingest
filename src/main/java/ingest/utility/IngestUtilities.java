@@ -101,9 +101,9 @@ public class IngestUtilities {
 	 *            Directory to be deleted
 	 * 
 	 * @return boolean if successful
-	 * @throws Exception
+	 * @throws IOException
 	 */
-	public boolean deleteDirectoryRecursive(File directory) throws Exception {
+	public boolean deleteDirectoryRecursive(File directory) throws IOException {
 		boolean result = false;
 
 		if (directory.isDirectory()) {
@@ -115,7 +115,7 @@ public class IngestUtilities {
 				}
 
 				if (!files[i].delete())
-					throw new Exception("Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
+					throw new IOException("Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
 			}
 
 			result = directory.delete();
@@ -134,8 +134,9 @@ public class IngestUtilities {
 	 *            Extracted zip output directory
 	 * 
 	 * @return boolean if successful
+	 * @throws IOException
 	 */
-	public void extractZip(String zipPath, String extractPath) throws Exception {
+	public void extractZip(String zipPath, String extractPath) throws IOException {
 		byte[] buffer = new byte[1024];
 		ZipInputStream zipInputStream = null;
 		FileOutputStream outputStream = null;
@@ -190,7 +191,7 @@ public class IngestUtilities {
 			zipInputStream.closeEntry();
 			zipInputStream.close();
 		} catch (IOException ex) {
-			throw new Exception("Unable to extract zip: " + zipPath + " to path " + extractPath);
+			throw new IOException("Unable to extract zip: " + zipPath + " to path " + extractPath);
 		} finally {
 			try {
 				if (zipInputStream != null) {
@@ -231,9 +232,10 @@ public class IngestUtilities {
 	 *            The GeoTools FeatureSource for the ingest information.
 	 * @param dataResource
 	 *            The DataResource object with FeatureSource metadata
+	 * @throws IOException
 	 */
 	public void persistFeatures(FeatureSource<SimpleFeatureType, SimpleFeature> featureSource, DataResource dataResource,
-			SimpleFeatureType featureSchema) throws Exception {
+			SimpleFeatureType featureSchema) throws IOException {
 		// Get the dataStore to the postGIS database.
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 				POSTGRES_USER, POSTGRES_PASSWORD);
@@ -340,7 +342,7 @@ public class IngestUtilities {
 	 * 
 	 * @return shape file name found in the directory
 	 */
-	public String findShapeFileName(String directoryPath) throws Exception {
+	public String findShapeFileName(String directoryPath) throws IOException {
 		File[] files = new File(directoryPath).listFiles();
 		for (int index = 0; index < files.length; index++) {
 			String fileName = files[index].getName();
@@ -348,7 +350,7 @@ public class IngestUtilities {
 				return fileName;
 		}
 
-		throw new Exception("No shape file was found inside unzipped directory: " + directoryPath);
+		throw new IOException("No shape file was found inside unzipped directory: " + directoryPath);
 	}
 
 	/**

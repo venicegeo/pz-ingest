@@ -15,6 +15,7 @@
  **/
 package ingest.inspect;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
@@ -25,6 +26,7 @@ import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.FactoryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
@@ -65,7 +71,8 @@ public class GeoJsonInspector implements InspectorType {
 	private final static Logger LOGGER = LoggerFactory.getLogger(GeoJsonInspector.class);
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
 
@@ -101,7 +108,7 @@ public class GeoJsonInspector implements InspectorType {
 				} catch (Exception exception) {
 					String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 							dataResource.getDataId(), exception.getMessage());
-					LOGGER.error(error);
+					LOGGER.error(error, exception);
 					logger.log(error, PiazzaLogger.WARNING);
 				}
 
@@ -121,12 +128,14 @@ public class GeoJsonInspector implements InspectorType {
 						geoJsonInputStream1.close();
 					}
 				} catch (Exception exception) {
+					LOGGER.warn("Error closing File Stream", exception);
 				}
 				try {
 					if (geoJsonInputStream2 != null) {
 						geoJsonInputStream2.close();
 					}
 				} catch (Exception exception) {
+					LOGGER.warn("Error closing File Stream", exception);
 				}
 			}
 		}
@@ -141,9 +150,8 @@ public class GeoJsonInspector implements InspectorType {
 	 * @param dataResource
 	 *            data resource to pull input stream from
 	 * @return File object
-	 * @throws Exception
 	 */
-	private InputStream getGeoJsonInputStream(DataResource dataResource) throws Exception {
+	private InputStream getGeoJsonInputStream(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream inputStream;
 

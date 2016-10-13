@@ -15,6 +15,14 @@
  **/
 package ingest.inspect;
 
+import java.io.IOException;
+
+import org.opengis.referencing.FactoryException;
+
+import com.amazonaws.AmazonClientException;
+
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import model.data.DataResource;
 
 /**
@@ -25,18 +33,17 @@ import model.data.DataResource;
  */
 public interface InspectorType {
 	/**
-	 * Parses a DataResource object for metadata. Since a DataResource contains
-	 * references to SpatialMetadata and other ResourceMetadata (and thus may be
-	 * user defined from an Ingest request), this method will populate the
-	 * object with additional metadata properties as able.
+	 * Parses a DataResource object for metadata. Since a DataResource contains references to SpatialMetadata and other
+	 * ResourceMetadata (and thus may be user defined from an Ingest request), this method will populate the object with
+	 * additional metadata properties as able.
 	 * 
 	 * @param dataResource
 	 *            The Data to inspect
 	 * @param host
-	 *            True if the data should be hosted in Piazza, false if the data
-	 *            should reside wherever it currently resides.
-	 * @return The input data, with additional metadata fields populated as
-	 *         discovered through this process
+	 *            True if the data should be hosted in Piazza, false if the data should reside wherever it currently
+	 *            resides.
+	 * @return The input data, with additional metadata fields populated as discovered through this process
 	 */
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception;
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException;
 }

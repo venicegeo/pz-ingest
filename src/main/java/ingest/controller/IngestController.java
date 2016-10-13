@@ -41,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import exception.InvalidInputException;
 import util.PiazzaLogger;
 
 /**
@@ -76,7 +77,7 @@ public class IngestController {
 	public ResponseEntity<PiazzaResponse> deleteData(@PathVariable(value = "dataId") String dataId) {
 		try {
 			if (dataId.isEmpty()) {
-				throw new Exception("No Data Id specified.");
+				throw new InvalidInputException("No Data Id specified.");
 			}
 			// Query for the Data Id
 			DataResource data = persistence.getData(dataId);
@@ -96,7 +97,7 @@ public class IngestController {
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 			logger.log(error, PiazzaLogger.ERROR);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
@@ -132,6 +133,7 @@ public class IngestController {
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
 			logger.log(error, PiazzaLogger.ERROR);
+			LOGGER.error(error, exception);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}

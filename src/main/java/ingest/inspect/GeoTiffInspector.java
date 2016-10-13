@@ -16,6 +16,7 @@
 package ingest.inspect;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 
@@ -28,6 +29,7 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.geotools.referencing.CRS;
 import org.geotools.resources.image.ImageUtilities;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+
+import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.data.location.FileAccessFactory;
@@ -64,7 +70,8 @@ public class GeoTiffInspector implements InspectorType {
 	private final static Logger LOGGER = LoggerFactory.getLogger(GeoTiffInspector.class);
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 
 		// Gather GeoTIFF relevant metadata
 		String fileName = String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "tif");
@@ -88,14 +95,14 @@ public class GeoTiffInspector implements InspectorType {
 
 		// Set the Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
-		
+
 		// Populate the projected EPSG:4326 spatial metadata
 		try {
 			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error);
+			LOGGER.error(error, exception);
 			logger.log(error, PiazzaLogger.WARNING);
 		}
 
@@ -110,9 +117,10 @@ public class GeoTiffInspector implements InspectorType {
 			// Finally, delete the file.
 			Files.deleteIfExists(geoTiffFile.toPath());
 		} catch (Exception exception) {
-			logger.log(
-					String.format("Error cleaning up GeoTiff file for %s Load: %s", dataResource.getDataId(),
-							exception.getMessage()), PiazzaLogger.WARNING);
+			String error = String.format("Error cleaning up GeoTiff file for %s Load: %s", dataResource.getDataId(),
+					exception.getMessage());
+			LOGGER.error(error, exception);
+			logger.log(error, PiazzaLogger.WARNING);
 		}
 
 		// Return the metadata
@@ -126,7 +134,8 @@ public class GeoTiffInspector implements InspectorType {
 	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
-	private GridCoverage2DReader getGridCoverage(DataResource dataResource, File file) throws Exception {
+	private GridCoverage2DReader getGridCoverage(DataResource dataResource, File file)
+			throws AmazonClientException, InvalidInputException, IOException {
 		// Get the file from S3
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());

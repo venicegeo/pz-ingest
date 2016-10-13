@@ -15,15 +15,9 @@
  **/
 package ingest.inspect;
 
-import ingest.utility.IngestUtilities;
-
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
-
-import model.data.DataResource;
-import model.data.location.FileAccessFactory;
-import model.data.type.ShapefileDataType;
-import model.job.metadata.SpatialMetadata;
 
 import org.apache.commons.io.FileUtils;
 import org.geotools.data.FeatureSource;
@@ -31,19 +25,27 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.FactoryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+
+import exception.DataInspectException;
+import exception.InvalidInputException;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FileAccessFactory;
+import model.data.type.ShapefileDataType;
+import model.job.metadata.SpatialMetadata;
 import util.PiazzaLogger;
 
 /**
- * Inspects a Shapefile, populating any essential metadata from the file itself.
- * At the very least, the spatial metadata such as CRS/EPSG must be found in
- * order for proper Access to occur at a later time. Bounds are also pulled if
- * able.
+ * Inspects a Shapefile, populating any essential metadata from the file itself. At the very least, the spatial metadata
+ * such as CRS/EPSG must be found in order for proper Access to occur at a later time. Bounds are also pulled if able.
  * 
  * @author Patrick.Doody
  * 
@@ -74,15 +76,14 @@ public class ShapefileInspector implements InspectorType {
 	private IngestUtilities ingestUtilities;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(ShapefileInspector.class);
-	
+
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Get the Shapefile and write it to disk for temporary use.
 		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType())
-				.getLocation());
-		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator,
-				dataResource.getDataId(), "zip"));
+		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType()).getLocation());
+		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);
 
 		// Unzip the Shapefile into a temporary directory, which will allow us
@@ -95,12 +96,10 @@ public class ShapefileInspector implements InspectorType {
 
 		ingestUtilities.extractZip(shapefileZip.getCanonicalPath(), extractPath);
 		// Get the path to the actual *.shp file
-		String shapefilePath = String.format("%s%s%s", extractPath, File.separator,
-				ingestUtilities.findShapeFileName(extractPath));
+		String shapefilePath = String.format("%s%s%s", extractPath, File.separator, ingestUtilities.findShapeFileName(extractPath));
 
 		// Get the Store information from GeoTools for accessing the Shapefile
-		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = ingestUtilities
-				.getShapefileDataStore(shapefilePath);
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = ingestUtilities.getShapefileDataStore(shapefilePath);
 
 		// Get the Bounding Box, set the Spatial Metadata
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
@@ -117,7 +116,7 @@ public class ShapefileInspector implements InspectorType {
 
 		// Set the spatial metadata
 		dataResource.spatialMetadata = spatialMetadata;
-		
+
 		// Populate the projected EPSG:4326 spatial metadata
 		try {
 			dataResource.spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
