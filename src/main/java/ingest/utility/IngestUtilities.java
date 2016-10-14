@@ -188,7 +188,9 @@ public class IngestUtilities {
 						outputStream.write(buffer, 0, length);
 					}
 
-					outputStream.close();
+					if (outputStream != null) {
+						outputStream.close();
+					}
 					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 				} else {
@@ -198,7 +200,9 @@ public class IngestUtilities {
 			}
 
 			zipInputStream.closeEntry();
-			zipInputStream.close();
+			if (zipInputStream != null) {
+				zipInputStream.close();
+			}
 		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
 			LOGGER.error(error, ex);
