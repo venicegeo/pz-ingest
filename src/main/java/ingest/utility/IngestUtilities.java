@@ -175,8 +175,7 @@ public class IngestUtilities {
 					continue;
 				}
 				// Sanitize - whitelist
-				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf"))
-						|| (filePath.contains(".sbn"))) {
+				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf")) || (filePath.contains(".sbn"))) {
 					File newFile = new File(filePath).getCanonicalFile();
 
 					// Create all non existing folders
