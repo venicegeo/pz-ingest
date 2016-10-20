@@ -5,3 +5,4 @@ node ('sl61'){
   sh "/opt/hp_fortify_sca/bin/sourceanalyzer -b ${env.BUILD_NUMBER} mainServiceController/src/main/java/org/venice/piazza/servicecontroller/{*.java,**/*.java}" 
   sh "/opt/hp_fortify_sca/bin/sourceanalyzer -b ${env.BUILD_NUMBER}  -scan -Xmx1G -f fortifyResults-${env.BUILD_NUMBER}.fpr"
   sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@fortifyResults-${env.BUILD_NUMBER}.fpr https://threadfix.devops.geointservices.io/rest/applications/10/upload?apiKey=KhzsX52PSWIjnGQgsDqhA0ZGD6scYrgcvLjOjuMKdc"
+}
