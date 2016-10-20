@@ -1,19 +1,7 @@
 node ('sl61'){
   stage 'Fortify Scan'
-  //git url: "https://github.com/venicegeo/pz-ingest.git"
-  git url: "https://github.com/venicegeo/pz-servicecontroller.git"
   def mvnHome = tool 'M3'
-  sh 'echo "mvnHome = ${mvnHome}"' // does not work
-  sh "echo \"mvnHome = ${mvnHome}\"" // works
-  sh "ls \"${mvnHome}\""
-  sh "\"${mvnHome}\"/bin/mvn --help"
-  //sh 'wget http://apache.mesi.com.ar/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz'
-  //sh 'tar xvf apache-maven-3.3.9-bin.tar.gz'
-  //sh './apache-maven-3.3.9/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml' 
-  //sh '/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml'
-  //sh '/opt/apache-maven-3.2.5/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml'
+  sh "${mvnHome}/bin/mvn  install:install-file -Dfile=pom.xml -DpomFile=pom.xml/bin/mvn install:install-file -Dfile=pom.xml -DpomFile=pom.xml"
   sh "/opt/hp_fortify_sca/bin/sourceanalyzer -b ${env.BUILD_NUMBER} mainServiceController/src/main/java/org/venice/piazza/servicecontroller/{*.java,**/*.java}" 
   sh "/opt/hp_fortify_sca/bin/sourceanalyzer -b ${env.BUILD_NUMBER}  -scan -Xmx1G -f fortifyResults-${env.BUILD_NUMBER}.fpr"
   sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@fortifyResults-${env.BUILD_NUMBER}.fpr https://threadfix.devops.geointservices.io/rest/applications/10/upload?apiKey=KhzsX52PSWIjnGQgsDqhA0ZGD6scYrgcvLjOjuMKdc"
-  //sh "/opt/hp_fortify_sca/bin/ReportGenerator -format pdf -f pz-ingest-fortify-${env.BUILD_NUMBER}.pdf -source fortifyResults-${env.BUILD_NUMBER}.fpr"
- }
