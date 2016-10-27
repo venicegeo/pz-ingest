@@ -10,6 +10,6 @@ node ('sl61'){
 
     stage 'OWASP Scan'
     sh '/opt/dependency-check/bin/dependency-check.sh --project "PZ Sak" --scan "." --format "XML" --enableExperimental'
-    sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@nsp-checkstyle-${env.BUILD_NUMBER}.xml https://threadfix.devops.geointservices.io/rest/applications/10/upload?apiKey=$THREADFIXKEY"
+    sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@dependency-check-report.xml https://threadfix.devops.geointservices.io/rest/applications/10/upload?apiKey=$THREADFIXKEY"
   }
 }
