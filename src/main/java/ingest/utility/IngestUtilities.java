@@ -175,7 +175,8 @@ public class IngestUtilities {
 					continue;
 				}
 				// Sanitize - whitelist
-				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf")) || (filePath.contains(".sbn"))) {
+				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf"))
+						|| (filePath.contains(".sbn"))) {
 					File newFile = new File(filePath).getCanonicalFile();
 
 					// Create all non existing folders
@@ -187,9 +188,8 @@ public class IngestUtilities {
 						outputStream.write(buffer, 0, length);
 					}
 
-					if (outputStream != null) {
-						outputStream.close();
-					}
+					outputStream.close();
+
 					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 				} else {
@@ -199,9 +199,9 @@ public class IngestUtilities {
 			}
 
 			zipInputStream.closeEntry();
-			if (zipInputStream != null) {
-				zipInputStream.close();
-			}
+
+			zipInputStream.close();
+
 		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
 			LOGGER.error(error, ex);
