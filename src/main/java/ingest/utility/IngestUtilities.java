@@ -147,17 +147,12 @@ public class IngestUtilities {
 	 */
 	public void extractZip(String zipPath, String extractPath) throws IOException {
 		byte[] buffer = new byte[1024];
-		ZipInputStream zipInputStream = null;
-		FileOutputStream outputStream = null;
-		try {
+		try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath))) {
 			// Create output directory
 			File directory = new File(extractPath);
 			if (!directory.exists()) {
 				directory.mkdir();
 			}
-
-			// Stream from zip content
-			zipInputStream = new ZipInputStream(new FileInputStream(zipPath));
 
 			// Get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
@@ -181,14 +176,13 @@ public class IngestUtilities {
 
 					// Create all non existing folders
 					new File(newFile.getParent()).mkdirs();
-					outputStream = new FileOutputStream(newFile);
 
-					int length;
-					while ((length = zipInputStream.read(buffer)) > 0) {
-						outputStream.write(buffer, 0, length);
+					try (FileOutputStream outputStream = new FileOutputStream(newFile)) {
+						int length;
+						while ((length = zipInputStream.read(buffer)) > 0) {
+							outputStream.write(buffer, 0, length);
+						}
 					}
-
-					outputStream.close();
 
 					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
@@ -199,24 +193,10 @@ public class IngestUtilities {
 			}
 
 			zipInputStream.closeEntry();
-
-			zipInputStream.close();
-
 		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
 			LOGGER.error(error, ex);
 			throw new IOException(error);
-		} finally {
-			try {
-				zipInputStream.close();
-			} catch (Exception exception) {
-				LOGGER.error("Error Closing Resource Stream", exception);
-			}
-			try {
-				outputStream.close();
-			} catch (Exception exception) {
-				LOGGER.error("Error Closing Resource Stream", exception);
-			}
 		}
 	}
 
