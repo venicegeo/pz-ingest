@@ -115,8 +115,6 @@ public class IngestUtilities {
 	 * @throws IOException
 	 */
 	public boolean deleteDirectoryRecursive(File directory) throws IOException {
-		logger.log("Deleting Directory.", Severity.INFORMATIONAL,
-				new AuditElement("ingest", "cleaningTemporaryDirectory", directory.toString()));
 		boolean result = false;
 
 		if (directory.isDirectory()) {

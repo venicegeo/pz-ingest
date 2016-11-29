@@ -124,9 +124,6 @@ public class WfsInspector implements InspectorType {
 		// Clean up Resources
 		wfsFeatureSource.getDataStore().dispose();
 
-		logger.log(String.format("Completed Inspecting WFS Data %s", dataResource.getDataId()), Severity.INFORMATIONAL,
-				new AuditElement("ingest", "completeInspectingWfs", dataResource.getDataId()));
-
 		// Return the Populated Metadata
 		return dataResource;
 	}
