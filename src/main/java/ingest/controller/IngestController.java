@@ -15,18 +15,8 @@
  **/
 package ingest.controller;
 
-import ingest.messaging.IngestThreadManager;
-import ingest.persist.PersistMetadata;
-import ingest.utility.IngestUtilities;
-
 import java.util.HashMap;
 import java.util.Map;
-
-import model.data.DataResource;
-import model.job.metadata.ResourceMetadata;
-import model.response.ErrorResponse;
-import model.response.PiazzaResponse;
-import model.response.SuccessResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +32,16 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import exception.InvalidInputException;
+import ingest.messaging.IngestThreadManager;
+import ingest.persist.PersistMetadata;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.job.metadata.ResourceMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
+import model.response.ErrorResponse;
+import model.response.PiazzaResponse;
+import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
@@ -65,7 +65,7 @@ public class IngestController {
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
-	
+
 	/**
 	 * Deletes the Data resource object from the Resources collection.
 	 * 
@@ -82,7 +82,7 @@ public class IngestController {
 			// Query for the Data Id
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
-				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
 						HttpStatus.NOT_FOUND);
 			}
@@ -91,14 +91,15 @@ public class IngestController {
 			// Remove the Data from the database
 			persistence.deleteDataEntry(dataId);
 			// Log the deletion
-			logger.log(String.format("Successfully deleted Data Id %s", dataId), PiazzaLogger.INFO);
+			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
+					new AuditElement("ingest", "deletedData", dataId));
 			// Return
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Access"),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.ERROR);
+			logger.log(error, Severity.ERROR, new AuditElement("ingest", "errorDeletingData", dataId));
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -120,7 +121,8 @@ public class IngestController {
 			// Query for the Data Id
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
-				logger.log(String.format("Data not found for requested Id %s", dataId), PiazzaLogger.WARNING);
+				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING,
+						new AuditElement("ingest", "noDataFoundForId", dataId));
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
 						HttpStatus.NOT_FOUND);
 			}
@@ -132,7 +134,7 @@ public class IngestController {
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
-			logger.log(error, PiazzaLogger.ERROR);
+			logger.log(error, Severity.ERROR, new AuditElement("ingest", "updateMetadataFailure", dataId));
 			LOGGER.error(error, exception);
 			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
