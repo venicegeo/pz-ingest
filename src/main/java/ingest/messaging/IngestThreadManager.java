@@ -44,6 +44,7 @@ import messaging.job.KafkaClientFactory;
 import messaging.job.WorkerCallback;
 import model.job.type.AbortJob;
 import model.job.type.IngestJob;
+import model.logger.Severity;
 import model.request.PiazzaJobRequest;
 import util.PiazzaLogger;
 
@@ -94,7 +95,7 @@ public class IngestThreadManager {
 		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
 
 		// Log the initialization.
-		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE), PiazzaLogger.INFO);
+		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE), Severity.INFORMATIONAL);
 
 		// Initialize the Thread Pool and Map of running Threads
 		runningJobs = new HashMap<String, Future<?>>();
@@ -152,7 +153,7 @@ public class IngestThreadManager {
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.FATAL);
+			logger.log(error, Severity.ERROR);
 		}
 	}
 
@@ -189,7 +190,7 @@ public class IngestThreadManager {
 						String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
 								exception.getMessage());
 						LOGGER.error(error, exception);
-						logger.log(error, PiazzaLogger.ERROR);
+						logger.log(error, Severity.ERROR);
 						continue;
 					}
 
@@ -205,7 +206,7 @@ public class IngestThreadManager {
 		} catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.FATAL);
+			logger.log(error, Severity.ERROR);
 		}
 	}
 

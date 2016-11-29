@@ -37,6 +37,8 @@ import com.mongodb.MongoTimeoutException;
 import exception.InvalidInputException;
 import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.PiazzaLogger;
 
 /**
@@ -75,7 +77,7 @@ public class PersistMetadata {
 			mongoClient = new MongoClient(new MongoClientURI(DATABASE_URI + "?waitQueueMultiple=" + mongoThreadMultiplier));
 		} catch (Exception exception) {
 			String error = String.format("Error Connecting to MongoDB Instance: %s", exception.getMessage());
-			logger.log(error, PiazzaLogger.FATAL);
+			logger.log(error, Severity.ERROR, new AuditElement("ingest", "failedConnectMongo", ""));
 			LOGGER.error(error, exception);
 		}
 	}

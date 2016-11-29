@@ -41,6 +41,8 @@ import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.PiazzaLogger;
 
 /**
@@ -91,8 +93,10 @@ public class ShapefileInspector implements InspectorType {
 		String extractPath = DATA_TEMP_PATH + File.separator + dataResource.getDataId();
 
 		// Log the file locations.
-		logger.log(String.format("Inspecting shapefile. Copied Zip to temporary path %s. Inflating contents into %s.",
-				shapefileZip.getAbsolutePath(), extractPath), PiazzaLogger.INFO);
+		logger.log(
+				String.format("Inspecting shapefile. Copied Zip to temporary path %s. Inflating contents into %s.",
+						shapefileZip.getAbsolutePath(), extractPath),
+				Severity.INFORMATIONAL, new AuditElement("ingest", "beginInspectingShapefile", extractPath));
 
 		ingestUtilities.extractZip(shapefileZip.getCanonicalPath(), extractPath);
 		// Get the path to the actual *.shp file
@@ -124,7 +128,7 @@ public class ShapefileInspector implements InspectorType {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.WARNING);
+			logger.log(error, Severity.WARNING);
 		}
 
 		// Process and persist shapefile file into the Piazza PostGIS database.
@@ -138,6 +142,9 @@ public class ShapefileInspector implements InspectorType {
 		shapefileZip.delete();
 		ingestUtilities.deleteDirectoryRecursive(new File(extractPath));
 		featureSource.getDataStore().dispose();
+
+		logger.log(String.format("Completed inspecting shapefile %s", extractPath), Severity.INFORMATIONAL,
+				new AuditElement("ingest", "completeInspectingShapefile", extractPath));
 
 		// Return the populated metadata
 		return dataResource;

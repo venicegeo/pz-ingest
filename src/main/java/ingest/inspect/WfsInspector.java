@@ -46,6 +46,8 @@ import model.data.DataResource;
 import model.data.type.PostGISDataType;
 import model.data.type.WfsDataType;
 import model.job.metadata.SpatialMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
@@ -80,6 +82,7 @@ public class WfsInspector implements InspectorType {
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
 			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
+
 		// Connect to the WFS and grab a reference to the Feature Source for the
 		// specified Feature Type
 		FeatureSource<SimpleFeatureType, SimpleFeature> wfsFeatureSource = getWfsFeatureSource(dataResource);
@@ -108,7 +111,7 @@ public class WfsInspector implements InspectorType {
 					dataResource.getDataId(), exception.getMessage());
 			LOGGER.error(error, exception);
 			if (logger != null) {
-				logger.log(error, PiazzaLogger.WARNING);
+				logger.log(error, Severity.WARNING);
 			}
 		}
 
@@ -120,6 +123,9 @@ public class WfsInspector implements InspectorType {
 
 		// Clean up Resources
 		wfsFeatureSource.getDataStore().dispose();
+
+		logger.log(String.format("Completed Inspecting WFS Data %s", dataResource.getDataId()), Severity.INFORMATIONAL,
+				new AuditElement("ingest", "completeInspectingWfs", dataResource.getDataId()));
 
 		// Return the Populated Metadata
 		return dataResource;
@@ -146,6 +152,9 @@ public class WfsInspector implements InspectorType {
 		SimpleFeatureType postGisSchema = GeoToolsUtil.cloneFeatureType(wfsSchema, tableName);
 		postGisStore.createSchema(postGisSchema);
 		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
+
+		logger.log(String.format("Copying Data %s to PostGIS Table %s", dataResource.getDataId(), tableName), Severity.INFORMATIONAL,
+				new AuditElement("ingest", "copyWfsToPostGisTable", tableName));
 
 		// Commit the Features to the Data Store
 		Transaction transaction = new DefaultTransaction();
