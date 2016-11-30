@@ -60,6 +60,8 @@ import model.job.result.type.DataResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
 import model.job.type.SearchMetadataIngestJob;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import model.response.EventTypeListResponse;
 import model.response.PiazzaResponse;
 import model.status.StatusUpdate;
@@ -123,7 +125,7 @@ public class IngestWorker {
 		try {
 			// Log
 			logger.log(String.format("Processing Data Load for Topic %s for Job Id %s", consumerRecord.topic(), consumerRecord.key()),
-					PiazzaLogger.INFO);
+					Severity.INFORMATIONAL);
 
 			// Parse the Job from the Kafka Message
 			ObjectMapper mapper = new ObjectMapper();
@@ -144,9 +146,11 @@ public class IngestWorker {
 			}
 
 			// Log what we're going to Ingest
-			logger.log(String.format("Inspected Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job Id of %s",
-					dataResource.getDataId(), dataResource.getDataType().getClass().getSimpleName(), ingestJob.getHost().toString(),
-					job.getJobId()), PiazzaLogger.INFO);
+			logger.log(
+					String.format("Begin Processing Load Job; begin Loading Data %s of Type %s. Hosted: %s with Job Id of %s",
+							dataResource.getDataId(), dataResource.getDataType().getClass().getSimpleName(), ingestJob.getHost().toString(),
+							job.getJobId()),
+					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "beginLoadData", dataResource.getDataId()));
 
 			if (Thread.interrupted()) {
 				throw new InterruptedException();
@@ -207,7 +211,8 @@ public class IngestWorker {
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
 
 			// Console Logging
-			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()), PiazzaLogger.INFO);
+			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
+					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "loadedData", dataResource.getDataId()));
 
 			// Fire the Event to Pz-Search that new metadata has been ingested
 			try {
@@ -216,12 +221,12 @@ public class IngestWorker {
 				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
 				LOGGER.error(error, exception);
-				logger.log(error, PiazzaLogger.ERROR);
+				logger.log(error, Severity.ERROR);
 			} catch (Exception genException) {
 				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
 						dataResource.getDataId(), job.getJobId(), genException.getMessage());
 				LOGGER.error(error, genException);
-				logger.log(error, PiazzaLogger.ERROR);
+				logger.log(error, Severity.ERROR);
 			}
 
 			// Fire the Event to Pz-Workflow that a successful Ingest has taken
@@ -231,20 +236,20 @@ public class IngestWorker {
 			} catch (JsonParseException | JsonMappingException exception) {
 				String error = String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage());
 				LOGGER.error(error, exception);
-				logger.log(error, PiazzaLogger.ERROR);
+				logger.log(error, Severity.ERROR);
 			} catch (HttpClientErrorException | HttpServerErrorException exception) {
 				String error = String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
 						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
 				LOGGER.error(error, exception);
-				logger.log(error, PiazzaLogger.ERROR);
+				logger.log(error, Severity.ERROR);
 			} catch (Exception exception) {
 				LOGGER.error(exception.getMessage(), exception);
-				logger.log(exception.getMessage(), PiazzaLogger.WARNING);
+				logger.log(exception.getMessage(), Severity.WARNING);
 			}
 		} catch (InterruptedException exception) { // NOSONAR
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.INFO);
+			logger.log(error, Severity.INFORMATIONAL);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
@@ -253,7 +258,7 @@ public class IngestWorker {
 						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 						consumerRecord.key(), jsonException.getMessage());
 				LOGGER.error(error, jsonException);
-				logger.log(error, PiazzaLogger.ERROR);
+				logger.log(error, Severity.ERROR);
 			}
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
@@ -338,7 +343,7 @@ public class IngestWorker {
 			logger.log(
 					String.format("Event for Loading of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
 							dataResource.getDataId(), job.getJobId(), response.getBody().toString()),
-					PiazzaLogger.INFO);
+					Severity.INFORMATIONAL);
 		} else {
 			// 201 not received. Throw an exception that something went wrong.
 			throw new HttpServerErrorException(response.getStatusCode(),
@@ -358,7 +363,7 @@ public class IngestWorker {
 	private void handleException(String jobId, Exception exception) {
 		String error = String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage());
 		LOGGER.error(error);
-		logger.log(error, PiazzaLogger.ERROR);
+		logger.log(error, Severity.ERROR, new AuditElement(jobId, "failedToLoadData", ""));
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));

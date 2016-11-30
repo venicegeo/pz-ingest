@@ -43,6 +43,8 @@ import model.data.DataResource;
 import model.data.location.FileAccessFactory;
 import model.data.type.GeoJsonDataType;
 import model.job.metadata.SpatialMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.PiazzaLogger;
 
 /**
@@ -73,11 +75,12 @@ public class GeoJsonInspector implements InspectorType {
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
 			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
-
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
 
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
 		if (host && dataResource.getDataType() instanceof GeoJsonDataType) {
+			logger.log(String.format("Extracting Feature Data from GeoJSON File for Data %s", dataResource.getDataId()),
+					Severity.INFORMATIONAL, new AuditElement("ingest", "beginParsingGeoJSON", dataResource.getDataId()));
 			FeatureJSON featureJSON = new FeatureJSON();
 			InputStream geoJsonInputStream1 = null;
 			InputStream geoJsonInputStream2 = null;
@@ -109,7 +112,7 @@ public class GeoJsonInspector implements InspectorType {
 					String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 							dataResource.getDataId(), exception.getMessage());
 					LOGGER.error(error, exception);
-					logger.log(error, PiazzaLogger.WARNING);
+					logger.log(error, Severity.WARNING);
 				}
 
 				// Convert DataType to postgis from geojson
@@ -139,6 +142,9 @@ public class GeoJsonInspector implements InspectorType {
 				}
 			}
 		}
+
+		logger.log(String.format("Completed Feature Data from GeoJSON File for Data %s", dataResource.getDataId()), Severity.INFORMATIONAL,
+				new AuditElement("ingest", "completeParsingGeoJSON", dataResource.getDataId()));
 
 		// Return DataResource
 		return dataResource;

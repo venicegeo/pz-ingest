@@ -67,6 +67,8 @@ import model.data.location.S3FileStore;
 import model.data.type.GeoJsonDataType;
 import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
@@ -162,9 +164,11 @@ public class IngestUtilities {
 				String filePath = String.format("%s%s%s.%s", extractPath, File.separator, "ShapefileData", extension);
 				// Sanitize - blacklist
 				if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
-					logger.log(String.format(
-							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
-							zipEntry.getName(), zipPath), PiazzaLogger.WARNING);
+					logger.log(
+							String.format(
+									"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
+									zipEntry.getName(), zipPath),
+							Severity.WARNING, new AuditElement("ingest", "restrictedPathDetected", zipPath));
 					zipInputStream.closeEntry();
 					zipEntry = zipInputStream.getNextEntry();
 					continue;
@@ -195,7 +199,7 @@ public class IngestUtilities {
 			zipInputStream.closeEntry();
 		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
-			LOGGER.error(error, ex);
+			LOGGER.error(error, ex, new AuditElement("ingest", "failedExtractShapefileZip", extractPath));
 			throw new IOException(error);
 		}
 	}
@@ -254,7 +258,9 @@ public class IngestUtilities {
 			// Clean up resources
 			transaction.rollback();
 			transaction.close();
-			LOGGER.error("Error copying DataResource to PostGIS: " + exception.getMessage(), exception);
+			String error = "Error copying DataResource to PostGIS: " + exception.getMessage();
+			LOGGER.error(error, exception);
+			logger.log(error, Severity.ERROR, new AuditElement("ingest", "failedToCopyPostGisData", dataResource.getDataId()));
 
 			// Rethrow
 			throw exception;
@@ -262,6 +268,8 @@ public class IngestUtilities {
 			// Cleanup Data Store
 			postGisStore.dispose();
 		}
+
+		logger.log("Committed Data to PostGIS.", Severity.INFORMATIONAL, new AuditElement("ingest", "loadDataToPostGis", tableName));
 	}
 
 	/**
@@ -272,6 +280,8 @@ public class IngestUtilities {
 	 *            if piazza should host the data
 	 */
 	public void copyS3Source(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
+		logger.log(String.format("Copying Data %s to Piazza S3 Location.", dataResource.getDataId()), Severity.INFORMATIONAL,
+				new AuditElement("ingest", "copyS3DataToPiazza", dataResource.getDataId()));
 		// Connect to AWS S3 Bucket. Apply security only if credentials are
 		// present
 		AmazonS3 s3Client = getAwsClient();
@@ -410,6 +420,8 @@ public class IngestUtilities {
 	 *            The name of the table to drop.
 	 */
 	public void deleteDatabaseTable(String tableName) throws IOException {
+		logger.log("Dropping Table from PostGIS", Severity.INFORMATIONAL, new AuditElement("ingest", "deletePostGisTable", tableName));
+
 		// Delete the table
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
 				POSTGRES_USER, POSTGRES_PASSWORD);
@@ -421,7 +433,7 @@ public class IngestUtilities {
 			String error = String.format(
 					"Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.", tableName);
 			LOGGER.error(error, exception);
-			logger.log(error, PiazzaLogger.WARNING);
+			logger.log(error, Severity.WARNING);
 		} finally {
 			postGisStore.dispose();
 		}
