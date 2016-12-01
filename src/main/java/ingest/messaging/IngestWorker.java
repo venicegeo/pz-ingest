@@ -249,7 +249,7 @@ public class IngestWorker {
 		} catch (InterruptedException exception) { // NOSONAR
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOGGER.error(error, exception);
-			logger.log(error, Severity.INFORMATIONAL);
+			logger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "cancelledIngestJob", ""));
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 			try {
 				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
