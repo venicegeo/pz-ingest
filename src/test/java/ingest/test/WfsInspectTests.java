@@ -69,7 +69,7 @@ public class WfsInspectTests {
 
 		// Creating a Mock in-memory Data Store
 		mockDataStore = new MemoryDataStore();
-		SimpleFeatureType featureType = DataUtilities.createType(MOCK_FEATURE_NAME, "the_geom:Point:srid=4326");
+		SimpleFeatureType featureType = DataUtilities.createType(MOCK_FEATURE_NAME, "the_geom:Point");
 		SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(featureType);
 		GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
 		// Create some sample Test Points
