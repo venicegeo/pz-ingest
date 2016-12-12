@@ -21,6 +21,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import exception.InvalidInputException;
 import ingest.messaging.IngestThreadManager;
@@ -63,7 +68,11 @@ public class IngestController {
 	private IngestUtilities ingestUtil;
 	@Autowired
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+	@Autowired
+	private RestTemplate restTemplate;
 
+	@Value("${access.url}")
+	private String ACCESS_URL;
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
 
 	/**
@@ -90,6 +99,17 @@ public class IngestController {
 			ingestUtil.deleteDataResourceFiles(data);
 			// Remove the Data from the database
 			persistence.deleteDataEntry(dataId);
+			// Request that Access delete any Deployments for this Data ID
+			try {
+				String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
+				restTemplate.delete(url);
+			} catch (HttpClientErrorException | HttpServerErrorException httpException) {
+				// Log the error; but do not fail the request entirely if this deletion fails.
+				String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
+						httpException.getResponseBodyAsString());
+				logger.log(error, Severity.WARNING);
+				LOGGER.warn(error, httpException);
+			}
 			// Log the deletion
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
 					new AuditElement("ingest", "deletedData", dataId));

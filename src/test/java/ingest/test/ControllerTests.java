@@ -30,6 +30,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.client.RestTemplate;
 
 import exception.InvalidInputException;
 import ingest.controller.IngestController;
@@ -60,6 +61,8 @@ public class ControllerTests {
 	private IngestUtilities ingestUtil;
 	@Mock
 	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
+	@Mock
+	private RestTemplate restTemplate;
 
 	@InjectMocks
 	private IngestController ingestController;
