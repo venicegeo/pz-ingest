@@ -11,7 +11,7 @@ source $root/ci/vars.sh
 src=$root/target/piazza-ingest*.jar
 
 # Build Spring-boot JAR
-rm -rf $HOME/.m2/*
+rm -rf $HOME/.m2/repository/*
 [ -f $src ] || mvn clean package -U
 
 # stage the artifact for a mvn deploy
