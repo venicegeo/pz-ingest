@@ -22,8 +22,12 @@
 			<url>http://download.osgeo.org/webdav/geotools/</url>
 		</repository>
 		<repository>
-			<id>nexus</id>
-			<url>https://nexus.devops.geointservices.io/content/repositories/</url>
+			<id>nexus-central</id>
+			<url>https://nexus.devops.geointservices.io/content/repositories/Piazza</url>
+		</repository>
+		<repository>
+			<id>nexus-piazza</id>
+			<url>https://nexus.devops.geointservices.io/content/repositories/Central</url>
 		</repository>
 	</repositories>
 
