@@ -23,7 +23,7 @@
 		</repository>
 		<repository>
 			<id>nexus</id>
-			<url>https://nexus.devops.geointservices.io/content/repositories/Piazza/</url>
+			<url>https://nexus.devops.geointservices.io/content/repositories/</url>
 		</repository>
 	</repositories>
 
