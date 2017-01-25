@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -73,6 +72,11 @@ public class IngestController {
 
 	@Value("${access.url}")
 	private String ACCESS_URL;
+	@Value("${search.url}")
+	private String SEARCH_URL;
+	@Value("${search.delete}")
+	private String SEARCH_DELETE_SUFFIX;
+	
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
 
 	/**
@@ -92,13 +96,20 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Ingest"),
 						HttpStatus.NOT_FOUND);
 			}
+			
+			//Delete from Elasticsearch
+			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
+			ingestUtil.deleteElasticsearchByDataResource(data, searchUrl);
+
 			// Delete the Data if hosted
 			ingestUtil.deleteDataResourceFiles(data);
+
 			// Remove the Data from the database
 			persistence.deleteDataEntry(dataId);
+
 			// Request that Access delete any Deployments for this Data ID
 			try {
 				String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
@@ -114,17 +125,17 @@ public class IngestController {
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
 					new AuditElement("ingest", "deletedData", dataId));
 			// Return
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Access"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Ingest"),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR, new AuditElement("ingest", "errorDeletingData", dataId));
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Ingest"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-
+	
 	/**
 	 * Update the metadata of a Data Resource
 	 * 

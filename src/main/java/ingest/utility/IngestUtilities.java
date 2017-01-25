@@ -48,7 +48,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -69,6 +73,8 @@ import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
 import model.logger.AuditElement;
 import model.logger.Severity;
+import model.response.ErrorResponse;
+import model.response.PiazzaResponse;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
@@ -82,7 +88,9 @@ import util.PiazzaLogger;
 public class IngestUtilities {
 	@Autowired
 	private PiazzaLogger logger;
-
+	@Autowired
+	private RestTemplate restTemplate;
+	
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
@@ -436,6 +444,30 @@ public class IngestUtilities {
 			logger.log(error, Severity.WARNING);
 		} finally {
 			postGisStore.dispose();
+		}
+	}
+	
+	/**
+	 * Private method to post requests to elastic search for deleting the service metadata.
+	 * 
+	 * @param DataResource
+	 *            Data object
+	 * @param url
+	 *            Elasticsearch endpoint for deletion
+	 * @return PiazzaResponse response 
+	 */
+	public PiazzaResponse deleteElasticsearchByDataResource(DataResource dataResource, String url) {
+		try {
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			HttpEntity<DataResource> entity = new HttpEntity<DataResource>(dataResource, headers);
+			return restTemplate.postForObject(url, entity, PiazzaResponse.class);
+		} catch (Exception exception) {
+			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s",
+					dataResource.getDataId(), exception.getMessage());
+			LOGGER.error(error, exception);
+			logger.log(error, Severity.ERROR);
+			return new ErrorResponse(error, "pz-ingest");
 		}
 	}
 }
