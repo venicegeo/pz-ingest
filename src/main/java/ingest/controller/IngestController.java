@@ -96,7 +96,7 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Ingest"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
 						HttpStatus.NOT_FOUND);
 			}
 			
@@ -125,13 +125,13 @@ public class IngestController {
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
 					new AuditElement("ingest", "deletedData", dataId));
 			// Return
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Ingest"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Loader"),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR, new AuditElement("ingest", "errorDeletingData", dataId));
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Ingest"),
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
