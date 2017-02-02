@@ -56,7 +56,7 @@ public class ThreadManagerTests {
 		MockitoAnnotations.initMocks(this);
 
 		// Inject variables
-		ReflectionTestUtils.setField(manager, "KAFKA_ADDRESS", "localhost:9092");
+		ReflectionTestUtils.setField(manager, "KAFKA_HOSTS", "localhost:9092");
 		ReflectionTestUtils.setField(manager, "SPACE", "unit-test");
 		ReflectionTestUtils.setField(manager, "KAFKA_GROUP", "job-unit-test");
 	}
