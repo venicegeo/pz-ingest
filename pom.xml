@@ -17,17 +17,8 @@
 
 	<repositories>
 		<repository>
-			<id>spring-releases</id>
-			<url>https://repo.spring.io/libs-release</url>
-		</repository>
-		<repository>
-			<id>osgeo</id>
-			<name>Open Source Geospatial Foundation Repository</name>
-			<url>http://download.osgeo.org/webdav/geotools/</url>
-		</repository>
-		<repository>
 			<id>nexus</id>
-			<url>https://nexus.devops.geointservices.io/content/repositories/Piazza/</url>
+			<url>https://nexus.devops.geointservices.io/content/repositories/Piazza-Group/</url>
 		</repository>
 	</repositories>
 
@@ -46,7 +37,7 @@
 		<dependency>
 			<groupId>org.venice.piazza</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>Sprint06-300-g821b014</version>
+			<version>ato-sprite-84-g2a1b8a9</version>
 		</dependency>
 
 		<dependency>
@@ -209,11 +200,4 @@
 			</dependencies>
 		</profile>
 	</profiles>
-
-	<pluginRepositories>
-		<pluginRepository>
-			<id>spring-releases</id>
-			<url>https://repo.spring.io/libs-release</url>
-		</pluginRepository>
-	</pluginRepositories>
 </project>

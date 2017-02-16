@@ -64,9 +64,7 @@ public class IngestThreadManager {
 	private IngestWorker ingestWorker;
 
 	@Value("${vcap.services.pz-kafka.credentials.host}")
-	private String KAFKA_ADDRESS;
-	private String KAFKA_HOST;
-	private String KAFKA_PORT;
+	private String KAFKA_HOSTS;
 	@Value("#{'${kafka.group}' + '-' + '${SPACE}'}")
 	private String KAFKA_GROUP;
 	@Value("${SPACE}")
@@ -90,12 +88,10 @@ public class IngestThreadManager {
 	@PostConstruct
 	public void initialize() {
 		// Initialize the Kafka Producer
-		KAFKA_HOST = KAFKA_ADDRESS.split(":")[0];
-		KAFKA_PORT = KAFKA_ADDRESS.split(":")[1];
-		producer = KafkaClientFactory.getProducer(KAFKA_HOST, KAFKA_PORT);
+		producer = KafkaClientFactory.getProducer(KAFKA_HOSTS);
 
 		// Log the initialization.
-		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_ADDRESS, SPACE), Severity.INFORMATIONAL);
+		logger.log(String.format("Ingest listening to Kafka at %s in space %s.", KAFKA_HOSTS, SPACE), Severity.INFORMATIONAL);
 
 		// Initialize the Thread Pool and Map of running Threads
 		runningJobs = new HashMap<String, Future<?>>();
@@ -133,7 +129,7 @@ public class IngestThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT, KAFKA_GROUP);
+			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS, KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, SPACE)));
 
 			// Poll
@@ -170,7 +166,7 @@ public class IngestThreadManager {
 	public void pollAbortJobs() {
 		try {
 			// Create the Unique Consumer
-			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOST, KAFKA_PORT,
+			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
 			ObjectMapper mapper = new ObjectMapper();
