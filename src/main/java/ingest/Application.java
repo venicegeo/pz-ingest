@@ -18,6 +18,9 @@ package ingest;
 import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
@@ -29,11 +32,15 @@ import org.springframework.boot.context.web.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
 @SpringBootApplication
 @Configuration
@@ -86,5 +93,24 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 				System.out.println(error);
 			}
 		};
+	}
+
+	@Configuration
+	@Profile({ "secure" })
+	protected static class IngestConfig extends WebMvcConfigurerAdapter {
+		@Override
+		public void addInterceptors(InterceptorRegistry registry) {
+			registry.addInterceptor(new HandlerInterceptorAdapter() {
+				@Override
+				public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+					if ((request.getScheme().equals("http")) || (request.getHeader("X-Forwarded-Proto").equals("http"))) {
+						String redirectUrl = String.format("%s://%s%s", "https", request.getServerName(), request.getRequestURI());
+						response.sendRedirect(redirectUrl);
+						return false;
+					}
+					return true;
+				}
+			});
+		}
 	}
 }
