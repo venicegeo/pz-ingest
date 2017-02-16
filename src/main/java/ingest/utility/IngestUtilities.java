@@ -53,6 +53,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
@@ -463,8 +464,8 @@ public class IngestUtilities {
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<DataResource> entity = new HttpEntity<DataResource>(dataResource, headers);
 			return restTemplate.postForObject(url, entity, PiazzaResponse.class);
-		} catch (HttpClientErrorException exception) {
-			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s StatusCode: %s",
+		} catch (HttpClientErrorException|HttpServerErrorException exception) {
+			String error = String.format("Could not delete DataResource ID: %s from Elasticsearch. %s StatusCode: %s",
 					dataResource.getDataId(), exception.getResponseBodyAsString(), exception.getStatusCode());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
@@ -474,7 +475,7 @@ public class IngestUtilities {
 					dataResource.getDataId(), exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
-			return new ErrorResponse(error, "pz-ingest");
+			return new ErrorResponse(error, "Loader");
 		}
 	}
 }

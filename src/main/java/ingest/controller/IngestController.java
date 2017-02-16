@@ -76,7 +76,7 @@ public class IngestController {
 	private String SEARCH_URL;
 	@Value("${search.delete}")
 	private String SEARCH_DELETE_SUFFIX;
-	
+
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
 
 	/**
@@ -99,10 +99,6 @@ public class IngestController {
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
 						HttpStatus.NOT_FOUND);
 			}
-			
-			//Delete from Elasticsearch
-			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
-			ingestUtil.deleteElasticsearchByDataResource(data, searchUrl);
 
 			// Delete the Data if hosted
 			ingestUtil.deleteDataResourceFiles(data);
@@ -121,6 +117,11 @@ public class IngestController {
 				logger.log(error, Severity.WARNING);
 				LOGGER.warn(error, httpException);
 			}
+
+			// Delete from Elasticsearch
+			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
+			ingestUtil.deleteElasticsearchByDataResource(data, searchUrl);
+
 			// Log the deletion
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
 					new AuditElement("ingest", "deletedData", dataId));
@@ -135,7 +136,7 @@ public class IngestController {
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	
+
 	/**
 	 * Update the metadata of a Data Resource
 	 * 
@@ -161,13 +162,13 @@ public class IngestController {
 			// Update the Metadata
 			persistence.updateMetadata(dataId, metadata);
 			// Return OK
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", "Access"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", "Loader"),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
 			logger.log(error, Severity.ERROR, new AuditElement("ingest", "updateMetadataFailure", dataId));
 			LOGGER.error(error, exception);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Access"), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Loader"), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
