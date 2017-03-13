@@ -95,7 +95,7 @@ public class GeoJsonInspector implements InspectorType {
 							"No Feature Type Schema could be fully parsed from the input GeoJSON for Data ID %s. Is this correctly formed GeoJSON?",
 							dataResource.getDataId());
 					String rawGeoJsonInput = IOUtils.toString(geoJsonInputStream2);
-					LOGGER.debug(String.format("No Feature Type found for Data ID %s GeoJSON. Possibly malformed. Raw GeoJSON: %s",
+					LOGGER.error(String.format("No Feature Type found for Data ID %s GeoJSON. Possibly malformed. Raw GeoJSON: %s",
 							dataResource.getDataId(), rawGeoJsonInput));
 					throw new DataInspectException(error);
 				}
