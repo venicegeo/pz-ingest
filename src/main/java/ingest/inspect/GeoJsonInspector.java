@@ -90,9 +90,9 @@ public class GeoJsonInspector implements InspectorType {
 
 				SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geoJsonInputStream1, false);
 				// Validate that the Schema exists. If it does not, log some debug and throw exception.
-				if ((featureSchema == null) || (featureSchema.getName() == null)) {
+				if ((featureSchema == null) || (featureSchema.getName() == null) || (featureSchema.getGeometryDescriptor() == null)) {
 					String error = String.format(
-							"No Feature Type Schema could be parsed from the input GeoJSON for Data ID %s. Is this correctly formed GeoJSON?",
+							"No Feature Type Schema could be fully parsed from the input GeoJSON for Data ID %s. Is this correctly formed GeoJSON?",
 							dataResource.getDataId());
 					String rawGeoJsonInput = IOUtils.toString(geoJsonInputStream2);
 					LOGGER.debug(String.format("No Feature Type found for Data ID %s GeoJSON. Possibly malformed. Raw GeoJSON: %s",
