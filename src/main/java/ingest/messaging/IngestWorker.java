@@ -44,6 +44,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoException;
 
+import exception.DataInspectException;
 import ingest.inspect.Inspector;
 import ingest.utility.IngestUtilities;
 import messaging.job.JobMessageFactory;
@@ -246,6 +247,9 @@ public class IngestWorker {
 				LOGGER.error(exception.getMessage(), exception);
 				logger.log(exception.getMessage(), Severity.WARNING);
 			}
+		} catch (DataInspectException exception) {
+			handleException(consumerRecord.key(), exception);
+			LOGGER.error("An Inspection Error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} catch (InterruptedException exception) { // NOSONAR
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOGGER.error(error, exception);
