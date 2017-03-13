@@ -90,7 +90,7 @@ public class GeoJsonInspector implements InspectorType {
 
 				SimpleFeatureType featureSchema = featureJSON.readFeatureCollectionSchema(geoJsonInputStream1, false);
 				// Validate that the Schema exists. If it does not, log some debug and throw exception.
-				if (featureSchema == null) {
+				if ((featureSchema == null) || (featureSchema.getName() == null)) {
 					String error = String.format(
 							"No Feature Type Schema could be parsed from the input GeoJSON for Data ID %s. Is this correctly formed GeoJSON?",
 							dataResource.getDataId());
