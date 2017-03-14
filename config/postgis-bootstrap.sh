@@ -4,7 +4,7 @@
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" >> /etc/apt/sources.list'
 wget --quiet -O - http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | sudo apt-key add -
 sudo apt-get -y update
-sudo apt-get -y install postgresql-9.4-postgis pgadmin3 postgresql-contrib
+sudo apt-get -y install postgresql-9.4-postgis-2.3 pgadmin3 postgresql-contrib
 
 # Enable extensions
 sudo -u postgres psql postgres -c "CREATE EXTENSION adminpack"
