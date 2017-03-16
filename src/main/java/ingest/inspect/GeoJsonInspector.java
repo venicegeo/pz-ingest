@@ -93,13 +93,10 @@ public class GeoJsonInspector implements InspectorType {
 						.readFeatureCollection(geoJsonInputStream2);
 				FeatureSource<SimpleFeatureType, SimpleFeature> geojsonFeatureSource = new CollectionFeatureSource(featureCollection);
 
-				// Ensure we have features. If not, subsequent code will fail
-				if (geojsonFeatureSource.getFeatures().size() == 0) {
-					String error = "No features or schema found in this GeoJSON dataset. No load will be performed.";
-					throw new DataInspectException(error);
+				// Ensure we have features. If not, do not commit anything to PostGIS.
+				if (geojsonFeatureSource.getFeatures().size() != 0) {
+					ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
 				}
-
-				ingestUtilities.persistFeatures(geojsonFeatureSource, dataResource, featureSchema);
 
 				// Get the Bounding Box, set the Spatial Metadata
 				ReferencedEnvelope envelope = geojsonFeatureSource.getBounds();
