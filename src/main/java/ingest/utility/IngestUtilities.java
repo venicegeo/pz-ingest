@@ -58,8 +58,13 @@ import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3EncryptionClient;
+import com.amazonaws.services.s3.model.CryptoConfiguration;
+import com.amazonaws.services.s3.model.KMSEncryptionMaterialsProvider;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.vividsolutions.jts.geom.Envelope;
 
@@ -92,7 +97,7 @@ public class IngestUtilities {
 	private PiazzaLogger logger;
 	@Autowired
 	private RestTemplate restTemplate;
-	
+
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
@@ -112,6 +117,8 @@ public class IngestUtilities {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
+	@Value("${s3.kms.cmk.id}")
+	private String S3_KMS_CMK_ID;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
 
@@ -337,7 +344,10 @@ public class IngestUtilities {
 			s3Client = new AmazonS3Client();
 		} else {
 			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			s3Client = new AmazonS3Client(credentials);
+			// Set up encryption using the KMS CMK Key
+			KMSEncryptionMaterialsProvider materialProvider = new KMSEncryptionMaterialsProvider(S3_KMS_CMK_ID);
+			s3Client = new AmazonS3EncryptionClient(credentials, materialProvider,
+					new CryptoConfiguration().withKmsRegion(Regions.US_EAST_1)).withRegion(Region.getRegion(Regions.US_EAST_1));
 		}
 		return s3Client;
 	}
@@ -448,7 +458,7 @@ public class IngestUtilities {
 			postGisStore.dispose();
 		}
 	}
-	
+
 	/**
 	 * Private method to post requests to elastic search for deleting the service metadata.
 	 * 
@@ -456,7 +466,7 @@ public class IngestUtilities {
 	 *            Data object
 	 * @param url
 	 *            Elasticsearch endpoint for deletion
-	 * @return PiazzaResponse response 
+	 * @return PiazzaResponse response
 	 */
 	public PiazzaResponse deleteElasticsearchByDataResource(DataResource dataResource, String url) {
 		try {
@@ -464,15 +474,15 @@ public class IngestUtilities {
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<DataResource> entity = new HttpEntity<DataResource>(dataResource, headers);
 			return restTemplate.postForObject(url, entity, PiazzaResponse.class);
-		} catch (HttpClientErrorException|HttpServerErrorException exception) {
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Could not delete DataResource ID: %s from Elasticsearch. %s StatusCode: %s",
 					dataResource.getDataId(), exception.getResponseBodyAsString(), exception.getStatusCode());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");
 		} catch (Exception exception) {
-			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s",
-					dataResource.getDataId(), exception.getMessage());
+			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s", dataResource.getDataId(),
+					exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");
