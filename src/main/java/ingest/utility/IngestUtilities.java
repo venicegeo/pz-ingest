@@ -118,7 +118,7 @@ public class IngestUtilities {
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
 	@Value("${s3.kms.cmk.id}")
-	private String S3_KMS_CMK_ID;
+	private String KMS_CMK_ID;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
 
@@ -305,7 +305,7 @@ public class IngestUtilities {
 
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
 		// Write stream directly into an s3 bucket
@@ -320,7 +320,7 @@ public class IngestUtilities {
 	public long getFileSize(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
 		long counter = inputStream.read();

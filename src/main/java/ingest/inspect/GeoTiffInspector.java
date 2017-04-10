@@ -68,7 +68,9 @@ public class GeoTiffInspector implements InspectorType {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
-
+	@Value("${s3.kms.cmk.id}")
+	private String KMS_CMK_ID;
+	
 	private final static Logger LOGGER = LoggerFactory.getLogger(GeoTiffInspector.class);
 
 	@Override
@@ -145,7 +147,7 @@ public class GeoTiffInspector implements InspectorType {
 	private GridCoverage2DReader getGridCoverage(DataResource dataResource, File file)
 			throws AmazonClientException, InvalidInputException, IOException {
 		// Get the file from S3
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());
 		FileUtils.copyInputStreamToFile(tiffFileStream, file);
 

@@ -62,6 +62,8 @@ public class GeoJsonInspector implements InspectorType {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key:}")
 	private String AMAZONS3_PRIVATE_KEY;
+	@Value("${s3.kms.cmk.id}")
+	private String KMS_CMK_ID;
 
 	private static final Integer DEFAULT_GEOJSON_EPSG_CODE = 4326;
 
@@ -162,7 +164,7 @@ public class GeoJsonInspector implements InspectorType {
 	 * @return File object
 	 */
 	private InputStream getGeoJsonInputStream(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
 		InputStream inputStream;
 
 		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {

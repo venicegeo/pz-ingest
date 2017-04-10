@@ -69,6 +69,9 @@ public class PointCloudInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
+	@Value("${s3.kms.cmk.id}")
+	private String KMS_CMK_ID;
+	
 	@Autowired
 	private RestTemplate restTemplate;
 
@@ -94,7 +97,7 @@ public class PointCloudInspector implements InspectorType {
 		}
 
 		// Obtain File URL from AWS S3 Bucket
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
 		FileLocation fileLocation = ((PointCloudDataType) dataResource.getDataType()).getLocation();
 		String awsS3Url = fileFactory.getFileUri(fileLocation);
 
