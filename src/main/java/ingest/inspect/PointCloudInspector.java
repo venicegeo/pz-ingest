@@ -97,7 +97,7 @@ public class PointCloudInspector implements InspectorType {
 		}
 
 		// Obtain File URL from AWS S3 Bucket
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
+		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		FileLocation fileLocation = ((PointCloudDataType) dataResource.getDataType()).getLocation();
 		String awsS3Url = fileFactory.getFileUri(fileLocation);
 

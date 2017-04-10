@@ -74,7 +74,7 @@ public class ShapefileInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${s3.kms.cmk.id}")
 	private String KMS_CMK_ID;
-	
+
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
@@ -86,7 +86,7 @@ public class ShapefileInspector implements InspectorType {
 	public DataResource inspect(DataResource dataResource, boolean host)
 			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Get the Shapefile and write it to disk for temporary use.
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
+		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType()).getLocation());
 		File shapefileZip = new File(String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "zip"));
 		FileUtils.copyInputStreamToFile(shapefileStream, shapefileZip);

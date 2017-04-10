@@ -164,7 +164,7 @@ public class GeoJsonInspector implements InspectorType {
 	 * @return File object
 	 */
 	private InputStream getGeoJsonInputStream(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, KMS_CMK_ID);
+		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream inputStream;
 
 		if (((GeoJsonDataType) dataResource.getDataType()).getLocation() != null) {
