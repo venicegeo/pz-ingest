@@ -88,6 +88,7 @@ public class IngestUtilitiesTests {
 		// Test client with creds
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_ACCESS_KEY", "access");
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_PRIVATE_KEY", "private");
+		ReflectionTestUtils.setField(utilities, "S3_KMS_CMK_ID", "shh");
 		client = utilities.getAwsClient();
 	}
 
