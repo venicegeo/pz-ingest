@@ -38,7 +38,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import com.amazonaws.AmazonServiceException;
+import com.amazonaws.AmazonClientException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -64,7 +64,6 @@ import model.job.type.IngestJob;
 import model.job.type.SearchMetadataIngestJob;
 import model.logger.AuditElement;
 import model.logger.Severity;
-import model.response.ErrorResponse;
 import model.response.EventTypeListResponse;
 import model.response.PiazzaResponse;
 import model.status.StatusUpdate;
@@ -249,7 +248,7 @@ public class IngestWorker {
 				LOGGER.error(exception.getMessage(), exception);
 				logger.log(exception.getMessage(), Severity.WARNING);
 			}
-		} catch (AmazonServiceException amazonException) {
+		} catch (AmazonClientException amazonException) {
 			String systemError = String.format("Error interacting with S3: %s", amazonException.getMessage());
 			String userError = "There was an issue with S3 during Data Load. Please contact a Piazza administrator for details.";
 			LOGGER.error(systemError, amazonException);
