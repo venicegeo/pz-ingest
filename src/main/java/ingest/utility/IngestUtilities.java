@@ -328,7 +328,7 @@ public class IngestUtilities {
 		FileAccessFactory fileFactory = new FileAccessFactory();
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
-			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation))) {
+			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation).getBucketName())) {
 				// Use encryption
 				fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, S3_KMS_CMK_ID);
 			} else {
