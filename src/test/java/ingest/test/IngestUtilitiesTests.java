@@ -82,13 +82,14 @@ public class IngestUtilitiesTests {
 		// Test default client
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_ACCESS_KEY", "");
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_PRIVATE_KEY", "");
-		AmazonS3 client = utilities.getAwsClient();
+		AmazonS3 client = utilities.getAwsClient(false);
 		assertTrue(client != null);
 
 		// Test client with creds
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_ACCESS_KEY", "access");
 		ReflectionTestUtils.setField(utilities, "AMAZONS3_PRIVATE_KEY", "private");
-		client = utilities.getAwsClient();
+		ReflectionTestUtils.setField(utilities, "S3_KMS_CMK_ID", "shh");
+		client = utilities.getAwsClient(true);
 	}
 
 	/**

@@ -58,8 +58,13 @@ import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3EncryptionClient;
+import com.amazonaws.services.s3.model.CryptoConfiguration;
+import com.amazonaws.services.s3.model.KMSEncryptionMaterialsProvider;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.vividsolutions.jts.geom.Envelope;
 
@@ -92,7 +97,7 @@ public class IngestUtilities {
 	private PiazzaLogger logger;
 	@Autowired
 	private RestTemplate restTemplate;
-	
+
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.hostname}")
 	private String POSTGRES_HOST;
 	@Value("${vcap.services.pz-geoserver-efs.credentials.postgres.port}")
@@ -112,6 +117,8 @@ public class IngestUtilities {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
+	@Value("${s3.kms.cmk.id}")
+	private String S3_KMS_CMK_ID;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
 
@@ -292,16 +299,13 @@ public class IngestUtilities {
 	public void copyS3Source(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		logger.log(String.format("Copying Data %s to Piazza S3 Location.", dataResource.getDataId()), Severity.INFORMATIONAL,
 				new AuditElement("ingest", "copyS3DataToPiazza", dataResource.getDataId()));
-		// Connect to AWS S3 Bucket. Apply security only if credentials are
-		// present
-		AmazonS3 s3Client = getAwsClient();
-
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = getFileFactoryForDataResource(dataResource);
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
-		// Write stream directly into an s3 bucket
+		// Write stream directly into the Piazza S3 bucket
+		AmazonS3 s3Client = getAwsClient(true);
 		ObjectMetadata metadata = new ObjectMetadata();
 		String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
 		s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
@@ -310,10 +314,38 @@ public class IngestUtilities {
 		inputStream.close();
 	}
 
+	/**
+	 * Returns an instance of the File Factory, instantiated with the correct credentials for the use of obtaining file
+	 * bytes for the specified Data Resource. Such as if the Resource is a file, or an S3 Bucket, or an Encrypted S3
+	 * bucket.
+	 * 
+	 * @param dataResource
+	 *            The Data Resource
+	 * @return FileAccessFactory
+	 */
+	public FileAccessFactory getFileFactoryForDataResource(DataResource dataResource) {
+		// If S3 store, determine if this is the Piazza bucket (use encryption) or not (dont use encryption)
+		FileAccessFactory fileFactory = new FileAccessFactory();
+		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
+		if (fileLocation instanceof S3FileStore) {
+			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation))) {
+				// Use encryption
+				fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, S3_KMS_CMK_ID);
+			} else {
+				// Don't use
+				fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+			}
+		} else {
+			// No AWS Creds needed
+			fileFactory = new FileAccessFactory();
+		}
+		return fileFactory;
+	}
+
 	public long getFileSize(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
-		FileAccessFactory fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+		FileAccessFactory fileFactory = getFileFactoryForDataResource(dataResource);
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
 		long counter = inputStream.read();
@@ -329,15 +361,26 @@ public class IngestUtilities {
 	/**
 	 * Gets an instance of an S3 client to use.
 	 * 
+	 * @param useEncryption
+	 *            True if encryption should be used (only for Piazza Bucket). For all external Buckets, encryption is
+	 *            not used.
+	 * 
 	 * @return The S3 client
 	 */
-	public AmazonS3 getAwsClient() {
+	public AmazonS3 getAwsClient(boolean useEncryption) {
 		AmazonS3 s3Client;
 		if ((AMAZONS3_ACCESS_KEY.isEmpty()) && (AMAZONS3_PRIVATE_KEY.isEmpty())) {
 			s3Client = new AmazonS3Client();
 		} else {
 			BasicAWSCredentials credentials = new BasicAWSCredentials(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
-			s3Client = new AmazonS3Client(credentials);
+			// Set up encryption using the KMS CMK Key
+			if (useEncryption) {
+				KMSEncryptionMaterialsProvider materialProvider = new KMSEncryptionMaterialsProvider(S3_KMS_CMK_ID);
+				s3Client = new AmazonS3EncryptionClient(credentials, materialProvider,
+						new CryptoConfiguration().withKmsRegion(Regions.US_EAST_1)).withRegion(Region.getRegion(Regions.US_EAST_1));
+			} else {
+				s3Client = new AmazonS3Client(credentials);
+			}
 		}
 		return s3Client;
 	}
@@ -382,9 +425,9 @@ public class IngestUtilities {
 		// If the Data Resource has S3 files to clean
 		if (dataType instanceof S3FileStore) {
 			S3FileStore fileStore = (S3FileStore) dataType;
-			if (!fileStore.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+			if (fileStore.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 				// Held by Piazza S3. Delete the data.
-				AmazonS3 client = getAwsClient();
+				AmazonS3 client = getAwsClient(true);
 				client.deleteObject(fileStore.getBucketName(), fileStore.getFileName());
 			}
 		}
@@ -448,7 +491,7 @@ public class IngestUtilities {
 			postGisStore.dispose();
 		}
 	}
-	
+
 	/**
 	 * Private method to post requests to elastic search for deleting the service metadata.
 	 * 
@@ -456,7 +499,7 @@ public class IngestUtilities {
 	 *            Data object
 	 * @param url
 	 *            Elasticsearch endpoint for deletion
-	 * @return PiazzaResponse response 
+	 * @return PiazzaResponse response
 	 */
 	public PiazzaResponse deleteElasticsearchByDataResource(DataResource dataResource, String url) {
 		try {
@@ -464,15 +507,15 @@ public class IngestUtilities {
 			headers.setContentType(MediaType.APPLICATION_JSON);
 			HttpEntity<DataResource> entity = new HttpEntity<DataResource>(dataResource, headers);
 			return restTemplate.postForObject(url, entity, PiazzaResponse.class);
-		} catch (HttpClientErrorException|HttpServerErrorException exception) {
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Could not delete DataResource ID: %s from Elasticsearch. %s StatusCode: %s",
 					dataResource.getDataId(), exception.getResponseBodyAsString(), exception.getStatusCode());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");
 		} catch (Exception exception) {
-			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s",
-					dataResource.getDataId(), exception.getMessage());
+			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s", dataResource.getDataId(),
+					exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");

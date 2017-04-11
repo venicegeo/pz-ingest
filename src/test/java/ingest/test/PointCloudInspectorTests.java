@@ -15,27 +15,28 @@
  **/
 package ingest.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
-import ingest.inspect.PointCloudInspector;
 
 import java.io.File;
-
-import model.data.DataResource;
-import model.data.location.FolderShare;
-import model.data.type.PointCloudDataType;
-import model.job.metadata.ResourceMetadata;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.web.client.RestTemplate;
 
+import ingest.inspect.PointCloudInspector;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FolderShare;
+import model.data.type.PointCloudDataType;
+import model.job.metadata.ResourceMetadata;
 import util.PiazzaLogger;
 
 /**
@@ -49,6 +50,8 @@ public class PointCloudInspectorTests {
 	private PiazzaLogger logger;
 	@Mock
 	private RestTemplate restTemplate;
+	@Mock
+	private IngestUtilities ingestUtilities;
 	@InjectMocks
 	private PointCloudInspector inspector;
 
@@ -61,13 +64,14 @@ public class PointCloudInspectorTests {
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
 
+		Mockito.doCallRealMethod().when(ingestUtilities).getFileFactoryForDataResource(Mockito.any());
+
 		// Mock PC Data
 		mockData = new DataResource();
 		mockData.setDataId("123456");
 		PointCloudDataType dataType = new PointCloudDataType();
 		FolderShare location = new FolderShare();
-		location.filePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator
-				+ "samp71-utm.laz";
+		location.filePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator + "samp71-utm.laz";
 		dataType.location = location;
 		mockData.dataType = dataType;
 		mockData.metadata = new ResourceMetadata();
