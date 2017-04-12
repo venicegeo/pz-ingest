@@ -72,7 +72,7 @@ public class ShapefileInspector implements InspectorType {
 	private String AMAZONS3_ACCESS_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.secret_access_key}")
 	private String AMAZONS3_PRIVATE_KEY;
-	@Value("${s3.kms.cmk.id}")
+	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String KMS_CMK_ID;
 
 	@Autowired

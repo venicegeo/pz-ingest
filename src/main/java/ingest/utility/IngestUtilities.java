@@ -117,7 +117,7 @@ public class IngestUtilities {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
-	@Value("${s3.kms.cmk.id}")
+	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String S3_KMS_CMK_ID;
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
