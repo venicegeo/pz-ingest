@@ -67,9 +67,7 @@ node {
     sh """
       ${mvn}/bin/mvn install:install-file -Dmaven.repo.local=${root} -Dfile=pom.xml -DpomFile=pom.xml
     """
-    fortify {
-      fortifySource = 'src/main/java/ingest{*.java,**/*.java}'
-    }
+    fortify()
   }
 
   stage('Cleanup') {
