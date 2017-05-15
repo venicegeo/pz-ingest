@@ -1,12 +1,14 @@
 @Library('pipelib@master') _
 
+def THREADFIX_ID = env.THREADFIX_ID ? env.THREADFIX_ID : '115'
+
 node {
   def mvn = tool 'M3'
   def root = pwd()
 
   stage('Setup') {
     git([
-      url: "https://github.com/venicegeo/pz-ingest",
+      url: env.GIT_URL ? env.GIT_URL : 'https://github.com/venicegeo/pz-ingest',
       branch: "master"
     ])
   }
@@ -20,7 +22,9 @@ node {
   }
 
   stage('Scans') {
-//    dependencyCheck()
+    dependencyCheck {
+      threadfixId = THREADFIX_ID
+    }
     ionConnect()
     sh """
       mkdir -p ${root}/.m2/repository
@@ -37,7 +41,9 @@ node {
       cp target/piazza-ingest-1.0.0.jar ${root}/pz-ingest.jar
     """
     cfPush()
-//    zap()
+    zap {
+      threadfixId = THREADFIX_ID
+    }
     cfBgDeploy()
   }
 
@@ -47,7 +53,7 @@ node {
 
   stage('Reset') {
     git([
-      url: "https://github.com/venicegeo/pz-ingest",
+      url: env.GIT_URL ? env.GIT_URL : 'https://github.com/venicegeo/pz-ingest',
       branch: "master"
     ])
   }
@@ -67,7 +73,9 @@ node {
     sh """
       ${mvn}/bin/mvn install:install-file -Dmaven.repo.local=${root} -Dfile=pom.xml -DpomFile=pom.xml
     """
-    fortify()
+    fortify {
+      threadfixId = THREADFIX_ID
+    }
   }
 
   stage('Cleanup') {
