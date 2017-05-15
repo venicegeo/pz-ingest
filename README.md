@@ -3,6 +3,9 @@
 To run the Loader service locally (without Vagrant), perhaps through Eclipse or through CLI, navigate to the project directory and run
 
     mvn clean install -U spring-boot:run
+    
+** Other note.  Access to Nexus is required to build (See the pom).  Switch to use other springboot maven library.
+
 
 This will run the application on port 8084 of the machine.
 
