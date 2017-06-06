@@ -195,8 +195,19 @@ public class PersistMetadata {
 		if (dataResource == null) {
 			throw new InvalidInputException(String.format("No Data Resource found matching Id %s", dataId));
 		}
+
+		// Block updates to specific ResourceMetadata fields
+		ResourceMetadata oldMetadata = dataResource.getMetadata();
+		if (oldMetadata != null && metadata != null
+				&& (!metadata.getCreatedBy().equals(oldMetadata.getCreatedBy())
+						|| !metadata.getCreatedOn().equals(oldMetadata.getCreatedOn())
+						|| !metadata.getCreatedByJobId().equals(oldMetadata.getCreatedByJobId()))) {
+			throw new InvalidInputException(String.format("Illegal system managed field update for Metadata %s", dataId));
+		}
+		
 		// Merge the ResourceMetadata together
 		dataResource.getMetadata().merge(metadata, false);
+
 		// Update the DataResource in the database
 		getResourceCollection().update(DBQuery.is("dataId", dataId), DBUpdate.set("metadata", dataResource.getMetadata()));
 	}
