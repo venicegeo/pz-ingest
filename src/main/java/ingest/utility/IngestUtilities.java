@@ -268,9 +268,6 @@ public class IngestUtilities {
 			SimpleFeatureCollection features = (SimpleFeatureCollection) featureSource.getFeatures();
 			postGisFeatureStore.addFeatures(features);
 
-			// Commit the changes and clean up
-			transaction.commit();
-			transaction.close();
 		} catch (IOException exception) {
 			// Clean up resources
 			transaction.rollback();
@@ -282,6 +279,11 @@ public class IngestUtilities {
 			// Rethrow
 			throw exception;
 		} finally {
+			if( transaction != null ) {
+				// Commit the changes and clean up
+				transaction.commit();
+				transaction.close();
+			}
 			// Cleanup Data Store
 			postGisStore.dispose();
 		}
@@ -325,7 +327,7 @@ public class IngestUtilities {
 	 */
 	public FileAccessFactory getFileFactoryForDataResource(DataResource dataResource) {
 		// If S3 store, determine if this is the Piazza bucket (use encryption) or not (dont use encryption)
-		FileAccessFactory fileFactory = new FileAccessFactory();
+		final FileAccessFactory fileFactory;
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
 			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation).getBucketName())) {

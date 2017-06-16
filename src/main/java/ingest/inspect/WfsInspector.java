@@ -167,13 +167,17 @@ public class WfsInspector implements InspectorType {
 			transaction.commit();
 			transaction.close();
 		} catch (Exception exception) {
-			// Clean up resources
-			transaction.rollback();
-			transaction.close();
 			LOGGER.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
+			
 			// Rethrow
 			throw new IOException(exception.getMessage());
 		} finally {
+			if( transaction != null ) {
+				// Clean up resources
+				transaction.rollback();
+				transaction.close();
+			}
+			
 			// Clean up the PostGIS Store
 			postGisStore.dispose();
 		}

@@ -69,11 +69,14 @@ public class Inspector {
 	 *            True if Piazza should host the resource, false if not
 	 */
 	public void inspect(DataResource dataResource, boolean host) throws DataInspectException, InterruptedException {
+		
+		final DataResource finalDataResource;
+		
 		// Inspect the resource based on the type it is, and add any metadata if
 		// possible. If hosted, the Inspector will handle this as well.
 		try {
 			InspectorType inspector = getInspector(dataResource);
-			dataResource = inspector.inspect(dataResource, host);
+			finalDataResource = inspector.inspect(dataResource, host);
 		} catch (Exception exception) {
 			// If any errors occur during inspection.
 			String error = "Error Inspecting Data: " + exception.getMessage();
@@ -83,7 +86,7 @@ public class Inspector {
 
 		// Store the metadata in the Resources collection
 		try {
-			metadataPersist.insertData(dataResource);
+			metadataPersist.insertData(finalDataResource);
 		} catch (MongoException exception) {
 			LOGGER.error("Error Loading Data into Mongo.", exception);
 			if (exception instanceof MongoInterruptedException) {

@@ -118,6 +118,9 @@ public class IngestThreadManager {
 	 * Begins listening for Ingest Jobs.
 	 */
 	public void pollIngestJobs() {
+		
+		Consumer<String, String> generalConsumer = null;
+		
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
@@ -129,7 +132,7 @@ public class IngestThreadManager {
 			};
 
 			// Create the General Group Consumer
-			Consumer<String, String> generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS, KAFKA_GROUP);
+			generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS, KAFKA_GROUP);
 			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, SPACE)));
 
 			// Poll
@@ -145,11 +148,16 @@ public class IngestThreadManager {
 					runningJobs.put(consumerRecord.key(), workerFuture);
 				}
 			}
-			generalConsumer.close();
-		} catch (WakeupException exception) {
+		} 
+		catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
+		}
+		finally {
+			if( generalConsumer != null ) {
+				generalConsumer.close();
+			}
 		}
 	}
 
@@ -164,9 +172,12 @@ public class IngestThreadManager {
 	 * Begins listening for Abort Jobs. If a Job is owned by this component, then it will be terminated.
 	 */
 	public void pollAbortJobs() {
+		
+		Consumer<String, String> uniqueConsumer = null;
+		
 		try {
 			// Create the Unique Consumer
-			Consumer<String, String> uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS,
+			uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS,
 					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
 			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
 			ObjectMapper mapper = new ObjectMapper();
@@ -198,11 +209,16 @@ public class IngestThreadManager {
 					}
 				}
 			}
-			uniqueConsumer.close();
-		} catch (WakeupException exception) {
+		} 
+		catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
 			LOGGER.error(error, exception);
 			logger.log(error, Severity.ERROR);
+		}
+		finally {
+			if( uniqueConsumer != null ) {
+				uniqueConsumer.close();
+			}
 		}
 	}
 
