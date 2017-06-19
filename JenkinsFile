@@ -100,6 +100,7 @@ node {
 
   stage("Security Scan Pass/Fail") {
     // Query threadfix and block if any highs/crits are found
+    /*
     sh "mkdir -p sspf-pkg"
     dir("./sspf-pkg") {
       withCredentials([[$class: 'StringBinding', credentialsId: "${env.THREADFIX_API_KEY}", variable: 'THREADFIX_KEY']]) {
@@ -109,7 +110,7 @@ node {
           sh "/bin/curl --fail --silent ${env.THREADFIX_URL}/rest/applications/${THREADFIX_ID}?apiKey=${THREADFIX_KEY} | ./sspf.py"
         }
       }
-    }
+    }*/
   }  
 
   stage ('Int Deploy') {
