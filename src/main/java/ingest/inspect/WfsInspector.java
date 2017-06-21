@@ -77,7 +77,7 @@ public class WfsInspector implements InspectorType {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(WfsInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WfsInspector.class);
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
@@ -109,7 +109,7 @@ public class WfsInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			if (logger != null) {
 				logger.log(error, Severity.WARNING);
 			}
@@ -167,7 +167,7 @@ public class WfsInspector implements InspectorType {
 			transaction.commit();
 			transaction.close();
 		} catch (Exception exception) {
-			LOGGER.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
+			LOG.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
 			
 			// Rethrow
 			throw new IOException(exception.getMessage());
