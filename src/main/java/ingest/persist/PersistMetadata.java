@@ -75,12 +75,14 @@ public class PersistMetadata {
 
 	@Autowired
 	private Environment environment;
-	private final static Logger LOGGER = LoggerFactory.getLogger(PersistMetadata.class);
-
+	private static final Logger LOG = LoggerFactory.getLogger(PersistMetadata.class);
+	private static final String DATAID = "dataId";
+	
 	/**
 	 * Required for Component init
 	 */
 	public PersistMetadata() {
+		// Empty constructor required by Jackson
 	}
 
 	@PostConstruct
@@ -104,7 +106,7 @@ public class PersistMetadata {
 			}
 
 		} catch (Exception exception) {
-			LOGGER.error(String.format("Error connecting to MongoDB Instance. %s", exception.getMessage()), exception);
+			LOG.error(String.format("Error connecting to MongoDB Instance. %s", exception.getMessage()), exception);
 
 		}
 	}
@@ -140,7 +142,7 @@ public class PersistMetadata {
 	 *            The Data Id to delete.
 	 */
 	public void deleteDataEntry(String dataId) {
-		BasicDBObject query = new BasicDBObject("dataId", dataId);
+		BasicDBObject query = new BasicDBObject(DATAID, dataId);
 		getResourceCollection().remove(query);
 	}
 
@@ -165,7 +167,7 @@ public class PersistMetadata {
 	 * @return DataResource object
 	 */
 	public DataResource getData(String dataId) {
-		BasicDBObject query = new BasicDBObject("dataId", dataId);
+		BasicDBObject query = new BasicDBObject(DATAID, dataId);
 		DataResource data;
 
 		try {
@@ -174,7 +176,7 @@ public class PersistMetadata {
 			}
 		} catch (MongoTimeoutException mte) {
 			String error = "MongoDB instance not available.";
-			LOGGER.error(error, mte);
+			LOG.error(error, mte);
 			throw new MongoException(error);
 		}
 
@@ -198,6 +200,6 @@ public class PersistMetadata {
 		// Merge the ResourceMetadata together
 		dataResource.getMetadata().merge(metadata, false);
 		// Update the DataResource in the database
-		getResourceCollection().update(DBQuery.is("dataId", dataId), DBUpdate.set("metadata", dataResource.getMetadata()));
+		getResourceCollection().update(DBQuery.is(DATAID, dataId), DBUpdate.set("metadata", dataResource.getMetadata()));
 	}
 }

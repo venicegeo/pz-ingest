@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -120,7 +121,8 @@ public class IngestUtilities {
 	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String S3_KMS_CMK_ID;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngestUtilities.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IngestUtilities.class);
+	private static final String INGEST = "ingest";
 
 	/**
 	 * Recursive deletion of directory
@@ -165,7 +167,6 @@ public class IngestUtilities {
 	 * @throws IOException
 	 */
 	public void extractZip(String zipPath, String extractPath) throws IOException {
-		byte[] buffer = new byte[1024];
 		try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipPath))) {
 			// Create output directory
 			File directory = new File(extractPath);
@@ -176,51 +177,64 @@ public class IngestUtilities {
 			// Get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
-				String fileName = zipEntry.getName();
-				String extension = FilenameUtils.getExtension(fileName);
-				String filePath = String.format("%s%s%s.%s", extractPath, File.separator, "ShapefileData", extension);
-				// Sanitize - blacklist
-				if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
-					logger.log(
-							String.format(
-									"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
-									zipEntry.getName(), zipPath),
-							Severity.WARNING, new AuditElement("ingest", "restrictedPathDetected", zipPath));
-					zipInputStream.closeEntry();
-					zipEntry = zipInputStream.getNextEntry();
-					continue;
-				}
-				// Sanitize - whitelist
-				if ((filePath.contains(".shp")) || (filePath.contains(".prj")) || (filePath.contains(".shx")) || (filePath.contains(".dbf"))
-						|| (filePath.contains(".sbn"))) {
-					File newFile = new File(filePath).getCanonicalFile();
-
-					// Create all non existing folders
-					new File(newFile.getParent()).mkdirs();
-
-					try (FileOutputStream outputStream = new FileOutputStream(newFile)) {
-						int length;
-						while ((length = zipInputStream.read(buffer)) > 0) {
-							outputStream.write(buffer, 0, length);
-						}
-					}
-
-					zipInputStream.closeEntry();
-					zipEntry = zipInputStream.getNextEntry();
-				} else {
-					zipInputStream.closeEntry();
-					zipEntry = zipInputStream.getNextEntry();
-				}
+				extractZipEntry(zipEntry, zipInputStream, zipPath, extractPath);
 			}
 
 			zipInputStream.closeEntry();
 		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
-			LOGGER.error(error, ex, new AuditElement("ingest", "failedExtractShapefileZip", extractPath));
+			LOG.error(error, ex, new AuditElement(INGEST, "failedExtractShapefileZip", extractPath));
 			throw new IOException(error);
 		}
 	}
 
+	private void extractZipEntry(ZipEntry zipEntry, final ZipInputStream zipInputStream, final String zipPath, final String extractPath) throws IOException {
+		byte[] buffer = new byte[1024];
+
+		String fileName = zipEntry.getName();
+		String extension = FilenameUtils.getExtension(fileName);
+		String filePath = String.format("%s%s%s.%s", extractPath, File.separator, "ShapefileData", extension);
+		// Sanitize - blacklist
+		if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
+			logger.log(
+					String.format(
+							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
+							zipEntry.getName(), zipPath),
+					Severity.WARNING, new AuditElement(INGEST, "restrictedPathDetected", zipPath));
+			zipInputStream.closeEntry();
+			zipEntry = zipInputStream.getNextEntry();
+			return;
+		}
+		// Sanitize - whitelist
+		boolean filePathContainsExtension = false;
+		for( final String ext : Arrays.asList(".shp", ".prj", ".shx", ".dbf", ".sbn")) { 
+			if( filePath.contains(ext) ) {
+				filePathContainsExtension = true;
+				break;
+			}
+		}
+		
+		if (filePathContainsExtension) {
+			File newFile = new File(filePath).getCanonicalFile();
+
+			// Create all non existing folders
+			new File(newFile.getParent()).mkdirs();
+
+			try (FileOutputStream outputStream = new FileOutputStream(newFile)) {
+				int length;
+				while ((length = zipInputStream.read(buffer)) > 0) {
+					outputStream.write(buffer, 0, length);
+				}
+			}
+
+			zipInputStream.closeEntry();
+			zipEntry = zipInputStream.getNextEntry();
+		} else {
+			zipInputStream.closeEntry();
+			zipEntry = zipInputStream.getNextEntry();
+		}	
+	}
+	
 	/**
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
@@ -273,8 +287,8 @@ public class IngestUtilities {
 			transaction.rollback();
 			transaction.close();
 			String error = "Error copying DataResource to PostGIS: " + exception.getMessage();
-			LOGGER.error(error, exception);
-			logger.log(error, Severity.ERROR, new AuditElement("ingest", "failedToCopyPostGisData", dataResource.getDataId()));
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "failedToCopyPostGisData", dataResource.getDataId()));
 
 			// Rethrow
 			throw exception;
@@ -288,7 +302,7 @@ public class IngestUtilities {
 			postGisStore.dispose();
 		}
 
-		logger.log("Committed Data to PostGIS.", Severity.INFORMATIONAL, new AuditElement("ingest", "loadDataToPostGis", tableName));
+		logger.log("Committed Data to PostGIS.", Severity.INFORMATIONAL, new AuditElement(INGEST, "loadDataToPostGis", tableName));
 	}
 
 	/**
@@ -298,9 +312,9 @@ public class IngestUtilities {
 	 * @param host
 	 *            if piazza should host the data
 	 */
-	public void copyS3Source(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
+	public void copyS3Source(DataResource dataResource) throws InvalidInputException, IOException {
 		logger.log(String.format("Copying Data %s to Piazza S3 Location.", dataResource.getDataId()), Severity.INFORMATIONAL,
-				new AuditElement("ingest", "copyS3DataToPiazza", dataResource.getDataId()));
+				new AuditElement(INGEST, "copyS3DataToPiazza", dataResource.getDataId()));
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileFactory = getFileFactoryForDataResource(dataResource);
@@ -475,7 +489,7 @@ public class IngestUtilities {
 	 *            The name of the table to drop.
 	 */
 	public void deleteDatabaseTable(String tableName) throws IOException {
-		logger.log("Dropping Table from PostGIS", Severity.INFORMATIONAL, new AuditElement("ingest", "deletePostGisTable", tableName));
+		logger.log("Dropping Table from PostGIS", Severity.INFORMATIONAL, new AuditElement(INGEST, "deletePostGisTable", tableName));
 
 		// Delete the table
 		DataStore postGisStore = GeoToolsUtil.getPostGisDataStore(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SCHEMA, POSTGRES_DB_NAME,
@@ -487,7 +501,7 @@ public class IngestUtilities {
 			// table was already deleted. Log that.
 			String error = String.format(
 					"Attempted to delete Table %s from Database for deleting a Data Resource, but the table was not found.", tableName);
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.WARNING);
 		} finally {
 			postGisStore.dispose();
@@ -512,13 +526,13 @@ public class IngestUtilities {
 		} catch (HttpClientErrorException | HttpServerErrorException exception) {
 			String error = String.format("Could not delete DataResource ID: %s from Elasticsearch. %s StatusCode: %s",
 					dataResource.getDataId(), exception.getResponseBodyAsString(), exception.getStatusCode());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");
 		} catch (Exception exception) {
 			String error = String.format("Could not delete DataResource id: %s from Elasticsearch. %s", dataResource.getDataId(),
 					exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.ERROR);
 			return new ErrorResponse(error, "Loader");
 		}

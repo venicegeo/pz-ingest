@@ -58,7 +58,7 @@ public class Inspector {
 	@Autowired
 	private GeoJsonInspector geoJsonInspector;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(Inspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Inspector.class);
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -80,7 +80,7 @@ public class Inspector {
 		} catch (Exception exception) {
 			// If any errors occur during inspection.
 			String error = "Error Inspecting Data: " + exception.getMessage();
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			throw new DataInspectException(exception.getMessage());
 		}
 
@@ -88,7 +88,7 @@ public class Inspector {
 		try {
 			metadataPersist.insertData(finalDataResource);
 		} catch (MongoException exception) {
-			LOGGER.error("Error Loading Data into Mongo.", exception);
+			LOG.error("Error Loading Data into Mongo.", exception);
 			if (exception instanceof MongoInterruptedException) {
 				throw new InterruptedException();
 			} else {

@@ -71,7 +71,8 @@ public class GeoTiffInspector implements InspectorType {
 	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String KMS_CMK_ID;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(GeoTiffInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GeoTiffInspector.class);
+	private static final String INGEST = "ingest";
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
@@ -80,7 +81,7 @@ public class GeoTiffInspector implements InspectorType {
 		String fileName = String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "tif");
 
 		logger.log(String.format("Begin GeoTools Parsing for %s at temporary file %s", dataResource.getDataId(), fileName),
-				Severity.INFORMATIONAL, new AuditElement("ingest", "beginParsingGeoTiff", fileName));
+				Severity.INFORMATIONAL, new AuditElement(INGEST, "beginParsingGeoTiff", fileName));
 
 		File geoTiffFile = new File(fileName);
 		GridCoverage2DReader reader = getGridCoverage(dataResource, geoTiffFile);
@@ -109,7 +110,7 @@ public class GeoTiffInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.WARNING);
 		}
 
@@ -126,12 +127,12 @@ public class GeoTiffInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Error cleaning up GeoTiff file for %s Load: %s", dataResource.getDataId(),
 					exception.getMessage());
-			LOGGER.error(error, exception, new AuditElement("ingest", "failedToDeleteTemporaryGeoTiff", fileName));
+			LOG.error(error, exception, new AuditElement(INGEST, "failedToDeleteTemporaryGeoTiff", fileName));
 			logger.log(error, Severity.WARNING);
 		}
 
 		logger.log(String.format("Completed GeoTools Parsing for %s at temporary file %s", dataResource.getDataId(), fileName),
-				Severity.INFORMATIONAL, new AuditElement("ingest", "completeParsingGeoTiff", fileName));
+				Severity.INFORMATIONAL, new AuditElement(INGEST, "completeParsingGeoTiff", fileName));
 
 		// Return the metadata
 		return dataResource;

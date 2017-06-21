@@ -77,8 +77,10 @@ public class IngestController {
 	@Value("${search.delete}")
 	private String SEARCH_DELETE_SUFFIX;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
-
+	private static final Logger LOG = LoggerFactory.getLogger(IngestController.class);
+	private static final String LOADER = "Loader";
+	private static final String INGEST = "ingest";
+	
 	/**
 	 * Deletes the Data resource object from the Resources collection.
 	 * 
@@ -96,7 +98,7 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), LOADER),
 						HttpStatus.NOT_FOUND);
 			}
 
@@ -115,7 +117,7 @@ public class IngestController {
 				String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
 						httpException.getResponseBodyAsString());
 				logger.log(error, Severity.WARNING);
-				LOGGER.warn(error, httpException);
+				LOG.warn(error, httpException);
 			}
 
 			// Delete from Elasticsearch
@@ -124,15 +126,15 @@ public class IngestController {
 
 			// Log the deletion
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
-					new AuditElement("ingest", "deletedData", dataId));
+					new AuditElement(INGEST, "deletedData", dataId));
 			// Return
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Loader"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
-			LOGGER.error(error, exception);
-			logger.log(error, Severity.ERROR, new AuditElement("ingest", "errorDeletingData", dataId));
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "errorDeletingData", dataId));
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), LOADER),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -154,21 +156,21 @@ public class IngestController {
 			DataResource data = persistence.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING,
-						new AuditElement("ingest", "noDataFoundForId", dataId));
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+						new AuditElement(INGEST, "noDataFoundForId", dataId));
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), LOADER),
 						HttpStatus.NOT_FOUND);
 			}
 
 			// Update the Metadata
 			persistence.updateMetadata(dataId, metadata);
 			// Return OK
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", "Loader"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Could not update Metadata %s", exception.getMessage());
-			logger.log(error, Severity.ERROR, new AuditElement("ingest", "updateMetadataFailure", dataId));
-			LOGGER.error(error, exception);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Loader"), HttpStatus.INTERNAL_SERVER_ERROR);
+			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
+			LOG.error(error, exception);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, LOADER), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 

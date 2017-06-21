@@ -74,14 +74,9 @@ public class IngestThreadManager {
 	private Map<String, Future<?>> runningJobs;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngestThreadManager.class);
-
-	/**
-	 * Worker class that listens for and processes Ingestion messages.
-	 */
-	public IngestThreadManager() {
-	}
-
+	private static final Logger LOG = LoggerFactory.getLogger(IngestThreadManager.class);
+	private static final String TOPIC_FORMAT = "%s-%s";
+	
 	/**
 	 * Initializes the Thread Pool and begins Polling for Jobs.
 	 */
@@ -133,7 +128,7 @@ public class IngestThreadManager {
 
 			// Create the General Group Consumer
 			generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS, KAFKA_GROUP);
-			generalConsumer.subscribe(Arrays.asList(String.format("%s-%s", INGEST_TOPIC_NAME, SPACE)));
+			generalConsumer.subscribe(Arrays.asList(String.format(TOPIC_FORMAT, INGEST_TOPIC_NAME, SPACE)));
 
 			// Poll
 			while (!closed.get()) {
@@ -151,7 +146,7 @@ public class IngestThreadManager {
 		} 
 		catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.ERROR);
 		}
 		finally {
@@ -178,46 +173,51 @@ public class IngestThreadManager {
 		try {
 			// Create the Unique Consumer
 			uniqueConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS,
-					String.format("%s-%s", KAFKA_GROUP, UUID.randomUUID().toString()));
-			uniqueConsumer.subscribe(Arrays.asList(String.format("%s-%s", JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
+					String.format(TOPIC_FORMAT, KAFKA_GROUP, UUID.randomUUID().toString()));
+			uniqueConsumer.subscribe(Arrays.asList(String.format(TOPIC_FORMAT, JobMessageFactory.ABORT_JOB_TOPIC_NAME, SPACE)));
 			ObjectMapper mapper = new ObjectMapper();
 
 			// Poll
 			while (!closed.get()) {
 				ConsumerRecords<String, String> consumerRecords = uniqueConsumer.poll(1000);
+				
 				// Handle new Messages on this topic.
-				for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-					// Determine if this Job Id is being processed by this
-					// component.
-					String jobId = null;
-					try {
-						PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
-						jobId = ((AbortJob) request.jobType).getJobId();
-					} catch (Exception exception) {
-						String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
-								exception.getMessage());
-						LOGGER.error(error, exception);
-						logger.log(error, Severity.ERROR);
-						continue;
-					}
-
-					if (runningJobs.containsKey(jobId)) {
-						// Cancel the Running Job
-						runningJobs.get(jobId).cancel(true);
-						// Remove it from the list of Running Jobs
-						runningJobs.remove(jobId);
-					}
-				}
+				handleConsumerRecords(consumerRecords, mapper);
 			}
 		} 
 		catch (WakeupException exception) {
 			String error = String.format("Polling Thread forcefully closed: %s", exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.ERROR);
 		}
 		finally {
 			if( uniqueConsumer != null ) {
 				uniqueConsumer.close();
+			}
+		}
+	}
+	
+	private void handleConsumerRecords(final ConsumerRecords<String,String> consumerRecords, final ObjectMapper mapper) {
+		for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
+			// Determine if this Job Id is being processed by this
+			// component.
+			String jobId = null;
+			try {
+				PiazzaJobRequest request = mapper.readValue(consumerRecord.value(), PiazzaJobRequest.class);
+				jobId = ((AbortJob) request.jobType).getJobId();
+			} catch (Exception exception) {
+				String error = String.format("Error Aborting Job. Could not get the Job ID from the Kafka Message with error:  %s",
+						exception.getMessage());
+				LOG.error(error, exception);
+				logger.log(error, Severity.ERROR);
+				continue;
+			}
+
+			if (runningJobs.containsKey(jobId)) {
+				// Cancel the Running Job
+				runningJobs.get(jobId).cancel(true);
+				// Remove it from the list of Running Jobs
+				runningJobs.remove(jobId);
 			}
 		}
 	}

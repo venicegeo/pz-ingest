@@ -72,7 +72,7 @@ public class GeoJsonInspector implements InspectorType {
 	@Autowired
 	private PiazzaLogger logger;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(GeoJsonInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GeoJsonInspector.class);
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
@@ -117,7 +117,7 @@ public class GeoJsonInspector implements InspectorType {
 				} catch (Exception exception) {
 					String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 							dataResource.getDataId(), exception.getMessage());
-					LOGGER.error(error, exception);
+					LOG.error(error, exception);
 					logger.log(error, Severity.WARNING);
 				}
 
@@ -137,14 +137,14 @@ public class GeoJsonInspector implements InspectorType {
 						geoJsonInputStream1.close();
 					}
 				} catch (Exception exception) {
-					LOGGER.warn("Error closing File Stream", exception);
+					LOG.warn("Error closing File Stream", exception);
 				}
 				try {
 					if (geoJsonInputStream2 != null) {
 						geoJsonInputStream2.close();
 					}
 				} catch (Exception exception) {
-					LOGGER.warn("Error closing File Stream", exception);
+					LOG.warn("Error closing File Stream", exception);
 				}
 			}
 		}
