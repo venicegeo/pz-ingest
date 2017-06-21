@@ -92,10 +92,10 @@ public class WorkerTests {
 		mockData.dataType = mockDataType;
 		mockData.spatialMetadata = new SpatialMetadata();
 		mockIngest.data = mockData;
-		mockJob.jobId = "123456";
-		mockJob.jobType = mockIngest;
-		mockJob.createdOn = new DateTime();
-		mockJob.createdBy = "Test User";
+		mockJob.setJobId("123456");
+		mockJob.setJobType(mockIngest);
+		mockJob.setCreatedOnString(new DateTime().toString());
+		mockJob.setCreatedBy("Test User");
 
 		// Mock the Kafka response that Producers will send. This will always
 		// return a Future that completes immediately and simply returns true.

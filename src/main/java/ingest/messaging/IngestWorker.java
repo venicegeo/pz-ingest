@@ -187,8 +187,8 @@ public class IngestWorker {
 				}
 			}
 
-			dataResource.metadata.createdBy = job.createdBy;
-			dataResource.metadata.createdOn = job.createdOn.toString();
+			dataResource.metadata.setCreatedBy(job.getCreatedBy());
+			dataResource.metadata.setCreatedOn(job.getCreatedOnString());
 			dataResource.metadata.createdByJobId = job.getJobId();
 
 			if (Thread.interrupted()) {
