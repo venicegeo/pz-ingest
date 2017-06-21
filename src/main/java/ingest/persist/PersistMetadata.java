@@ -78,11 +78,8 @@ public class PersistMetadata {
 	private static final Logger LOG = LoggerFactory.getLogger(PersistMetadata.class);
 	private static final String DATAID = "dataId";
 	
-	/**
-	 * Required for Component init
-	 */
 	public PersistMetadata() {
-		// Empty constructor required by Jackson
+		// Expected for Component instantiation
 	}
 
 	@PostConstruct

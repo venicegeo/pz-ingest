@@ -76,7 +76,11 @@ public class IngestThreadManager {
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestThreadManager.class);
 	private static final String TOPIC_FORMAT = "%s-%s";
-	
+
+	public IngestThreadManager() {
+		// Expected for Component instantiation
+	}
+
 	/**
 	 * Initializes the Thread Pool and begins Polling for Jobs.
 	 */
