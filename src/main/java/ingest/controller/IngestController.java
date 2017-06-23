@@ -109,16 +109,7 @@ public class IngestController {
 			persistence.deleteDataEntry(dataId);
 
 			// Request that Access delete any Deployments for this Data ID
-			try {
-				String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
-				restTemplate.delete(url);
-			} catch (HttpClientErrorException | HttpServerErrorException httpException) {
-				// Log the error; but do not fail the request entirely if this deletion fails.
-				String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
-						httpException.getResponseBodyAsString());
-				logger.log(error, Severity.WARNING);
-				LOG.warn(error, httpException);
-			}
+			deleteDeploymentsByDataId(dataId);
 
 			// Delete from Elasticsearch
 			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
@@ -139,6 +130,19 @@ public class IngestController {
 		}
 	}
 
+	private void deleteDeploymentsByDataId(final String dataId) {
+		try {
+			String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
+			restTemplate.delete(url);
+		} catch (HttpClientErrorException | HttpServerErrorException httpException) {
+			// Log the error; but do not fail the request entirely if this deletion fails.
+			String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
+					httpException.getResponseBodyAsString());
+			logger.log(error, Severity.WARNING);
+			LOG.warn(error, httpException);
+		}
+	}
+	
 	/**
 	 * Update the metadata of a Data Resource
 	 * 

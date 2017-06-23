@@ -87,13 +87,14 @@ public class Inspector {
 		// Store the metadata in the Resources collection
 		try {
 			metadataPersist.insertData(finalDataResource);
-		} catch (MongoException exception) {
+		} 
+		catch (MongoInterruptedException exception) {
 			LOG.error("Error Loading Data into Mongo.", exception);
-			if (exception instanceof MongoInterruptedException) {
-				throw new InterruptedException();
-			} else {
-				throw exception;
-			}
+			throw new InterruptedException();
+		}
+		catch (MongoException exception) {
+			LOG.error("Error Loading Data into Mongo.", exception);
+			throw exception;
 		}
 	}
 

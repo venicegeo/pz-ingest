@@ -98,6 +98,7 @@ public class IngestThreadManager {
 		// Start polling for Kafka Jobs on the Group Consumer.. This occurs on a
 		// separate Thread so as not to block Spring.
 		Thread ingestJobsThread = new Thread() {
+			@Override
 			public void run() {
 				pollIngestJobs();
 			}
@@ -106,6 +107,7 @@ public class IngestThreadManager {
 
 		// Start polling for Kafka Abort Jobs on the unique Consumer.
 		Thread pollAbortThread = new Thread() {
+			@Override
 			public void run() {
 				pollAbortJobs();
 			}
@@ -123,12 +125,7 @@ public class IngestThreadManager {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
 			// remove the Job Id from the running Jobs list.
-			WorkerCallback callback = new WorkerCallback() {
-				@Override
-				public void onComplete(String jobId) {
-					runningJobs.remove(jobId);
-				}
-			};
+			WorkerCallback callback = (String jobId) -> runningJobs.remove(jobId);
 
 			// Create the General Group Consumer
 			generalConsumer = KafkaClientFactory.getConsumer(KAFKA_HOSTS, KAFKA_GROUP);

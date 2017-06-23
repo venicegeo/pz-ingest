@@ -276,16 +276,20 @@ public class IngestUtilities {
 		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
 
 		// Commit the features to the data store
-		Transaction transaction = new DefaultTransaction();
+		Transaction transaction = null;
 		try {
+			transaction = new DefaultTransaction();
+
 			// Get the features from the FeatureCollection and add to the PostGIS store
 			SimpleFeatureCollection features = (SimpleFeatureCollection) featureSource.getFeatures();
 			postGisFeatureStore.addFeatures(features);
+			
+			transaction.commit();
 
 		} catch (IOException exception) {
 			// Clean up resources
 			transaction.rollback();
-			transaction.close();
+
 			String error = "Error copying DataResource to PostGIS: " + exception.getMessage();
 			LOG.error(error, exception);
 			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "failedToCopyPostGisData", dataResource.getDataId()));
@@ -294,8 +298,6 @@ public class IngestUtilities {
 			throw exception;
 		} finally {
 			if( transaction != null ) {
-				// Commit the changes and clean up
-				transaction.commit();
 				transaction.close();
 			}
 			// Cleanup Data Store

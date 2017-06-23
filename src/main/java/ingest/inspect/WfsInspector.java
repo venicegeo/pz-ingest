@@ -153,9 +153,11 @@ public class WfsInspector implements InspectorType {
 		logger.log(String.format("Copying Data %s to PostGIS Table %s", dataResource.getDataId(), tableName), Severity.INFORMATIONAL,
 				new AuditElement("ingest", "copyWfsToPostGisTable", tableName));
 
-		// Commit the Features to the Data Store
-		Transaction transaction = new DefaultTransaction();
+		Transaction transaction = null;
+		
 		try {
+			transaction = new DefaultTransaction();
+					
 			// Get the Features from the WFS and add them to the PostGIS store
 			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
 			if (wfsFeatures.size() == 0) {
@@ -163,18 +165,18 @@ public class WfsInspector implements InspectorType {
 				throw new IOException("No features could be collected from the WFS. Nothing to store.");
 			}
 			postGisFeatureStore.addFeatures(wfsFeatures);
-			// Commit the changes and clean up
+			
+			// Commit the changes
 			transaction.commit();
-			transaction.close();
 		} catch (Exception exception) {
 			LOG.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
+			transaction.rollback();
 			
 			// Rethrow
 			throw new IOException(exception.getMessage());
 		} finally {
 			if( transaction != null ) {
 				// Clean up resources
-				transaction.rollback();
 				transaction.close();
 			}
 			

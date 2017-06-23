@@ -15,11 +15,12 @@
  **/
 package ingest;
 
-import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -48,6 +49,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxTotal;
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
+
+	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
@@ -78,13 +81,6 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return new AsyncUncaughtExceptionHandler() {
-			@Override
-			public void handleUncaughtException(Throwable ex, Method method, Object... params) {
-				String error = String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(),
-						method.getName());
-				System.out.println(error);
-			}
-		};
+		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(), method.getName());
 	}
 }

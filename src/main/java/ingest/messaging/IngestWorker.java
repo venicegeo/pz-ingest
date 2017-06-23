@@ -134,6 +134,7 @@ public class IngestWorker {
 			ObjectMapper mapper = new ObjectMapper();
 			Job job = mapper.readValue(consumerRecord.value(), Job.class);
 			IngestJob ingestJob = (IngestJob) job.getJobType();
+
 			// Get the description of the Data to be ingested
 			dataResource = ingestJob.getData();
 
@@ -212,16 +213,7 @@ public class IngestWorker {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOG.error(error, exception);
 			logger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "cancelledIngestJob", ""));
-			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
-			try {
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
-			} catch (JsonProcessingException jsonException) {
-				error = String.format(
-						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage());
-				LOG.error(error, jsonException);
-				logger.log(error, Severity.ERROR);
-			}
+			handleInterruptedException(consumerRecord.key(), exception);
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			LOG.error("Error Parsing Data Load Job Message.", jsonException);
@@ -248,8 +240,8 @@ public class IngestWorker {
 		}
 
 		if (ingestJob.getHost().booleanValue() && (fileLoc != null)) {
-			// Copy to Piazza S3 bucket if hosted = true; If already in
-			// S3, make sure it's different than the Piazza S3;
+			// Copy to Piazza S3 bucket if hosted is true. If already in
+			// S3, make sure it's different than the Piazza S3
 			// Depending on the Type of file
 			if (fileLoc instanceof S3FileStore) {
 				S3FileStore s3FS = (S3FileStore) fileLoc;
@@ -393,6 +385,19 @@ public class IngestWorker {
 			LOG.info(
 					"Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
 					jsonException);
+		}
+	}
+	
+	private void handleInterruptedException(final String jobId, final InterruptedException exception ) {
+		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+		try {
+			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
+		} catch (JsonProcessingException jsonException) {
+			String error = String.format(
+					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+					jobId, jsonException.getMessage());
+			LOG.error(error, jsonException);
+			logger.log(error, Severity.ERROR);
 		}
 	}
 }

@@ -127,14 +127,7 @@ public class PointCloudInspector implements InspectorType {
 			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
 
 			// Populate the projected EPSG:4326 spatial metadata
-			try {
-				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
-			} catch (Exception exception) {
-				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage());
-				LOG.error(error, exception);
-				logger.log(error, Severity.WARNING);
-			}
+			populateSpatialMetadata(spatialMetadata, dataResource.getDataId());
 		} catch (Exception exception) {
 			String error = String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),
 					awsS3Url, exception.getMessage());
@@ -151,6 +144,17 @@ public class PointCloudInspector implements InspectorType {
 		return dataResource;
 	}
 
+	private void populateSpatialMetadata(final SpatialMetadata spatialMetadata, final String dataId) {
+		try {
+			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+		} catch (Exception exception) {
+			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataId, exception.getMessage());
+			LOG.error(error, exception);
+			logger.log(error, Severity.WARNING);
+		}
+	}
+	
 	/**
 	 * Executes POST request to Point Cloud to grab the Payload
 	 * 
@@ -172,11 +176,9 @@ public class PointCloudInspector implements InspectorType {
 			response = restTemplate.postForObject(url, request, String.class);
 		} catch (HttpServerErrorException e) {
 			String error = "Error occurred posting to: " + url + "\nPayload: \n" + payload
-					+ "\nMost likely the payload source file is not accessible.";
-			// this exception will be thrown until the s3 file is accessible to
-			// external services
-			// that use the s3 file url line above: String awsS3Url =
-			// fileFactory.getFileUri(fileLocation);
+					+ "\nMost likely the payload source file is not accessible.";			
+			// this exception will be thrown until the s3 file is accessible to external services
+
 			LOG.error(error, e);
 			throw new HttpServerErrorException(e.getStatusCode(), error);
 		}
