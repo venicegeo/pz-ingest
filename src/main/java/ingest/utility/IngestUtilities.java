@@ -276,9 +276,7 @@ public class IngestUtilities {
 		SimpleFeatureStore postGisFeatureStore = (SimpleFeatureStore) postGisStore.getFeatureSource(tableName);
 
 		// Commit the features to the data store
-		Transaction transaction = null;
-		try {
-			transaction = new DefaultTransaction();
+		try (Transaction transaction = new DefaultTransaction()) {
 
 			// Get the features from the FeatureCollection and add to the PostGIS store
 			SimpleFeatureCollection features = (SimpleFeatureCollection) featureSource.getFeatures();
@@ -288,7 +286,6 @@ public class IngestUtilities {
 
 		} catch (IOException exception) {
 			// Clean up resources
-			transaction.rollback();
 
 			String error = "Error copying DataResource to PostGIS: " + exception.getMessage();
 			LOG.error(error, exception);
@@ -297,9 +294,7 @@ public class IngestUtilities {
 			// Rethrow
 			throw exception;
 		} finally {
-			if( transaction != null ) {
-				transaction.close();
-			}
+
 			// Cleanup Data Store
 			postGisStore.dispose();
 		}

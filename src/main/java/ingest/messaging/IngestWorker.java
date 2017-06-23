@@ -213,7 +213,7 @@ public class IngestWorker {
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
 			LOG.error(error, exception);
 			logger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "cancelledIngestJob", ""));
-			handleInterruptedException(consumerRecord.key(), exception);
+			handleInterruptedException(consumerRecord.key());
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			LOG.error("Error Parsing Data Load Job Message.", jsonException);
@@ -388,7 +388,7 @@ public class IngestWorker {
 		}
 	}
 	
-	private void handleInterruptedException(final String jobId, final InterruptedException exception ) {
+	private void handleInterruptedException(final String jobId) {
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 		try {
 			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
