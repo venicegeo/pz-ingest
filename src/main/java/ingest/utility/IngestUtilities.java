@@ -177,32 +177,34 @@ public class IngestUtilities {
 			// Get initial file list entry
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
-				extractZipEntry(zipEntry, zipInputStream, zipPath, extractPath);
+				extractZipEntry(zipEntry.getName(), zipInputStream, zipPath, extractPath);
+				
+				zipEntry = zipInputStream.getNextEntry();
 			}
 
 			zipInputStream.closeEntry();
-		} catch (IOException ex) {
+		} 
+		catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
 			LOG.error(error, ex, new AuditElement(INGEST, "failedExtractShapefileZip", extractPath));
 			throw new IOException(error);
 		}
 	}
 
-	private void extractZipEntry(ZipEntry zipEntry, final ZipInputStream zipInputStream, final String zipPath, final String extractPath) throws IOException {
+	private void extractZipEntry(final String fileName, final ZipInputStream zipInputStream, final String zipPath, final String extractPath) throws IOException {
 		byte[] buffer = new byte[1024];
 
-		String fileName = zipEntry.getName();
 		String extension = FilenameUtils.getExtension(fileName);
 		String filePath = String.format("%s%s%s.%s", extractPath, File.separator, "ShapefileData", extension);
+
 		// Sanitize - blacklist
 		if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
 			logger.log(
 					String.format(
 							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
-							zipEntry.getName(), zipPath),
+							fileName, zipPath),
 					Severity.WARNING, new AuditElement(INGEST, "restrictedPathDetected", zipPath));
 			zipInputStream.closeEntry();
-			zipEntry = zipInputStream.getNextEntry();
 			return;
 		}
 		// Sanitize - whitelist
@@ -228,10 +230,9 @@ public class IngestUtilities {
 			}
 
 			zipInputStream.closeEntry();
-			zipEntry = zipInputStream.getNextEntry();
-		} else {
+		} 
+		else {
 			zipInputStream.closeEntry();
-			zipEntry = zipInputStream.getNextEntry();
 		}	
 	}
 	
