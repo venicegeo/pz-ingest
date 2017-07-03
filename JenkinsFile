@@ -125,6 +125,9 @@ node {
         sh "cf push ${appName} -f manifest.yml --hostname ${appName} -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_ONE_PCF_DOMAIN} --no-start"
         sh "cf set-env ${appName} SPACE ${env.PHASE_ONE_PCF_SPACE}"
         sh "cf set-env ${appName} DOMAIN ${env.PHASE_ONE_PCF_DOMAIN}"
+        if(params.USE_MONGO_SSL) {
+          sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
+        }
         sh "cf start ${appName}"
       }
     }
@@ -191,6 +194,9 @@ node {
         sh "cf push ${appName} --hostname ${appName} -f manifest.yml -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_TWO_PCF_DOMAIN} --no-start"
         sh "cf set-env ${appName} SPACE ${env.PHASE_TWO_PCF_SPACE}"
         sh "cf set-env ${appName} DOMAIN ${env.PHASE_TWO_PCF_DOMAIN}"
+        if(params.USE_MONGO_SSL) {
+          sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
+        }
         sh "cf start ${appName}"
         }
       }
