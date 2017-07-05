@@ -60,6 +60,7 @@ node {
       sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@dependency-check-report.xml ${env.THREADFIX_URL}/rest/applications/${env.THREADFIX_ID}/upload?apiKey=${THREADFIX_KEY}"
 
       //ionConnect()
+	  /* TODO - Put back in. Ion connect is not working currently.
       def ionTool = tool 'ion-connect-latest'
       withEnv([
         "ION_CONNECT_LATEST_HOME=${ionTool}",
@@ -74,7 +75,7 @@ node {
             ion-connect vulnerability get-vulnerabilities-for-list "\${deps}"
           """
         }
-      }
+      }*/
 
       sh """
         mkdir -p ${root}/.m2/repository
