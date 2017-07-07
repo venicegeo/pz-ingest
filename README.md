@@ -4,7 +4,7 @@ To run the Loader service locally (without Vagrant), perhaps through Eclipse or 
 
     mvn clean install -U spring-boot:run
     
-** Other note.  Access to Nexus is required to build (See the pom).  Switch to use other springboot maven library.
+** Other note.  Access to Nexus is required to build (See the pom).  Switch to use other springboot maven library. 
 
 To build and run this project, software such as Kafka and MongoDB are required.  For details on these prerequisites, refer to the
 [Piazza Developer's Guide](https://pz-docs.geointservices.io/devguide/index.html#_piazza_core_overview).
