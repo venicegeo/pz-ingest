@@ -49,7 +49,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxTotal;
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
-
+    //logger
 	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
