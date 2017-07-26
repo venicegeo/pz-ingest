@@ -25,7 +25,7 @@ import com.mongodb.MongoInterruptedException;
 
 import exception.DataInspectException;
 import exception.InvalidInputException;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import model.data.DataResource;
 import model.data.DataType;
 import model.data.type.GeoJsonDataType;
@@ -44,7 +44,8 @@ import model.data.type.WfsDataType;
 @Component
 public class Inspector {
 	@Autowired
-	private PersistMetadata metadataPersist;
+	private DatabaseAccessor accessor;
+	
 	@Autowired
 	private ShapefileInspector shapefileInspector;
 	@Autowired
@@ -86,7 +87,7 @@ public class Inspector {
 
 		// Store the metadata in the Resources collection
 		try {
-			metadataPersist.insertData(finalDataResource);
+			accessor.insertData(finalDataResource);
 		} 
 		catch (MongoInterruptedException exception) {
 			LOG.error("Error Loading Data into Mongo.", exception);

@@ -54,7 +54,7 @@ import util.PiazzaLogger;
  * 
  */
 @Component
-public class PersistMetadata {
+public class DatabaseAccessor {
 	@Autowired
 	private PiazzaLogger logger;
 	@Value("${vcap.services.pz-mongodb.credentials.database}")
@@ -75,10 +75,10 @@ public class PersistMetadata {
 
 	@Autowired
 	private Environment environment;
-	private static final Logger LOG = LoggerFactory.getLogger(PersistMetadata.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DatabaseAccessor.class);
 	private static final String DATAID = "dataId";
 	
-	public PersistMetadata() {
+	public DatabaseAccessor() {
 		// Expected for Component instantiation
 	}
 

@@ -22,7 +22,7 @@ import ingest.inspect.PointCloudInspector;
 import ingest.inspect.ShapefileInspector;
 import ingest.inspect.TextInspector;
 import ingest.inspect.WfsInspector;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import model.data.DataResource;
 import model.data.type.TextDataType;
 
@@ -39,8 +39,6 @@ import org.mockito.MockitoAnnotations;
  *
  */
 public class InspectorTests {
-	@Mock
-	private PersistMetadata metadataPersist;
 	@Mock
 	private ShapefileInspector shapefileInspector;
 	@Mock
