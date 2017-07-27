@@ -86,13 +86,13 @@ public class ControllerTests {
 		assertTrue(((ErrorResponse) response.getBody()).message.contains("No Data Id"));
 
 		// Test no Data Resource for the Id
-		Mockito.when(accessor.getData(eq(Long.valueOf(123456)))).thenReturn(null);
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(null);
 		response = ingestController.deleteData("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);
 		assertTrue(((ErrorResponse) response.getBody()).message.contains("Data not found"));
 
 		// Successful deletion
-		Mockito.when(accessor.getData(eq(Long.valueOf(123456)))).thenReturn(new DataResource());
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(new DataResource());
 		// Mockito.doNothing().when(ingestUtil.deleteDataResourceFiles(any(DataResource.class)));
 		// Mockito.doNothing().when(accessor.deleteDataEntry(eq("123456")));
 		response = ingestController.deleteData("123456");
@@ -105,13 +105,13 @@ public class ControllerTests {
 	@Test
 	public void testUpdate() throws Exception {
 		// Test
-		Mockito.doNothing().when(accessor).updateMetadata(eq(Long.valueOf(123456)), any(ResourceMetadata.class));
-		Mockito.when(accessor.getData(eq(Long.valueOf(123456)))).thenReturn(new DataResource());
+		Mockito.doNothing().when(accessor).updateMetadata(eq("123456"), any(ResourceMetadata.class));
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(new DataResource());
 		ResponseEntity<PiazzaResponse> response = ingestController.updateMetadata("123456", new ResourceMetadata());
 		assertTrue(response.getBody() instanceof SuccessResponse);
 
 		// Test Exception
-		Mockito.doThrow(new InvalidInputException("Error")).when(accessor).updateMetadata(eq(Long.valueOf(123456)), any(ResourceMetadata.class));
+		Mockito.doThrow(new InvalidInputException("Error")).when(accessor).updateMetadata(eq("123456"), any(ResourceMetadata.class));
 		response = ingestController.updateMetadata("123456", new ResourceMetadata());
 		assertTrue(response.getBody() instanceof ErrorResponse);
 	}
