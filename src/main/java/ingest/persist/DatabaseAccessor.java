@@ -28,11 +28,11 @@ import model.job.metadata.ResourceMetadata;
 import util.PiazzaLogger;
 
 /**
- * Helper class to interact with and access the Mongo instance, which handles storing the DataResource information. This
+ * Helper class to interact with PostgreSQL, which handles storing the DataResource information. This
  * contains the metadata on the ingested data, the locations, URLs and paths, and other important metadata. This is not
  * the data itself. Storing of the spatial data is handled via PostGIS, S3, or other stores.
  * 
- * @author Patrick.Doody
+ * @author Sonny.Saniev
  * 
  */
 @Component
@@ -56,8 +56,8 @@ public class DatabaseAccessor {
 	 * @param dataId
 	 *            The Data Id to delete.
 	 */
-	public void deleteDataEntry(Long dataId) {
-		dataResourceDao.delete(dataId);
+	public void deleteDataEntry(String dataId) {
+		dataResourceDao.deleteRecord(dataId);
 	}
 
 	/**
@@ -69,10 +69,6 @@ public class DatabaseAccessor {
 	public void insertData(DataResource dataResource) {
 		DataResourceEntity record = new DataResourceEntity();
 		record.setDataResource(dataResource);
-		
-		//is DataResource id unique?
-		record.setId(Long.valueOf(dataResource.getDataId()));
-
 		dataResourceDao.save(record);
 	}
 
@@ -84,8 +80,8 @@ public class DatabaseAccessor {
 	 *            The Id of the DataResource
 	 * @return DataResource object or null
 	 */
-	public DataResource getData(Long dataId) {
-		DataResourceEntity record = dataResourceDao.findOne(dataId);
+	public DataResource getData(String dataId) {
+		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
 		if(record != null)
 		{
 			return record.getDataResource();
@@ -101,19 +97,16 @@ public class DatabaseAccessor {
 	 * @param metadata
 	 *            The metadata to update with
 	 */
-	public void updateMetadata(Long dataId, ResourceMetadata metadata) throws InvalidInputException {
-		// Get the Data Resource
-		DataResource dataResource = getData(dataId);
-		
-		if (dataResource == null) {
+	public void updateMetadata(String dataId, ResourceMetadata metadata) throws InvalidInputException {
+		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		if (record == null) {
 			throw new InvalidInputException(String.format("No Data Resource found matching Id %s", dataId));
 		}
 
 		// Merge the ResourceMetadata together
-		dataResource.getMetadata().merge(metadata, false);
+		record.getDataResource().getMetadata().merge(metadata, false);
 		
 		// Update the DataResource in the database
-		dataResourceDao.delete(dataResourceDao.findOne(dataId));
-		insertData(dataResource);
+		dataResourceDao.save(record);
 	}
 }
