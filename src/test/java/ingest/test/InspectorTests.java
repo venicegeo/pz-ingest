@@ -15,6 +15,12 @@
  **/
 package ingest.test;
 
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import ingest.inspect.GeoJsonInspector;
 import ingest.inspect.GeoTiffInspector;
 import ingest.inspect.Inspector;
@@ -26,12 +32,6 @@ import ingest.persist.DatabaseAccessor;
 import model.data.DataResource;
 import model.data.type.TextDataType;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 /**
  * Test the generic Inspector parent class
  * 
@@ -39,6 +39,8 @@ import org.mockito.MockitoAnnotations;
  *
  */
 public class InspectorTests {
+	@Mock
+	private DatabaseAccessor databaseAccessor;
 	@Mock
 	private ShapefileInspector shapefileInspector;
 	@Mock
