@@ -419,7 +419,7 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Deletes all persistent files for a Data Resource item. This will not remove the entry from MongoDB. That is
+	 * Deletes all persistent files for a Data Resource item. This will not remove the entry from DB. That is
 	 * handled separately.
 	 * 
 	 * <p>

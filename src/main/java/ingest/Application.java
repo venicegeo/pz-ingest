@@ -24,22 +24,32 @@ import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.web.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @Configuration
+@EnableAutoConfiguration
 @EnableAsync
-@ComponentScan({ "ingest, util" })
+@EnableScheduling
+@EnableTransactionManagement
+@EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
+@EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
+@ComponentScan(basePackages = { "ingest", "util", "org.venice.piazza" })
 public class Application extends SpringBootServletInitializer implements AsyncConfigurer {
 	@Value("${thread.count.size}")
 	private int threadCountSize;

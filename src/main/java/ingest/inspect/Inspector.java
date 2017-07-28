@@ -20,9 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.mongodb.MongoException;
-import com.mongodb.MongoInterruptedException;
-
 import exception.DataInspectException;
 import exception.InvalidInputException;
 import ingest.persist.DatabaseAccessor;
