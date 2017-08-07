@@ -127,9 +127,7 @@ node {
         sh "cf push ${appName} -f manifest.jenkins.yml --hostname ${appName} -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_ONE_PCF_DOMAIN} --no-start"
         sh "cf set-env ${appName} SPACE ${env.PHASE_ONE_PCF_SPACE}"
         sh "cf set-env ${appName} DOMAIN ${env.PHASE_ONE_PCF_DOMAIN}"
-        if(params.USE_MONGO_SSL) {
-          sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
-        }
+
         try {
           sh "cf start ${appName}"
         } catch (Exception e) {
@@ -202,9 +200,7 @@ node {
         sh "cf push ${appName} --hostname ${appName} -f manifest.jenkins.yml -b ${env.JAVA_BUILDPACK_NAME} -d ${env.PHASE_TWO_PCF_DOMAIN} --no-start"
         sh "cf set-env ${appName} SPACE ${env.PHASE_TWO_PCF_SPACE}"
         sh "cf set-env ${appName} DOMAIN ${env.PHASE_TWO_PCF_DOMAIN}"
-        if(params.USE_MONGO_SSL) {
-          sh "cf set-env ${appName} SPRING_PROFILES_ACTIVE cloud,mongossl"
-        }
+
         try {
           sh "cf start ${appName}"
         } catch (Exception e) {

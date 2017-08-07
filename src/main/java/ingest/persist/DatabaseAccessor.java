@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.venice.piazza.common.hibernate.dao.DataResourceDao;
+import org.venice.piazza.common.hibernate.dao.dataresource.DataResourceDao;
 import org.venice.piazza.common.hibernate.entity.DataResourceEntity;
 
 import exception.InvalidInputException;
@@ -28,9 +28,9 @@ import model.job.metadata.ResourceMetadata;
 import util.PiazzaLogger;
 
 /**
- * Helper class to interact with PostgreSQL, which handles storing the DataResource information. This
- * contains the metadata on the ingested data, the locations, URLs and paths, and other important metadata. This is not
- * the data itself. Storing of the spatial data is handled via PostGIS, S3, or other stores.
+ * Helper class to interact with PostgreSQL, which handles storing the DataResource information. This contains the
+ * metadata on the ingested data, the locations, URLs and paths, and other important metadata. This is not the data
+ * itself. Storing of the spatial data is handled via PostGIS, S3, or other stores.
  * 
  * @author Sonny.Saniev
  * 
@@ -42,10 +42,10 @@ public class DatabaseAccessor {
 
 	@Autowired
 	DataResourceDao dataResourceDao;
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseAccessor.class);
 	private static final String DATAID = "dataId";
-	
+
 	public DatabaseAccessor() {
 		// Expected for Component instantiation
 	}
@@ -73,8 +73,8 @@ public class DatabaseAccessor {
 	}
 
 	/**
-	 * Gets the DataResource from the database DataResource by Id. This Id is typically what will be returned to the user
-	 * as the result of their Job.
+	 * Gets the DataResource from the database DataResource by Id. This Id is typically what will be returned to the
+	 * user as the result of their Job.
 	 * 
 	 * @param dataId
 	 *            The Id of the DataResource
@@ -82,8 +82,7 @@ public class DatabaseAccessor {
 	 */
 	public DataResource getData(String dataId) {
 		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
-		if(record != null)
-		{
+		if (record != null) {
 			return record.getDataResource();
 		}
 		return null;
@@ -105,7 +104,7 @@ public class DatabaseAccessor {
 
 		// Merge the ResourceMetadata together
 		record.getDataResource().getMetadata().merge(metadata, false);
-		
+
 		// Update the DataResource in the database
 		dataResourceDao.save(record);
 	}
