@@ -43,7 +43,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoException;
 
 import exception.DataInspectException;
 import exception.InvalidInputException;
@@ -217,9 +216,6 @@ public class IngestWorker {
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
 			LOG.error("Error Parsing Data Load Job Message.", jsonException);
-		} catch (MongoException mongoException) {
-			handleException(consumerRecord.key(), mongoException);
-			LOG.error("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage(), mongoException);
 		} catch (Exception exception) {
 			handleException(consumerRecord.key(), exception);
 			LOG.error("An unexpected error occurred while processing the Job Message: " + exception.getMessage(), exception);

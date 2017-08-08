@@ -20,12 +20,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.mongodb.MongoException;
-import com.mongodb.MongoInterruptedException;
-
 import exception.DataInspectException;
 import exception.InvalidInputException;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import model.data.DataResource;
 import model.data.DataType;
 import model.data.type.GeoJsonDataType;
@@ -44,7 +41,8 @@ import model.data.type.WfsDataType;
 @Component
 public class Inspector {
 	@Autowired
-	private PersistMetadata metadataPersist;
+	private DatabaseAccessor accessor;
+	
 	@Autowired
 	private ShapefileInspector shapefileInspector;
 	@Autowired
@@ -84,17 +82,13 @@ public class Inspector {
 			throw new DataInspectException(exception.getMessage());
 		}
 
-		// Store the metadata in the Resources collection
+		// Store the metadata in the database
 		try {
-			metadataPersist.insertData(finalDataResource);
+			accessor.insertData(finalDataResource);
 		} 
-		catch (MongoInterruptedException exception) {
-			LOG.error("Error Loading Data into Mongo.", exception);
+		catch (Exception exception) {
+			LOG.error("Error Loading Data into Database.", exception);
 			throw new InterruptedException();
-		}
-		catch (MongoException exception) {
-			LOG.error("Error Loading Data into Mongo.", exception);
-			throw exception;
 		}
 	}
 

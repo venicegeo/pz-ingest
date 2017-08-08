@@ -10,7 +10,6 @@ applications:
     - pz-kafka
     - pz-blobstore
     - pz-geoserver-efs
-    - pz-mongodb
     - pz-elasticsearch
   env:
     SPRING_PROFILES_ACTIVE: cloud

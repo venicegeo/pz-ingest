@@ -37,7 +37,7 @@ import org.springframework.web.client.RestTemplate;
 
 import exception.InvalidInputException;
 import ingest.messaging.IngestThreadManager;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
@@ -62,7 +62,7 @@ public class IngestController {
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
-	private PersistMetadata persistence;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private IngestUtilities ingestUtil;
 	@Autowired
@@ -95,7 +95,7 @@ public class IngestController {
 				throw new InvalidInputException("No Data Id specified.");
 			}
 			// Query for the Data Id
-			DataResource data = persistence.getData(dataId);
+			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
 				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), LOADER),
@@ -106,7 +106,7 @@ public class IngestController {
 			ingestUtil.deleteDataResourceFiles(data);
 
 			// Remove the Data from the database
-			persistence.deleteDataEntry(dataId);
+			accessor.deleteDataEntry(dataId);
 
 			// Request that Access delete any Deployments for this Data ID
 			deleteDeploymentsByDataId(dataId);
@@ -157,7 +157,7 @@ public class IngestController {
 			@RequestBody ResourceMetadata metadata) {
 		try {
 			// Query for the Data Id
-			DataResource data = persistence.getData(dataId);
+			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING,
 						new AuditElement(INGEST, "noDataFoundForId", dataId));
@@ -166,7 +166,7 @@ public class IngestController {
 			}
 
 			// Update the Metadata
-			persistence.updateMetadata(dataId, metadata);
+			accessor.updateMetadata(dataId, metadata);
 			// Return OK
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
