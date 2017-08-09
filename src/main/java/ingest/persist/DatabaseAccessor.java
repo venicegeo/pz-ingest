@@ -57,7 +57,10 @@ public class DatabaseAccessor {
 	 *            The Data Id to delete.
 	 */
 	public void deleteDataEntry(String dataId) {
-		dataResourceDao.deleteRecord(dataId);
+		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		if (record != null) {
+			dataResourceDao.delete(record);
+		}
 	}
 
 	/**
