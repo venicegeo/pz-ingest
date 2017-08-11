@@ -76,7 +76,7 @@ public class GeoJsonInspector implements InspectorType {
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
-			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
+			throws Exception {
 		SpatialMetadata spatialMetadata = new SpatialMetadata();
 
 		// Persist GeoJSON Features into the Piazza PostGIS Database.
@@ -162,8 +162,9 @@ public class GeoJsonInspector implements InspectorType {
 	 * @param dataResource
 	 *            data resource to pull input stream from
 	 * @return File object
+	 * @throws Exception 
 	 */
-	private InputStream getGeoJsonInputStream(DataResource dataResource) throws IOException, AmazonClientException, InvalidInputException {
+	private InputStream getGeoJsonInputStream(DataResource dataResource) throws Exception {
 		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream inputStream;
 

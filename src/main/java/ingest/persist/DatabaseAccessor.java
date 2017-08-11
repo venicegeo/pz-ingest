@@ -57,7 +57,7 @@ public class DatabaseAccessor {
 	 *            The Data Id to delete.
 	 */
 	public void deleteDataEntry(String dataId) {
-		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		DataResourceEntity record = dataResourceDao.getDataResourceByDataId(dataId);
 		if (record != null) {
 			dataResourceDao.delete(record);
 		}
@@ -84,7 +84,7 @@ public class DatabaseAccessor {
 	 * @return DataResource object or null
 	 */
 	public DataResource getData(String dataId) {
-		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		DataResourceEntity record = dataResourceDao.getDataResourceByDataId(dataId);
 		if (record != null) {
 			return record.getDataResource();
 		}
@@ -100,7 +100,7 @@ public class DatabaseAccessor {
 	 *            The metadata to update with
 	 */
 	public void updateMetadata(String dataId, ResourceMetadata metadata) throws InvalidInputException {
-		DataResourceEntity record = dataResourceDao.fineOneRecord(dataId);
+		DataResourceEntity record = dataResourceDao.getDataResourceByDataId(dataId);
 		if (record == null) {
 			throw new InvalidInputException(String.format("No Data Resource found matching Id %s", dataId));
 		}
