@@ -83,8 +83,7 @@ public class ShapefileInspector implements InspectorType {
 	private static final Logger LOG = LoggerFactory.getLogger(ShapefileInspector.class);
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host)
-			throws Exception {
+	public DataResource inspect(DataResource dataResource, boolean host) throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Get the Shapefile and write it to disk for temporary use.
 		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType()).getLocation());

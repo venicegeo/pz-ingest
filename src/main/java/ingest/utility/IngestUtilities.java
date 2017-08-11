@@ -309,9 +309,8 @@ public class IngestUtilities {
 	 * @param dataResource
 	 * @param host
 	 *            if piazza should host the data
-	 * @throws Exception 
 	 */
-	public void copyS3Source(DataResource dataResource) throws Exception {
+	public void copyS3Source(DataResource dataResource) throws InvalidInputException, IOException {
 		logger.log(String.format("Copying Data %s to Piazza S3 Location.", dataResource.getDataId()), Severity.INFORMATIONAL,
 				new AuditElement(INGEST, "copyS3DataToPiazza", dataResource.getDataId()));
 		// Obtain file input stream
@@ -357,7 +356,7 @@ public class IngestUtilities {
 		return fileFactory;
 	}
 
-	public long getFileSize(DataResource dataResource) throws Exception {
+	public long getFileSize(DataResource dataResource) throws AmazonClientException, InvalidInputException, IOException {
 		// Obtain file input stream
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		FileAccessFactory fileFactory = getFileFactoryForDataResource(dataResource);

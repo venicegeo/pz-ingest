@@ -228,7 +228,7 @@ public class IngestWorker {
 		return new AsyncResult<DataResource>(dataResource);
 	}
 
-	private void processFileRepresentation(final IngestJob ingestJob, final DataResource dataResource) throws Exception {
+	private void processFileRepresentation(final IngestJob ingestJob, final DataResource dataResource) throws InvalidInputException, IOException {
 		FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
 		FileLocation fileLoc = fileRep.getLocation();
 		if (fileLoc != null) {
