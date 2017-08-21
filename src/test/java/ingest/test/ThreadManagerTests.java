@@ -15,21 +15,15 @@
  **/
 package ingest.test;
 
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyLong;
-import ingest.messaging.IngestThreadManager;
-import ingest.messaging.IngestWorker;
-
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.junit.Before;
-import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import ingest.messaging.IngestThreadManager;
+import ingest.messaging.IngestWorker;
 import util.PiazzaLogger;
 
 /**
@@ -61,20 +55,4 @@ public class ThreadManagerTests {
 		ReflectionTestUtils.setField(manager, "KAFKA_GROUP", "job-unit-test");
 	}
 
-	/**
-	 * Test initialization of Kafka consuming
-	 */
-	@Test
-	public void testInitialization() {
-		// Mock
-		Mockito.doNothing().when(consumer).subscribe(anyList());
-		ConsumerRecords<String, String> consumerRecords = new ConsumerRecords<String, String>(null);
-		Mockito.when(consumer.poll(anyLong())).thenReturn(consumerRecords);
-
-		// Test. Ensure no exceptions.
-		manager.initialize();
-
-		// No exceptions - then stop polling.
-		manager.stopPolling();
-	}
 }

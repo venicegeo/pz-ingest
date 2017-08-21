@@ -19,40 +19,35 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isA;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import ingest.inspect.Inspector;
-import ingest.messaging.IngestWorker;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 
-import model.data.DataResource;
-import model.data.type.GeoJsonDataType;
-import model.job.Job;
-import model.job.metadata.SpatialMetadata;
-import model.job.type.IngestJob;
-
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import ingest.inspect.Inspector;
+import ingest.messaging.IngestWorker;
+import model.data.DataResource;
+import model.data.type.GeoJsonDataType;
+import model.job.Job;
+import model.job.metadata.SpatialMetadata;
+import model.job.type.IngestJob;
 import util.PiazzaLogger;
 import util.UUIDFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Tests the Ingest worker, that handles triggering Inspectors
@@ -69,10 +64,14 @@ public class WorkerTests {
 	private UUIDFactory uuidFactory;
 	@Mock
 	private RestTemplate restTemplate;
+	@Mock
+	private RabbitTemplate rabbitTemplate;
+	@Mock
+	private Queue updateJobsQueue;
+	@Mock
+	private ObjectMapper mapper;
 	@InjectMocks
 	private IngestWorker worker;
-	@Mock
-	private Producer<String, String> producer;
 
 	private Job mockJob = new Job();
 	private IngestJob mockIngest = new IngestJob();
@@ -96,18 +95,6 @@ public class WorkerTests {
 		mockJob.setJobType(mockIngest);
 		mockJob.setCreatedOnString(new DateTime().toString());
 		mockJob.setCreatedBy("Test User");
-
-		// Mock the Kafka response that Producers will send. This will always
-		// return a Future that completes immediately and simply returns true.
-		when(producer.send(isA(ProducerRecord.class))).thenAnswer(new Answer<Future<Boolean>>() {
-			@Override
-			public Future<Boolean> answer(InvocationOnMock invocation) throws Throwable {
-				Future<Boolean> future = mock(FutureTask.class);
-				when(future.isDone()).thenReturn(true);
-				when(future.get()).thenReturn(true);
-				return future;
-			}
-		});
 	}
 
 	/**
@@ -115,24 +102,17 @@ public class WorkerTests {
 	 */
 	@Test
 	public void testWorker() throws Exception {
-		// Test exception by sending an invalid ConsumerMessage
-		ConsumerRecord<String, String> testRecord = new ConsumerRecord<String, String>("Test", 0, 0, "123456",
-				"INVALID_JSON");
-		Future<DataResource> workerFuture = worker.run(testRecord, producer, null);
-		assertTrue(workerFuture.get() == null);
-
 		// Ensure we get a GUID for the Data Resource
 		when(uuidFactory.getUUID()).thenReturn("654321");
+		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
+		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq("654321"), Mockito.anyString());
 
 		// Mock the REST response from Workflow and Metadata Ingest
 		when(restTemplate.postForObject(anyString(), any(), eq(String.class))).thenReturn("OK");
-		when(restTemplate.postForEntity(anyString(), any(), eq(Object.class))).thenReturn(
-				new ResponseEntity<Object>(HttpStatus.OK));
+		when(restTemplate.postForEntity(anyString(), any(), eq(Object.class))).thenReturn(new ResponseEntity<Object>(HttpStatus.OK));
 
 		// Format a correct message and re-test
-		testRecord = new ConsumerRecord<String, String>("Test", 0, 0, "123456",
-				new ObjectMapper().writeValueAsString(mockJob));
-		workerFuture = worker.run(testRecord, producer, null);
+		Future<DataResource> workerFuture = worker.run(mockJob, null);
 
 		// Verify
 		assertTrue(workerFuture.get() != null);
