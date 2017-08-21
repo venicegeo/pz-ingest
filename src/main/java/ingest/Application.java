@@ -21,7 +21,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.Queue;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -42,8 +41,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
-import messaging.job.JobMessageFactory;
-
 @SpringBootApplication
 @Configuration
 @EnableAutoConfiguration
@@ -62,10 +59,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxTotal;
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
-	@Value("${SPACE}")
-	private String SPACE;
-
-	// logger
+    //logger
 	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
@@ -75,11 +69,6 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args); // NOSONAR
-	}
-
-	@Bean
-	public Queue updateJobsQueue() {
-		return new Queue(String.format(JobMessageFactory.KAFKA_TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE));
 	}
 
 	@Bean
@@ -102,7 +91,6 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(),
-				method.getName());
+		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(), method.getName());
 	}
 }
