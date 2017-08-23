@@ -15,7 +15,6 @@
  **/
 package ingest.test;
 
-import org.apache.kafka.clients.consumer.Consumer;
 import org.junit.Before;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -37,8 +36,6 @@ public class ThreadManagerTests {
 	private PiazzaLogger logger;
 	@Mock
 	private IngestWorker ingestWorker;
-	@Mock
-	private Consumer<String, String> consumer;
 	@InjectMocks
 	private IngestThreadManager manager;
 

@@ -51,13 +51,14 @@ public class IngestThreadManager {
 	private PiazzaLogger logger;
 	@Autowired
 	private IngestWorker ingestWorker;
+	@Autowired
+	private ObjectMapper mapper;
 
 	@Value("${SPACE}")
 	private String SPACE;
 
-	private Map<String, Future<?>> runningJobs = new HashMap<String, Future<?>>();
+	private Map<String, Future<?>> runningJobs = new HashMap<>();
 	private static final Logger LOG = LoggerFactory.getLogger(IngestThreadManager.class);
-	private ObjectMapper mapper = new ObjectMapper();
 
 	/**
 	 * Processes a message for Ingesting Data
@@ -90,7 +91,7 @@ public class IngestThreadManager {
 	 * @param abortJobRequest
 	 *            The information regarding the job to abort
 	 */
-	@RabbitListener(queues = "Abort-Job-${SPACE}")
+	@RabbitListener(queues = "AbortJob-${SPACE}")
 	public void processAbortJob(String abortJobRequest) {
 		String jobId = null;
 		try {
