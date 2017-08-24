@@ -48,6 +48,7 @@ import exception.DataInspectException;
 import exception.InvalidInputException;
 import ingest.inspect.Inspector;
 import ingest.utility.IngestUtilities;
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.data.DataResource;
 import model.data.FileRepresentation;
@@ -159,7 +160,8 @@ public class IngestWorker {
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
 			statusUpdate.setJobId(job.getJobId());
-			rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				processFileRepresentation(ingestJob, dataResource);
@@ -189,7 +191,8 @@ public class IngestWorker {
 			// The result of this Job was creating a resource at the specified
 			// Id.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
-			rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 
 			// Console Logging
 			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
@@ -376,7 +379,8 @@ public class IngestWorker {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			statusUpdate.setJobId(jobId);
-			rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 		} catch (JsonProcessingException jsonException) {
 			LOG.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
 					jsonException);
@@ -387,7 +391,8 @@ public class IngestWorker {
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 		statusUpdate.setJobId(jobId);
 		try {
-			rabbitTemplate.convertAndSend(updateJobsQueue.getName(), mapper.writeValueAsString(statusUpdate));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 		} catch (JsonProcessingException jsonException) {
 			String error = String.format(
 					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",

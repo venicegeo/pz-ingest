@@ -22,6 +22,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -50,6 +51,7 @@ import messaging.job.JobMessageFactory;
 @EnableAsync
 @EnableScheduling
 @EnableTransactionManagement
+@EnableRabbit
 @EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
 @EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
 @ComponentScan(basePackages = { "ingest", "util", "org.venice.piazza" })
@@ -79,7 +81,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Bean
 	public Queue updateJobsQueue() {
-		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE));
+		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
+				true);
 	}
 
 	@Bean

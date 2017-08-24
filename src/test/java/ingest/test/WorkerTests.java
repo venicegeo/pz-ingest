@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ingest.inspect.Inspector;
 import ingest.messaging.IngestWorker;
+import messaging.job.JobMessageFactory;
 import model.data.DataResource;
 import model.data.type.GeoJsonDataType;
 import model.job.Job;
@@ -97,14 +98,15 @@ public class WorkerTests {
 	}
 
 	/**
-	 * Tests the Ingest Worker for processing a mock Kafka message
+	 * Tests the Ingest Worker for processing a mock message
 	 */
 	@Test
 	public void testWorker() throws Exception {
 		// Ensure we get a GUID for the Data Resource
 		when(uuidFactory.getUUID()).thenReturn("654321");
 		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
-		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq("654321"), Mockito.anyString());
+		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("654321"),
+				Mockito.anyString());
 
 		// Mock the REST response from Workflow and Metadata Ingest
 		when(restTemplate.postForObject(anyString(), any(), eq(String.class))).thenReturn("OK");

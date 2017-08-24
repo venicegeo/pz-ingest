@@ -24,6 +24,9 @@ import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +34,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import messaging.job.JobMessageFactory;
 import messaging.job.WorkerCallback;
 import model.job.Job;
 import model.job.type.AbortJob;
@@ -66,7 +70,7 @@ public class IngestThreadManager {
 	 * @param ingestJobRequest
 	 *            The PiazzaJobRequest with the Ingest Job information
 	 */
-	@RabbitListener(queues = "IngestJob-${SPACE}")
+	@RabbitListener(bindings = @QueueBinding(key = "IngestJob-${SPACE}", value = @Queue(value = "LoaderJob", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processIngestJob(String ingestJobRequest) {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
@@ -91,7 +95,7 @@ public class IngestThreadManager {
 	 * @param abortJobRequest
 	 *            The information regarding the job to abort
 	 */
-	@RabbitListener(queues = "AbortJob-${SPACE}")
+	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(value = "LoaderAbort", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAbortJob(String abortJobRequest) {
 		String jobId = null;
 		try {
