@@ -171,10 +171,9 @@ public class IngestController {
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
-			String error = String.format("Could not update Metadata %s", exception.getMessage());
-			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
-			LOG.error(error, exception);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, LOADER), HttpStatus.INTERNAL_SERVER_ERROR);
+			logger.log(exception.getMessage(), Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
+			LOG.error(exception.getMessage(), exception);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(exception.getMessage(), LOADER), HttpStatus.BAD_REQUEST);
 		}
 	}
 

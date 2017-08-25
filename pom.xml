@@ -49,7 +49,7 @@
 		<dependency>
 			<groupId>org.venice.piazza</groupId>
 			<artifactId>pz-jobcommon</artifactId>
-			<version>1-0-0-21-g95df3b4</version>
+			<version>1-0-0-22-g4e1f37a</version>
 		</dependency>
 
 		<dependency>
