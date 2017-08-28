@@ -70,7 +70,7 @@ public class IngestThreadManager {
 	 * @param ingestJobRequest
 	 *            The PiazzaJobRequest with the Ingest Job information
 	 */
-	@RabbitListener(bindings = @QueueBinding(key = "IngestJob-${SPACE}", value = @Queue(value = "LoaderJob", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
+	@RabbitListener(bindings = @QueueBinding(key = "IngestJob-${SPACE}", value = @Queue(value = "LoaderJob-${SPACE}", autoDelete = "false", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processIngestJob(String ingestJobRequest) {
 		try {
 			// Callback that will be invoked when a Worker completes. This will
@@ -95,7 +95,7 @@ public class IngestThreadManager {
 	 * @param abortJobRequest
 	 *            The information regarding the job to abort
 	 */
-	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(value = "LoaderAbort", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
+	@RabbitListener(bindings = @QueueBinding(key = "AbortJob-${SPACE}", value = @Queue(exclusive = "true", autoDelete = "true", durable = "true"), exchange = @Exchange(value = JobMessageFactory.PIAZZA_EXCHANGE_NAME, autoDelete = "false", durable = "true")))
 	public void processAbortJob(String abortJobRequest) {
 		String jobId = null;
 		try {

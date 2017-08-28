@@ -82,7 +82,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	@Bean
 	public Queue updateJobsQueue() {
 		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
-				true);
+				false);
 	}
 
 	@Bean
