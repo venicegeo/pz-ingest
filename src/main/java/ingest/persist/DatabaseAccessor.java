@@ -38,7 +38,7 @@ import util.PiazzaLogger;
 @Component
 public class DatabaseAccessor {
 	@Autowired
-	private PiazzaLogger logger;
+	private PiazzaLogger piazzaLogger;
 
 	@Autowired
 	DataResourceDao dataResourceDao;
