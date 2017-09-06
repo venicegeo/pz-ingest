@@ -393,7 +393,7 @@ public class IngestWorker {
 					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 					jobId, jsonException.getMessage());
 			LOG.error(error, jsonException);
-			logger.log(error, Severity.ERROR);
+			logger.log(error, Severity.ERROR, new AuditElement(jobId, "failedToSendCancelledStatus", ""));
 		}
 	}
 }
