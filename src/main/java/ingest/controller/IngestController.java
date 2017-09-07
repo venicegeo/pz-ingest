@@ -156,6 +156,7 @@ public class IngestController {
 	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
+			logger.log(String.format("Updating Data Metadata for Data %s", dataId), Severity.INFORMATIONAL);
 			// Query for the Data Id
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {

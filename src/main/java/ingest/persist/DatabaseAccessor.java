@@ -25,6 +25,7 @@ import org.venice.piazza.common.hibernate.entity.DataResourceEntity;
 import exception.InvalidInputException;
 import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
+import model.logger.Severity;
 import util.PiazzaLogger;
 
 /**
@@ -107,6 +108,7 @@ public class DatabaseAccessor {
 
 		// Merge the ResourceMetadata together
 		record.getDataResource().getMetadata().merge(metadata, false);
+		piazzaLogger.log(String.format("Updated Data Metadata for Data ID %s", dataId), Severity.INFORMATIONAL);
 
 		// Update the DataResource in the database
 		dataResourceDao.save(record);
