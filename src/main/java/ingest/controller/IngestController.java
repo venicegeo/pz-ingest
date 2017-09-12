@@ -76,6 +76,8 @@ public class IngestController {
 	private String SEARCH_URL;
 	@Value("${search.delete}")
 	private String SEARCH_DELETE_SUFFIX;
+	@Value("${search.update}")
+	private String SEARCH_UPDATE_SUFFIX;	
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestController.class);
 	private static final String LOADER = "Loader";
@@ -168,6 +170,11 @@ public class IngestController {
 
 			// Update the Metadata
 			accessor.updateMetadata(dataId, metadata);
+			
+			//Update elastic search metadata
+			String searchUpdateUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_UPDATE_SUFFIX, dataId);
+			ingestUtil.updateDataResourceInElasticsearch(data, searchUpdateUrl); 
+
 			// Return OK
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
