@@ -141,7 +141,10 @@ public class ShapefileInspector implements InspectorType {
 
 		// Clean up the temporary Shapefile, and the directory that contained
 		// the expanded contents.
-		shapefileZip.delete();
+		boolean deleted = shapefileZip.delete();
+		if (!deleted) {
+			logger.log(String.format("Could not delete shapefile %s from disk.", extractPath), Severity.ERROR);
+		}
 		ingestUtilities.deleteDirectoryRecursive(new File(extractPath));
 		featureSource.getDataStore().dispose();
 
