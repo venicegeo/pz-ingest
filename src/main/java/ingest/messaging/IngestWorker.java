@@ -228,7 +228,8 @@ public class IngestWorker {
 		return new AsyncResult<DataResource>(dataResource);
 	}
 
-	private void processFileRepresentation(final IngestJob ingestJob, final DataResource dataResource) throws InvalidInputException, IOException {
+	private void processFileRepresentation(final IngestJob ingestJob, final DataResource dataResource)
+			throws InvalidInputException, IOException {
 		FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
 		FileLocation fileLoc = fileRep.getLocation();
 		if (fileLoc != null) {
@@ -251,7 +252,7 @@ public class IngestWorker {
 			}
 		}
 	}
-	
+
 	private void fireEvents(final Job job, final DataResource dataResource) {
 		// Fire the Event to Pz-Search that new metadata has been ingested
 		try {
@@ -284,9 +285,9 @@ public class IngestWorker {
 		} catch (Exception exception) {
 			LOG.error(exception.getMessage(), exception);
 			logger.log(exception.getMessage(), Severity.WARNING);
-		}	
+		}
 	}
-	
+
 	/**
 	 * Dispatches the REST POST request to the pz-search service for the ingestion of metadata for the newly ingested
 	 * data resource.
@@ -334,11 +335,16 @@ public class IngestWorker {
 		event.data = new HashMap<String, Object>();
 		event.data.put("dataId", dataResource.getDataId());
 		event.data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
-		event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
-		event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
-		event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
-		event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
-		event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		if (dataResource.getSpatialMetadata() != null) {
+			event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
+			event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
+			event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
+			event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
+			event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		} else {
+			logger.log(String.format("Could not populate Spatial Metadata block for %s, because no Spatial Metadata was found.",
+					dataResource.getDataId()), Severity.WARNING);
+		}
 		event.data.put("hosted", ((IngestJob) job.getJobType()).getHost());
 
 		// Send the Event
@@ -378,12 +384,11 @@ public class IngestWorker {
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
 		} catch (JsonProcessingException jsonException) {
-			LOG.info(
-					"Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
+			LOG.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
 					jsonException);
 		}
 	}
-	
+
 	private void handleInterruptedException(final String jobId) {
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
 		try {
