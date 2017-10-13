@@ -76,6 +76,8 @@ public class IngestController {
 	private String SEARCH_URL;
 	@Value("${search.delete}")
 	private String SEARCH_DELETE_SUFFIX;
+	@Value("${search.update}")
+	private String SEARCH_UPDATE_SUFFIX;	
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestController.class);
 	private static final String LOADER = "Loader";
@@ -156,6 +158,7 @@ public class IngestController {
 	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
+			logger.log(String.format("Updating Data Metadata for Data %s", dataId), Severity.INFORMATIONAL);
 			// Query for the Data Id
 			DataResource data = accessor.getData(dataId);
 			if (data == null) {
@@ -167,14 +170,18 @@ public class IngestController {
 
 			// Update the Metadata
 			accessor.updateMetadata(dataId, metadata);
+			
+			//Update elastic search metadata
+			String searchUpdateUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_UPDATE_SUFFIX, dataId);
+			ingestUtil.updateDataResourceInElasticsearch(data, searchUpdateUrl); 
+
 			// Return OK
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
-			String error = String.format("Could not update Metadata %s", exception.getMessage());
-			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
-			LOG.error(error, exception);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, LOADER), HttpStatus.INTERNAL_SERVER_ERROR);
+			logger.log(exception.getMessage(), Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
+			LOG.error(exception.getMessage(), exception);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(exception.getMessage(), LOADER), HttpStatus.BAD_REQUEST);
 		}
 	}
 

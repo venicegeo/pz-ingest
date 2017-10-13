@@ -336,11 +336,16 @@ public class IngestWorker {
 		event.data = new HashMap<String, Object>();
 		event.data.put("dataId", dataResource.getDataId());
 		event.data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
-		event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
-		event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
-		event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
-		event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
-		event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		if (dataResource.getSpatialMetadata() != null) {
+			event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
+			event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
+			event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
+			event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
+			event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		} else {
+			logger.log(String.format("Could not populate Spatial Metadata block for %s, because no Spatial Metadata was found.",
+					dataResource.getDataId()), Severity.WARNING);
+		}
 		event.data.put("hosted", ((IngestJob) job.getJobType()).getHost());
 
 		// Send the Event
@@ -398,7 +403,7 @@ public class IngestWorker {
 					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
 					jobId, jsonException.getMessage());
 			LOG.error(error, jsonException);
-			logger.log(error, Severity.ERROR);
+			logger.log(error, Severity.ERROR, new AuditElement(jobId, "failedToSendCancelledStatus", ""));
 		}
 	}
 }
