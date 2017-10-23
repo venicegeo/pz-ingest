@@ -77,7 +77,7 @@ public class WfsInspector implements InspectorType {
 	@Value("${postgres.schema}")
 	private String POSTGRES_SCHEMA;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(WfsInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WfsInspector.class);
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
@@ -109,7 +109,7 @@ public class WfsInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			if (logger != null) {
 				logger.log(error, Severity.WARNING);
 			}
@@ -153,9 +153,9 @@ public class WfsInspector implements InspectorType {
 		logger.log(String.format("Copying Data %s to PostGIS Table %s", dataResource.getDataId(), tableName), Severity.INFORMATIONAL,
 				new AuditElement("ingest", "copyWfsToPostGisTable", tableName));
 
-		// Commit the Features to the Data Store
-		Transaction transaction = new DefaultTransaction();
-		try {
+		
+		try (Transaction transaction = new DefaultTransaction()) {
+					
 			// Get the Features from the WFS and add them to the PostGIS store
 			SimpleFeatureCollection wfsFeatures = (SimpleFeatureCollection) wfsFeatureSource.getFeatures();
 			if (wfsFeatures.size() == 0) {
@@ -163,17 +163,16 @@ public class WfsInspector implements InspectorType {
 				throw new IOException("No features could be collected from the WFS. Nothing to store.");
 			}
 			postGisFeatureStore.addFeatures(wfsFeatures);
-			// Commit the changes and clean up
+			
+			// Commit the changes
 			transaction.commit();
-			transaction.close();
 		} catch (Exception exception) {
-			// Clean up resources
-			transaction.rollback();
-			transaction.close();
-			LOGGER.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
+			LOG.error("Error during WFS to PostGIS transaction, had to roll back changes.", exception);
+			
 			// Rethrow
 			throw new IOException(exception.getMessage());
 		} finally {
+			
 			// Clean up the PostGIS Store
 			postGisStore.dispose();
 		}

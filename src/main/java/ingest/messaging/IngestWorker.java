@@ -43,9 +43,9 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoException;
 
 import exception.DataInspectException;
+import exception.InvalidInputException;
 import ingest.inspect.Inspector;
 import ingest.utility.IngestUtilities;
 import messaging.job.JobMessageFactory;
@@ -107,7 +107,7 @@ public class IngestWorker {
 	private RestTemplate restTemplate;
 	private Producer<String, String> producer;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngestWorker.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IngestWorker.class);
 
 	/**
 	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
@@ -133,6 +133,7 @@ public class IngestWorker {
 			ObjectMapper mapper = new ObjectMapper();
 			Job job = mapper.readValue(consumerRecord.value(), Job.class);
 			IngestJob ingestJob = (IngestJob) job.getJobType();
+
 			// Get the description of the Data to be ingested
 			dataResource = ingestJob.getData();
 
@@ -164,31 +165,11 @@ public class IngestWorker {
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE)).get();
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
-				FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
-				FileLocation fileLoc = fileRep.getLocation();
-				if (fileLoc != null) {
-					fileLoc.setFileSize(ingestUtilities.getFileSize(dataResource));
-				}
-
-				if (ingestJob.getHost().booleanValue() && (fileLoc != null)) {
-					// Copy to Piazza S3 bucket if hosted = true; If already in
-					// S3, make sure it's different than the Piazza S3;
-					// Depending on the Type of file
-					if (fileLoc instanceof S3FileStore) {
-						S3FileStore s3FS = (S3FileStore) fileLoc;
-						if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
-							ingestUtilities.copyS3Source(dataResource);
-							fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-" + s3FS.getFileName(),
-									s3FS.getFileSize(), s3FS.getDomainName()));
-						}
-					} else if (fileLoc instanceof FolderShare) {
-						ingestUtilities.copyS3Source(dataResource);
-					}
-				}
+				processFileRepresentation(ingestJob, dataResource);
 			}
 
-			dataResource.metadata.createdBy = job.createdBy;
-			dataResource.metadata.createdOn = job.createdOn.toString();
+			dataResource.metadata.setCreatedBy(job.getCreatedBy());
+			dataResource.metadata.setCreatedOn(job.getCreatedOnString());
 			dataResource.metadata.createdByJobId = job.getJobId();
 
 			if (Thread.interrupted()) {
@@ -216,70 +197,28 @@ public class IngestWorker {
 			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "loadedData", dataResource.getDataId()));
 
-			// Fire the Event to Pz-Search that new metadata has been ingested
-			try {
-				dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
-			} catch (HttpClientErrorException | HttpServerErrorException exception) {
-				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
-				LOGGER.error(error, exception);
-				logger.log(error, Severity.ERROR);
-			} catch (Exception genException) {
-				String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-						dataResource.getDataId(), job.getJobId(), genException.getMessage());
-				LOGGER.error(error, genException);
-				logger.log(error, Severity.ERROR);
-			}
-
-			// Fire the Event to Pz-Workflow that a successful Ingest has taken
-			// place.
-			try {
-				dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
-			} catch (JsonParseException | JsonMappingException exception) {
-				String error = String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage());
-				LOGGER.error(error, exception);
-				logger.log(error, Severity.ERROR);
-			} catch (HttpClientErrorException | HttpServerErrorException exception) {
-				String error = String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
-						dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
-				LOGGER.error(error, exception);
-				logger.log(error, Severity.ERROR);
-			} catch (Exception exception) {
-				LOGGER.error(exception.getMessage(), exception);
-				logger.log(exception.getMessage(), Severity.WARNING);
-			}
+			// Fire Events
+			fireEvents(job, dataResource);
 		} catch (AmazonClientException amazonException) {
 			String systemError = String.format("Error interacting with S3: %s", amazonException.getMessage());
 			String userError = "There was an issue with S3 during Data Load. Please contact a Piazza administrator for details.";
-			LOGGER.error(systemError, amazonException);
+			LOG.error(systemError, amazonException);
 			logger.log(systemError, Severity.ERROR);
 			handleException(consumerRecord.key(), new DataInspectException(userError));
 		} catch (DataInspectException exception) {
 			handleException(consumerRecord.key(), exception);
-			LOGGER.error("An Inspection Error occurred while processing the Job Message: " + exception.getMessage(), exception);
+			LOG.error("An Inspection Error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} catch (InterruptedException exception) { // NOSONAR
 			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "cancelledIngestJob", ""));
-			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
-			try {
-				producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
-			} catch (JsonProcessingException jsonException) {
-				error = String.format(
-						"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
-						consumerRecord.key(), jsonException.getMessage());
-				LOGGER.error(error, jsonException);
-				logger.log(error, Severity.ERROR);
-			}
+			handleInterruptedException(consumerRecord.key());
 		} catch (IOException jsonException) {
 			handleException(consumerRecord.key(), jsonException);
-			LOGGER.error("Error Parsing Data Load Job Message.", jsonException);
-		} catch (MongoException mongoException) {
-			handleException(consumerRecord.key(), mongoException);
-			LOGGER.error("Error committing Metadata object to Mongo Collections: " + mongoException.getMessage(), mongoException);
+			LOG.error("Error Parsing Data Load Job Message.", jsonException);
 		} catch (Exception exception) {
 			handleException(consumerRecord.key(), exception);
-			LOGGER.error("An unexpected error occurred while processing the Job Message: " + exception.getMessage(), exception);
+			LOG.error("An unexpected error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} finally {
 			if (callback != null) {
 				callback.onComplete(consumerRecord.key());
@@ -287,6 +226,66 @@ public class IngestWorker {
 		}
 
 		return new AsyncResult<DataResource>(dataResource);
+	}
+
+	private void processFileRepresentation(final IngestJob ingestJob, final DataResource dataResource)
+			throws InvalidInputException, IOException {
+		FileRepresentation fileRep = (FileRepresentation) ingestJob.getData().getDataType();
+		FileLocation fileLoc = fileRep.getLocation();
+		if (fileLoc != null) {
+			fileLoc.setFileSize(ingestUtilities.getFileSize(dataResource));
+		}
+
+		if (ingestJob.getHost().booleanValue() && (fileLoc != null)) {
+			// Copy to Piazza S3 bucket if hosted is true. If already in
+			// S3, make sure it's different than the Piazza S3
+			// Depending on the Type of file
+			if (fileLoc instanceof S3FileStore) {
+				S3FileStore s3FS = (S3FileStore) fileLoc;
+				if (!s3FS.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
+					ingestUtilities.copyS3Source(dataResource);
+					fileRep.setLocation(new S3FileStore(AMAZONS3_BUCKET_NAME, dataResource.getDataId() + "-" + s3FS.getFileName(),
+							s3FS.getFileSize(), s3FS.getDomainName()));
+				}
+			} else if (fileLoc instanceof FolderShare) {
+				ingestUtilities.copyS3Source(dataResource);
+			}
+		}
+	}
+
+	private void fireEvents(final Job job, final DataResource dataResource) {
+		// Fire the Event to Pz-Search that new metadata has been ingested
+		try {
+			dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
+					dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR);
+		} catch (Exception genException) {
+			String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
+					dataResource.getDataId(), job.getJobId(), genException.getMessage());
+			LOG.error(error, genException);
+			logger.log(error, Severity.ERROR);
+		}
+
+		// Fire the Event to Pz-Workflow that a successful Ingest has taken
+		// place.
+		try {
+			dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
+		} catch (JsonParseException | JsonMappingException exception) {
+			String error = String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage());
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR);
+		} catch (HttpClientErrorException | HttpServerErrorException exception) {
+			String error = String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
+					dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR);
+		} catch (Exception exception) {
+			LOG.error(exception.getMessage(), exception);
+			logger.log(exception.getMessage(), Severity.WARNING);
+		}
 	}
 
 	/**
@@ -336,11 +335,16 @@ public class IngestWorker {
 		event.data = new HashMap<String, Object>();
 		event.data.put("dataId", dataResource.getDataId());
 		event.data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
-		event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
-		event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
-		event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
-		event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
-		event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		if (dataResource.getSpatialMetadata() != null) {
+			event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
+			event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
+			event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
+			event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
+			event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
+		} else {
+			logger.log(String.format("Could not populate Spatial Metadata block for %s, because no Spatial Metadata was found.",
+					dataResource.getDataId()), Severity.WARNING);
+		}
 		event.data.put("hosted", ((IngestJob) job.getJobType()).getHost());
 
 		// Send the Event
@@ -373,16 +377,28 @@ public class IngestWorker {
 	 */
 	private void handleException(String jobId, Exception exception) {
 		String error = String.format("An Error occurred during Data Load for Job %s: %s", jobId, exception.getMessage());
-		LOGGER.error(error);
+		LOG.error(error);
 		logger.log(error, Severity.ERROR, new AuditElement(jobId, "failedToLoadData", ""));
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
 			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
 		} catch (JsonProcessingException jsonException) {
-			LOGGER.info(
-					"Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
+			LOG.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
 					jsonException);
+		}
+	}
+
+	private void handleInterruptedException(final String jobId) {
+		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+		try {
+			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
+		} catch (JsonProcessingException jsonException) {
+			String error = String.format(
+					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
+					jobId, jsonException.getMessage());
+			LOG.error(error, jsonException);
+			logger.log(error, Severity.ERROR, new AuditElement(jobId, "failedToSendCancelledStatus", ""));
 		}
 	}
 }

@@ -15,30 +15,41 @@
  **/
 package ingest;
 
-import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.web.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @Configuration
+@EnableAutoConfiguration
 @EnableAsync
-@ComponentScan({ "ingest, util" })
+@EnableScheduling
+@EnableTransactionManagement
+@EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
+@EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
+@ComponentScan(basePackages = { "ingest", "util", "org.venice.piazza" })
 public class Application extends SpringBootServletInitializer implements AsyncConfigurer {
 	@Value("${thread.count.size}")
 	private int threadCountSize;
@@ -48,6 +59,8 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxTotal;
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
+    //logger
+	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
 	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
@@ -78,13 +91,6 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return new AsyncUncaughtExceptionHandler() {
-			@Override
-			public void handleUncaughtException(Throwable ex, Method method, Object... params) {
-				String error = String.format("Uncaught Threading exception encountered in %s with details: %s", ex.getMessage(),
-						method.getName());
-				System.out.println(error);
-			}
-		};
+		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(), method.getName());
 	}
 }

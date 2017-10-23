@@ -57,6 +57,7 @@ public class PointCloudResponse {
 	}
 
 	public PointCloudResponse() {
+		// Empty constructor required by Jackson
 	}
 
 	public String getSpatialreference() {

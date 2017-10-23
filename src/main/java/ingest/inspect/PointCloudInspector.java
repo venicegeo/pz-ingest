@@ -75,13 +75,14 @@ public class PointCloudInspector implements InspectorType {
 	@Autowired
 	private RestTemplate restTemplate;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(PointCloudInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PointCloudInspector.class);
+	private static final String INGEST = "ingest";
 
 	@Override
 	public DataResource inspect(DataResource dataResource, boolean host)
 			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		logger.log(String.format("Begin parsing Point Cloud for Data %s", dataResource.getDataId()), Severity.INFORMATIONAL,
-				new AuditElement("ingest", "beginParsingPointCloud", dataResource.getDataId()));
+				new AuditElement(INGEST, "beginParsingPointCloud", dataResource.getDataId()));
 
 		// Load point cloud post request template
 		ClassLoader classLoader = getClass().getClassLoader();
@@ -126,30 +127,34 @@ public class PointCloudInspector implements InspectorType {
 			spatialMetadata.setEpsgCode(CRS.lookupEpsgCode(worldCRS, true));
 
 			// Populate the projected EPSG:4326 spatial metadata
-			try {
-				spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
-			} catch (Exception exception) {
-				String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
-						dataResource.getDataId(), exception.getMessage());
-				LOGGER.error(error, exception);
-				logger.log(error, Severity.WARNING);
-			}
+			populateSpatialMetadata(spatialMetadata, dataResource.getDataId());
 		} catch (Exception exception) {
 			String error = String.format("Error populating Spatial Metadata for %s Point Cloud located at %s: %s", dataResource.getDataId(),
 					awsS3Url, exception.getMessage());
 			logger.log(error, Severity.WARNING);
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 		}
 
 		// Set the DataResource Spatial Metadata
 		dataResource.spatialMetadata = spatialMetadata;
 
 		logger.log(String.format("Completed parsing Point Cloud for Data %s", dataResource.getDataId()), Severity.INFORMATIONAL,
-				new AuditElement("ingest", "completeParsingPointCloud", dataResource.getDataId()));
+				new AuditElement(INGEST, "completeParsingPointCloud", dataResource.getDataId()));
 
 		return dataResource;
 	}
 
+	private void populateSpatialMetadata(final SpatialMetadata spatialMetadata, final String dataId) {
+		try {
+			spatialMetadata.setProjectedSpatialMetadata(ingestUtilities.getProjectedSpatialMetadata(spatialMetadata));
+		} catch (Exception exception) {
+			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
+					dataId, exception.getMessage());
+			LOG.error(error, exception);
+			logger.log(error, Severity.WARNING);
+		}
+	}
+	
 	/**
 	 * Executes POST request to Point Cloud to grab the Payload
 	 * 
@@ -167,16 +172,14 @@ public class PointCloudInspector implements InspectorType {
 		String response = "";
 		try {
 			logger.log("Sending Metadata Request to Point Cloud Service", Severity.INFORMATIONAL,
-					new AuditElement("ingest", "requestPointCloudMetadata", url));
+					new AuditElement(INGEST, "requestPointCloudMetadata", url));
 			response = restTemplate.postForObject(url, request, String.class);
 		} catch (HttpServerErrorException e) {
 			String error = "Error occurred posting to: " + url + "\nPayload: \n" + payload
-					+ "\nMost likely the payload source file is not accessible.";
-			// this exception will be thrown until the s3 file is accessible to
-			// external services
-			// that use the s3 file url line above: String awsS3Url =
-			// fileFactory.getFileUri(fileLocation);
-			LOGGER.error(error, e);
+					+ "\nMost likely the payload source file is not accessible.";			
+			// this exception will be thrown until the s3 file is accessible to external services
+
+			LOG.error(error, e);
 			throw new HttpServerErrorException(e.getStatusCode(), error);
 		}
 

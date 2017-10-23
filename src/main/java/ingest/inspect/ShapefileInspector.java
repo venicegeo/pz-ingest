@@ -80,11 +80,10 @@ public class ShapefileInspector implements InspectorType {
 	@Autowired
 	private IngestUtilities ingestUtilities;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(ShapefileInspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ShapefileInspector.class);
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host)
-			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
+	public DataResource inspect(DataResource dataResource, boolean host) throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Get the Shapefile and write it to disk for temporary use.
 		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream shapefileStream = fileFactory.getFile(((ShapefileDataType) dataResource.getDataType()).getLocation());
@@ -130,7 +129,7 @@ public class ShapefileInspector implements InspectorType {
 		} catch (Exception exception) {
 			String error = String.format("Could not project the spatial metadata for Data %s because of exception: %s",
 					dataResource.getDataId(), exception.getMessage());
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			logger.log(error, Severity.WARNING);
 		}
 
@@ -142,7 +141,10 @@ public class ShapefileInspector implements InspectorType {
 
 		// Clean up the temporary Shapefile, and the directory that contained
 		// the expanded contents.
-		shapefileZip.delete();
+		boolean deleted = shapefileZip.delete();
+		if (!deleted) {
+			logger.log(String.format("Could not delete shapefile %s from disk.", extractPath), Severity.ERROR);
+		}
 		ingestUtilities.deleteDirectoryRecursive(new File(extractPath));
 		featureSource.getDataStore().dispose();
 

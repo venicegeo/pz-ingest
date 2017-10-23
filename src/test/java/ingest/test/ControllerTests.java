@@ -35,7 +35,7 @@ import org.springframework.web.client.RestTemplate;
 import exception.InvalidInputException;
 import ingest.controller.IngestController;
 import ingest.messaging.IngestThreadManager;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
@@ -56,7 +56,7 @@ public class ControllerTests {
 	@Mock
 	private PiazzaLogger logger;
 	@Mock
-	private PersistMetadata persistence;
+	private DatabaseAccessor accessor;
 	@Mock
 	private IngestUtilities ingestUtil;
 	@Mock
@@ -86,15 +86,15 @@ public class ControllerTests {
 		assertTrue(((ErrorResponse) response.getBody()).message.contains("No Data Id"));
 
 		// Test no Data Resource for the Id
-		Mockito.when(persistence.getData(eq("123456"))).thenReturn(null);
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(null);
 		response = ingestController.deleteData("123456");
 		assertTrue(response.getBody() instanceof ErrorResponse);
 		assertTrue(((ErrorResponse) response.getBody()).message.contains("Data not found"));
 
 		// Successful deletion
-		Mockito.when(persistence.getData(eq("123456"))).thenReturn(new DataResource());
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(new DataResource());
 		// Mockito.doNothing().when(ingestUtil.deleteDataResourceFiles(any(DataResource.class)));
-		// Mockito.doNothing().when(persistence.deleteDataEntry(eq("123456")));
+		// Mockito.doNothing().when(accessor.deleteDataEntry(eq("123456")));
 		response = ingestController.deleteData("123456");
 		assertTrue(response.getStatusCode().compareTo(HttpStatus.OK) == 0);
 	}
@@ -105,13 +105,13 @@ public class ControllerTests {
 	@Test
 	public void testUpdate() throws Exception {
 		// Test
-		Mockito.doNothing().when(persistence).updateMetadata(eq("123456"), any(ResourceMetadata.class));
-		Mockito.when(persistence.getData(eq("123456"))).thenReturn(new DataResource());
+		Mockito.doNothing().when(accessor).updateMetadata(eq("123456"), any(ResourceMetadata.class));
+		Mockito.when(accessor.getData(eq("123456"))).thenReturn(new DataResource());
 		ResponseEntity<PiazzaResponse> response = ingestController.updateMetadata("123456", new ResourceMetadata());
 		assertTrue(response.getBody() instanceof SuccessResponse);
 
 		// Test Exception
-		Mockito.doThrow(new InvalidInputException("Error")).when(persistence).updateMetadata(eq("123456"), any(ResourceMetadata.class));
+		Mockito.doThrow(new InvalidInputException("Error")).when(accessor).updateMetadata(eq("123456"), any(ResourceMetadata.class));
 		response = ingestController.updateMetadata("123456", new ResourceMetadata());
 		assertTrue(response.getBody() instanceof ErrorResponse);
 	}

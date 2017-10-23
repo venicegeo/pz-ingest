@@ -20,12 +20,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.mongodb.MongoException;
-import com.mongodb.MongoInterruptedException;
-
 import exception.DataInspectException;
 import exception.InvalidInputException;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import model.data.DataResource;
 import model.data.DataType;
 import model.data.type.GeoJsonDataType;
@@ -44,7 +41,8 @@ import model.data.type.WfsDataType;
 @Component
 public class Inspector {
 	@Autowired
-	private PersistMetadata metadataPersist;
+	private DatabaseAccessor accessor;
+	
 	@Autowired
 	private ShapefileInspector shapefileInspector;
 	@Autowired
@@ -58,7 +56,7 @@ public class Inspector {
 	@Autowired
 	private GeoJsonInspector geoJsonInspector;
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(Inspector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Inspector.class);
 
 	/**
 	 * Inspects the DataResource passed into the Piazza system.
@@ -69,28 +67,28 @@ public class Inspector {
 	 *            True if Piazza should host the resource, false if not
 	 */
 	public void inspect(DataResource dataResource, boolean host) throws DataInspectException, InterruptedException {
+		
+		final DataResource finalDataResource;
+		
 		// Inspect the resource based on the type it is, and add any metadata if
 		// possible. If hosted, the Inspector will handle this as well.
 		try {
 			InspectorType inspector = getInspector(dataResource);
-			dataResource = inspector.inspect(dataResource, host);
+			finalDataResource = inspector.inspect(dataResource, host);
 		} catch (Exception exception) {
 			// If any errors occur during inspection.
 			String error = "Error Inspecting Data: " + exception.getMessage();
-			LOGGER.error(error, exception);
+			LOG.error(error, exception);
 			throw new DataInspectException(exception.getMessage());
 		}
 
-		// Store the metadata in the Resources collection
+		// Store the metadata in the database
 		try {
-			metadataPersist.insertData(dataResource);
-		} catch (MongoException exception) {
-			LOGGER.error("Error Loading Data into Mongo.", exception);
-			if (exception instanceof MongoInterruptedException) {
-				throw new InterruptedException();
-			} else {
-				throw exception;
-			}
+			accessor.insertData(finalDataResource);
+		} 
+		catch (Exception exception) {
+			LOG.error("Error Loading Data into Database.", exception);
+			throw new InterruptedException();
 		}
 	}
 

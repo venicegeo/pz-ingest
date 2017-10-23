@@ -31,6 +31,7 @@ import model.data.DataResource;
  * @author Patrick.Doody
  * 
  */
+@FunctionalInterface
 public interface InspectorType {
 	/**
 	 * Parses a DataResource object for metadata. Since a DataResource contains references to SpatialMetadata and other

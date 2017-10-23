@@ -37,7 +37,7 @@ import org.springframework.web.client.RestTemplate;
 
 import exception.InvalidInputException;
 import ingest.messaging.IngestThreadManager;
-import ingest.persist.PersistMetadata;
+import ingest.persist.DatabaseAccessor;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.job.metadata.ResourceMetadata;
@@ -62,7 +62,7 @@ public class IngestController {
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
-	private PersistMetadata persistence;
+	private DatabaseAccessor accessor;
 	@Autowired
 	private IngestUtilities ingestUtil;
 	@Autowired
@@ -76,9 +76,13 @@ public class IngestController {
 	private String SEARCH_URL;
 	@Value("${search.delete}")
 	private String SEARCH_DELETE_SUFFIX;
+	@Value("${search.update}")
+	private String SEARCH_UPDATE_SUFFIX;	
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(IngestController.class);
-
+	private static final Logger LOG = LoggerFactory.getLogger(IngestController.class);
+	private static final String LOADER = "Loader";
+	private static final String INGEST = "ingest";
+	
 	/**
 	 * Deletes the Data resource object from the Resources collection.
 	 * 
@@ -93,10 +97,10 @@ public class IngestController {
 				throw new InvalidInputException("No Data Id specified.");
 			}
 			// Query for the Data Id
-			DataResource data = persistence.getData(dataId);
+			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING);
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), LOADER),
 						HttpStatus.NOT_FOUND);
 			}
 
@@ -104,19 +108,10 @@ public class IngestController {
 			ingestUtil.deleteDataResourceFiles(data);
 
 			// Remove the Data from the database
-			persistence.deleteDataEntry(dataId);
+			accessor.deleteDataEntry(dataId);
 
 			// Request that Access delete any Deployments for this Data ID
-			try {
-				String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
-				restTemplate.delete(url);
-			} catch (HttpClientErrorException | HttpServerErrorException httpException) {
-				// Log the error; but do not fail the request entirely if this deletion fails.
-				String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
-						httpException.getResponseBodyAsString());
-				logger.log(error, Severity.WARNING);
-				LOGGER.warn(error, httpException);
-			}
+			deleteDeploymentsByDataId(dataId);
 
 			// Delete from Elasticsearch
 			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
@@ -124,19 +119,32 @@ public class IngestController {
 
 			// Log the deletion
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
-					new AuditElement("ingest", "deletedData", dataId));
+					new AuditElement(INGEST, "deletedData", dataId));
 			// Return
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", "Loader"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Data " + dataId + " was deleted successfully", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
 			String error = String.format("Error deleting Data %s: %s", dataId, exception.getMessage());
-			LOGGER.error(error, exception);
-			logger.log(error, Severity.ERROR, new AuditElement("ingest", "errorDeletingData", dataId));
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), "Loader"),
+			LOG.error(error, exception);
+			logger.log(error, Severity.ERROR, new AuditElement(INGEST, "errorDeletingData", dataId));
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse("Error deleting Data: " + exception.getMessage(), LOADER),
 					HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
+	private void deleteDeploymentsByDataId(final String dataId) {
+		try {
+			String url = String.format("%s/deployment?dataId=%s", ACCESS_URL, dataId);
+			restTemplate.delete(url);
+		} catch (HttpClientErrorException | HttpServerErrorException httpException) {
+			// Log the error; but do not fail the request entirely if this deletion fails.
+			String error = String.format("Error requesting deletion of Deployments while deleting Data ID %s: %s", dataId,
+					httpException.getResponseBodyAsString());
+			logger.log(error, Severity.WARNING);
+			LOG.warn(error, httpException);
+		}
+	}
+	
 	/**
 	 * Update the metadata of a Data Resource
 	 * 
@@ -150,25 +158,30 @@ public class IngestController {
 	public ResponseEntity<PiazzaResponse> updateMetadata(@PathVariable(value = "dataId") String dataId,
 			@RequestBody ResourceMetadata metadata) {
 		try {
+			logger.log(String.format("Updating Data Metadata for Data %s", dataId), Severity.INFORMATIONAL);
 			// Query for the Data Id
-			DataResource data = persistence.getData(dataId);
+			DataResource data = accessor.getData(dataId);
 			if (data == null) {
 				logger.log(String.format("Data not found for requested Id %s", dataId), Severity.WARNING,
-						new AuditElement("ingest", "noDataFoundForId", dataId));
-				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), "Loader"),
+						new AuditElement(INGEST, "noDataFoundForId", dataId));
+				return new ResponseEntity<PiazzaResponse>(new ErrorResponse(String.format("Data not found: %s", dataId), LOADER),
 						HttpStatus.NOT_FOUND);
 			}
 
 			// Update the Metadata
-			persistence.updateMetadata(dataId, metadata);
+			accessor.updateMetadata(dataId, metadata);
+			
+			//Update elastic search metadata
+			String searchUpdateUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_UPDATE_SUFFIX, dataId);
+			ingestUtil.updateDataResourceInElasticsearch(data, searchUpdateUrl); 
+
 			// Return OK
-			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", "Loader"),
+			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),
 					HttpStatus.OK);
 		} catch (Exception exception) {
-			String error = String.format("Could not update Metadata %s", exception.getMessage());
-			logger.log(error, Severity.ERROR, new AuditElement("ingest", "updateMetadataFailure", dataId));
-			LOGGER.error(error, exception);
-			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(error, "Loader"), HttpStatus.INTERNAL_SERVER_ERROR);
+			logger.log(exception.getMessage(), Severity.ERROR, new AuditElement(INGEST, "updateMetadataFailure", dataId));
+			LOG.error(exception.getMessage(), exception);
+			return new ResponseEntity<PiazzaResponse>(new ErrorResponse(exception.getMessage(), LOADER), HttpStatus.BAD_REQUEST);
 		}
 	}
 
