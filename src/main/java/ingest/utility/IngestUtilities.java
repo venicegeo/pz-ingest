@@ -120,6 +120,8 @@ public class IngestUtilities {
 	private String AMAZONS3_BUCKET_NAME;
 	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
 	private String S3_KMS_CMK_ID;
+	@Value("${s3.use.kms}")
+	private Boolean USE_KMS;
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestUtilities.class);
 	private static final String INGEST = "ingest";
@@ -319,7 +321,7 @@ public class IngestUtilities {
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
 		// Write stream directly into the Piazza S3 bucket
-		AmazonS3 s3Client = getAwsClient(true);
+		AmazonS3 s3Client = getAwsClient(USE_KMS);
 		ObjectMetadata metadata = new ObjectMetadata();
 		String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
 		s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
@@ -343,10 +345,13 @@ public class IngestUtilities {
 		FileLocation fileLocation = ((FileRepresentation) dataResource.getDataType()).getLocation();
 		if (fileLocation instanceof S3FileStore) {
 			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation).getBucketName())) {
-				// Use encryption
-				fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, S3_KMS_CMK_ID);
+				// Piazza bucket. If KMS Encryption is enabled, then use it.
+				if (USE_KMS) {
+					fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, S3_KMS_CMK_ID);
+				} else {
+					fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
+				}
 			} else {
-				// Don't use
 				fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
 			}
 		} else {
@@ -441,7 +446,7 @@ public class IngestUtilities {
 			S3FileStore fileStore = (S3FileStore) dataType;
 			if (fileStore.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 				// Held by Piazza S3. Delete the data.
-				AmazonS3 client = getAwsClient(true);
+				AmazonS3 client = getAwsClient(USE_KMS);
 				client.deleteObject(fileStore.getBucketName(), fileStore.getFileName());
 			}
 		}
