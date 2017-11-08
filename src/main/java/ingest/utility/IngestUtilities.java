@@ -321,7 +321,7 @@ public class IngestUtilities {
 		InputStream inputStream = fileFactory.getFile(fileLocation);
 
 		// Write stream directly into the Piazza S3 bucket
-		AmazonS3 s3Client = getAwsClient(USE_KMS);
+		AmazonS3 s3Client = getAwsClient(USE_KMS.booleanValue());
 		ObjectMetadata metadata = new ObjectMetadata();
 		String fileKey = String.format("%s-%s", dataResource.getDataId(), fileLocation.getFileName());
 		s3Client.putObject(AMAZONS3_BUCKET_NAME, fileKey, inputStream, metadata);
@@ -346,7 +346,7 @@ public class IngestUtilities {
 		if (fileLocation instanceof S3FileStore) {
 			if (AMAZONS3_BUCKET_NAME.equals(((S3FileStore) fileLocation).getBucketName())) {
 				// Piazza bucket. If KMS Encryption is enabled, then use it.
-				if (USE_KMS) {
+				if (USE_KMS.booleanValue()) {
 					fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY, S3_KMS_CMK_ID);
 				} else {
 					fileFactory = new FileAccessFactory(AMAZONS3_ACCESS_KEY, AMAZONS3_PRIVATE_KEY);
@@ -446,7 +446,7 @@ public class IngestUtilities {
 			S3FileStore fileStore = (S3FileStore) dataType;
 			if (fileStore.getBucketName().equals(AMAZONS3_BUCKET_NAME)) {
 				// Held by Piazza S3. Delete the data.
-				AmazonS3 client = getAwsClient(USE_KMS);
+				AmazonS3 client = getAwsClient(USE_KMS.booleanValue());
 				client.deleteObject(fileStore.getBucketName(), fileStore.getFileName());
 			}
 		}
