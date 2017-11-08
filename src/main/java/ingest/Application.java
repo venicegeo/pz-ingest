@@ -21,6 +21,8 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -41,12 +43,15 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.client.RestTemplate;
 
+import messaging.job.JobMessageFactory;
+
 @SpringBootApplication
 @Configuration
 @EnableAutoConfiguration
 @EnableAsync
 @EnableScheduling
 @EnableTransactionManagement
+@EnableRabbit
 @EnableJpaRepositories(basePackages = { "org.venice.piazza.common.hibernate" })
 @EntityScan(basePackages = { "org.venice.piazza.common.hibernate" })
 @ComponentScan(basePackages = { "ingest", "util", "org.venice.piazza" })
@@ -59,7 +64,10 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 	private int httpMaxTotal;
 	@Value("${http.max.route}")
 	private int httpMaxRoute;
-    //logger
+	@Value("${SPACE}")
+	private String SPACE;
+
+	// logger
 	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
 	@Override
@@ -69,6 +77,12 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args); // NOSONAR
+	}
+
+	@Bean
+	public Queue updateJobsQueue() {
+		return new Queue(String.format(JobMessageFactory.TOPIC_TEMPLATE, JobMessageFactory.UPDATE_JOB_TOPIC_NAME, SPACE), true, false,
+				false);
 	}
 
 	@Bean
@@ -91,6 +105,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 
 	@Override
 	public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(), method.getName());
+		return (ex, method, params) -> LOG.error("Uncaught Threading exception encountered in {} with details: {}", ex.getMessage(),
+				method.getName());
 	}
 }

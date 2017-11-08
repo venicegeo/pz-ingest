@@ -7,7 +7,7 @@ applications:
   instances: 2
   timeout: 80
   services:
-    - pz-kafka
+    - pz-rabbitmq
     - pz-blobstore
     - pz-geoserver-efs
     - pz-elasticsearch

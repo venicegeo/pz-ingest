@@ -49,7 +49,7 @@ import model.response.SuccessResponse;
 import util.PiazzaLogger;
 
 /**
- * REST Controller for ingest. Ingest has no functional REST endpoints, as all communication is done through Kafka.
+ * REST Controller for ingest. Ingest has no functional REST endpoints, as all communication is done through the message bus.
  * However, this controller exposes useful debug/status endpoints which can be used administratively.
  * 
  * @author Patrick.Doody

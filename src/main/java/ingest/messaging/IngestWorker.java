@@ -19,10 +19,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.Future;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -93,8 +93,6 @@ public class IngestWorker {
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
 
-	private static final String INGEST_EVENT_TYPE_NAME = "piazza:ingest";
-
 	@Autowired
 	private PiazzaLogger logger;
 	@Autowired
@@ -105,33 +103,32 @@ public class IngestWorker {
 	private UUIDFactory uuidFactory;
 	@Autowired
 	private RestTemplate restTemplate;
-	private Producer<String, String> producer;
+	@Autowired
+	private Queue updateJobsQueue;
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+	@Autowired
+	private ObjectMapper mapper;
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestWorker.class);
+	private static final String INGEST_EVENT_TYPE_NAME = "piazza:ingest";
 
 	/**
-	 * Creates a new Worker Thread for the specified Kafka Message containing an Ingest Job.
+	 * Creates a new Worker Thread for the specified Message containing an Ingest Job.
 	 * 
-	 * @param consumerRecord
-	 *            The Kafka Message containing the Job.
-	 * @param producer
-	 *            The Kafka producer, used to send update messages
+	 * @param job
+	 *            The Job Model containing all Job information
 	 * @param callback
 	 *            The callback that will be invoked when this Job has finished processing (error or success, regardless)
 	 */
 	@Async
-	public Future<DataResource> run(ConsumerRecord<String, String> consumerRecord, Producer<String, String> producer,
-			WorkerCallback callback) {
+	public Future<DataResource> run(Job job, WorkerCallback callback) {
 		DataResource dataResource = null;
-		this.producer = producer;
 		try {
 			// Log
-			logger.log(String.format("Processing Data Load for Topic %s for Job Id %s", consumerRecord.topic(), consumerRecord.key()),
-					Severity.INFORMATIONAL);
+			logger.log(String.format("Processing Data Load for IngestJob for Job Id %s", job.getJobId()), Severity.INFORMATIONAL);
 
-			// Parse the Job from the Kafka Message
-			ObjectMapper mapper = new ObjectMapper();
-			Job job = mapper.readValue(consumerRecord.value(), Job.class);
+			// Parse the Job from the Message
 			IngestJob ingestJob = (IngestJob) job.getJobType();
 
 			// Get the description of the Data to be ingested
@@ -162,7 +159,9 @@ public class IngestWorker {
 			// Update Status on Handling
 			JobProgress jobProgress = new JobProgress(0);
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_RUNNING, jobProgress);
-			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE)).get();
+			statusUpdate.setJobId(job.getJobId());
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				processFileRepresentation(ingestJob, dataResource);
@@ -183,6 +182,7 @@ public class IngestWorker {
 			// Update Status when Complete
 			jobProgress.percentComplete = 100;
 			statusUpdate = new StatusUpdate(StatusUpdate.STATUS_SUCCESS, jobProgress);
+			statusUpdate.setJobId(job.getJobId());
 
 			if (Thread.interrupted()) {
 				throw new InterruptedException();
@@ -191,7 +191,8 @@ public class IngestWorker {
 			// The result of this Job was creating a resource at the specified
 			// Id.
 			statusUpdate.setResult(new DataResult(dataResource.getDataId()));
-			this.producer.send(JobMessageFactory.getUpdateStatusMessage(consumerRecord.key(), statusUpdate, SPACE));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 
 			// Console Logging
 			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
@@ -204,24 +205,24 @@ public class IngestWorker {
 			String userError = "There was an issue with S3 during Data Load. Please contact a Piazza administrator for details.";
 			LOG.error(systemError, amazonException);
 			logger.log(systemError, Severity.ERROR);
-			handleException(consumerRecord.key(), new DataInspectException(userError));
+			handleException(job.getJobId(), new DataInspectException(userError));
 		} catch (DataInspectException exception) {
-			handleException(consumerRecord.key(), exception);
+			handleException(job.getJobId(), exception);
 			LOG.error("An Inspection Error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} catch (InterruptedException exception) { // NOSONAR
-			String error = String.format("Thread interrupt received for Job %s", consumerRecord.key());
+			String error = String.format("Thread interrupt received for Job %s", job.getJobId());
 			LOG.error(error, exception);
-			logger.log(error, Severity.INFORMATIONAL, new AuditElement(consumerRecord.key(), "cancelledIngestJob", ""));
-			handleInterruptedException(consumerRecord.key());
+			logger.log(error, Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "cancelledIngestJob", ""));
+			handleInterruptedException(job.getJobId());
 		} catch (IOException jsonException) {
-			handleException(consumerRecord.key(), jsonException);
+			handleException(job.getJobId(), jsonException);
 			LOG.error("Error Parsing Data Load Job Message.", jsonException);
 		} catch (Exception exception) {
-			handleException(consumerRecord.key(), exception);
+			handleException(job.getJobId(), exception);
 			LOG.error("An unexpected error occurred while processing the Job Message: " + exception.getMessage(), exception);
 		} finally {
 			if (callback != null) {
-				callback.onComplete(consumerRecord.key());
+				callback.onComplete(job.getJobId());
 			}
 		}
 
@@ -370,7 +371,7 @@ public class IngestWorker {
 
 	/**
 	 * Handles the common exception actions that should be taken upon errors encountered during the
-	 * inspection/parsing/loading process. Sends the error message to Kafka that this Job has errored out.
+	 * inspection/parsing/loading process. Sends the error message that this Job has errored out.
 	 * 
 	 * @param jobId
 	 * @param exception
@@ -382,7 +383,9 @@ public class IngestWorker {
 		try {
 			StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_ERROR);
 			statusUpdate.setResult(new ErrorResult("Error while Loading the Data.", exception.getMessage()));
-			this.producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
+			statusUpdate.setJobId(jobId);
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 		} catch (JsonProcessingException jsonException) {
 			LOG.info("Could update Job Manager with failure event in Loader Worker. Error creating message: " + jsonException.getMessage(),
 					jsonException);
@@ -391,8 +394,10 @@ public class IngestWorker {
 
 	private void handleInterruptedException(final String jobId) {
 		StatusUpdate statusUpdate = new StatusUpdate(StatusUpdate.STATUS_CANCELLED);
+		statusUpdate.setJobId(jobId);
 		try {
-			producer.send(JobMessageFactory.getUpdateStatusMessage(jobId, statusUpdate, SPACE));
+			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
+					mapper.writeValueAsString(statusUpdate));
 		} catch (JsonProcessingException jsonException) {
 			String error = String.format(
 					"Error sending Cancelled Status from Job %s: %s. The Job was cancelled, but its status will not be updated in the Job Manager.",
