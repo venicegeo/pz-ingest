@@ -69,8 +69,6 @@ public class PointCloudInspector implements InspectorType {
 	private String AMAZONS3_PRIVATE_KEY;
 	@Value("${point.cloud.endpoint}")
 	private String POINT_CLOUD_ENDPOINT;
-	@Value("${vcap.services.pz-blobstore.credentials.encryption_key}")
-	private String KMS_CMK_ID;
 	
 	@Autowired
 	private RestTemplate restTemplate;
