@@ -17,4 +17,3 @@ Running
 
 1. Discuss vagrant and where to get it/learn about
 2. Add pointer to dependencies which will be in pz-docs new section
-
