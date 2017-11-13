@@ -130,6 +130,7 @@ node {
 		try {
           sh "cf set-env ${appName} SPACE ${env.PHASE_ONE_PCF_SPACE}"
           sh "cf set-env ${appName} DOMAIN ${env.PHASE_ONE_PCF_DOMAIN}"
+          sh "cf set-env ${appName} "spring.jpa.properties.hibernate.dialect" "org.venice.piazza.common.hibernate.util.JsonPostgreSQL94Dialect"
           sh "cf start ${appName}"
         } catch (Exception e) {
 		  try {
