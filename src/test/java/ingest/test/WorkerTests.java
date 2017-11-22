@@ -108,10 +108,6 @@ public class WorkerTests {
 		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("654321"),
 				Mockito.anyString());
 
-		// Mock the REST response from Workflow and Metadata Ingest
-		when(restTemplate.postForObject(anyString(), any(), eq(String.class))).thenReturn("OK");
-		when(restTemplate.postForEntity(anyString(), any(), eq(Object.class))).thenReturn(new ResponseEntity<Object>(HttpStatus.OK));
-
 		// Format a correct message and re-test
 		Future<DataResource> workerFuture = worker.run(mockJob, null);
 

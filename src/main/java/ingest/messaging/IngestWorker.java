@@ -67,8 +67,6 @@ import model.logger.Severity;
 import model.response.EventTypeListResponse;
 import model.response.PiazzaResponse;
 import model.status.StatusUpdate;
-import model.workflow.Event;
-import model.workflow.EventType;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 
@@ -82,12 +80,8 @@ import util.UUIDFactory;
 public class IngestWorker {
 	@Value("${SPACE}")
 	private String SPACE;
-	@Value("${workflow.url}")
-	private String WORKFLOW_URL;
 	@Value("${search.url}")
 	private String SEARCH_URL;
-	@Value("${workflow.endpoint}")
-	private String WORKFLOW_ENDPOINT;
 	@Value("${search.ingest.endpoint}")
 	private String SEARCH_ENDPOINT;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
@@ -269,24 +263,6 @@ public class IngestWorker {
 			LOG.error(error, genException);
 			logger.log(error, Severity.ERROR);
 		}
-
-		// Fire the Event to Pz-Workflow that a successful Ingest has taken
-		// place.
-		try {
-			dispatchWorkflowEvent(job, dataResource, String.format("%s/%s", WORKFLOW_URL, WORKFLOW_ENDPOINT));
-		} catch (JsonParseException | JsonMappingException exception) {
-			String error = String.format("Could not create JSON to send to Workflow Service Event: %s", exception.getMessage());
-			LOG.error(error, exception);
-			logger.log(error, Severity.ERROR);
-		} catch (HttpClientErrorException | HttpServerErrorException exception) {
-			String error = String.format("Event for Loading of Data %s for Job %s could not be sent to the Workflow Service: %s",
-					dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
-			LOG.error(error, exception);
-			logger.log(error, Severity.ERROR);
-		} catch (Exception exception) {
-			LOG.error(exception.getMessage(), exception);
-			logger.log(exception.getMessage(), Severity.WARNING);
-		}
 	}
 
 	/**
@@ -308,65 +284,6 @@ public class IngestWorker {
 
 		// Send the Request
 		restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
-	}
-
-	/**
-	 * Dispatches the REST POST request to the pz-workflow service for the event that data has been successfully
-	 * ingested.
-	 * 
-	 * @param job
-	 *            The job
-	 * @param dataResource
-	 *            The DataResource that has been ingested
-	 */
-	private void dispatchWorkflowEvent(Job job, DataResource dataResource, String workflowUrl)
-			throws JsonParseException, JsonMappingException, RestClientException, IOException {
-		ObjectMapper objectMapper = new ObjectMapper();
-
-		// Make an initial request to Workflow in order to get the UUID of the System Event.
-		String url = String.format("%s/%s?name=%s", WORKFLOW_URL, "eventType", INGEST_EVENT_TYPE_NAME);
-		EventType eventType = objectMapper.readValue(restTemplate.getForObject(url, String.class), EventTypeListResponse.class).data.get(0);
-
-		// Create the Event to Post
-		Event event = new Event();
-		event.createdBy = job.getCreatedBy();
-		event.eventTypeId = eventType.eventTypeId;
-
-		// Populate the Event Data
-		event.data = new HashMap<String, Object>();
-		event.data.put("dataId", dataResource.getDataId());
-		event.data.put("dataType", dataResource.getDataType().getClass().getSimpleName());
-		if (dataResource.getSpatialMetadata() != null) {
-			event.data.put("epsg", dataResource.getSpatialMetadata().getEpsgCode());
-			event.data.put("minX", dataResource.getSpatialMetadata().getMinX());
-			event.data.put("minY", dataResource.getSpatialMetadata().getMinY());
-			event.data.put("maxX", dataResource.getSpatialMetadata().getMaxX());
-			event.data.put("maxY", dataResource.getSpatialMetadata().getMaxY());
-		} else {
-			logger.log(String.format("Could not populate Spatial Metadata block for %s, because no Spatial Metadata was found.",
-					dataResource.getDataId()), Severity.WARNING);
-		}
-		event.data.put("hosted", ((IngestJob) job.getJobType()).getHost());
-
-		// Send the Event
-		HttpHeaders headers = new HttpHeaders();
-		String eventString = objectMapper.writeValueAsString(event);
-		HttpEntity<String> entity = new HttpEntity<String>(eventString, headers);
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		ResponseEntity<Object> response = restTemplate.postForEntity(workflowUrl, entity, Object.class);
-		if (response.getStatusCode() == HttpStatus.CREATED) {
-			// The Event was successfully received by pz-workflow
-			logger.log(
-					String.format("Event for Loading of Data %s for Job %s was successfully sent to the Workflow Service with response %s",
-							dataResource.getDataId(), job.getJobId(), response.getBody().toString()),
-					Severity.INFORMATIONAL);
-		} else {
-			// 201 not received. Throw an exception that something went wrong.
-			throw new HttpServerErrorException(response.getStatusCode(),
-					String.format(
-							"Non-201 CREATED Status code received from Workflow upon Event creation: %s. This creation may not have succeeded.",
-							response.getStatusCode()));
-		}
 	}
 
 	/**
