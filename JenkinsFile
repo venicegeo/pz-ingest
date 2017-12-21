@@ -21,36 +21,44 @@ node {
   def appName = "pz-ingest-${appvers}"
 
   stage('Archive') {
-    // Build
+    // Build Tarball
+    def targetFiles = "pz-ingest.jar manifest.jenkins.yml"
+    def artifactDirectory = "maven-artifact"
+    sh "mkdir -p ${root}/${artifactDirectory}"
+    def tarball = "pz-ingest.tar.gz"
     sh """
       sed -i 's,\${env.ARTIFACT_STORAGE_URL},${env.ARTIFACT_STORAGE_URL},g' pom.xml
       ${mvn}/bin/mvn clean package -U -Dmaven.repo.local=${root}
       cp ${root}/target/piazza-ingest-1.0.0.jar ${root}/pz-ingest.jar
+      tar cvvzf ${tarball} ${targetFiles}
+      mv ${tarball} ${root}/${artifactDirectory}/${tarball}
     """
     // Check if exists already
-    def getDependencyStatus = sh(script: """mvn -X --settings ~/.m2/settings.xml dependency:get \
-      -Dmaven.repo.local="${root}/.m2/repository" \
-      -DrepositoryId=nexus \
-      -DartifactId=pz-ingest \
-      -Dversion=${appvers} \
-      -DgroupId="org.venice.piazza" \
-      -Dpackaging=jar \
-      -DremoteRepositories="nexus::default::${env.ARTIFACT_STORAGE_DEPLOY_URL}" \
-    """, returnStatus: true)
-    echo "dependency status = ${getDependencyStatus}"
-    if (getDependencyStatus == 0) {
-      echo "Artifact version ${appvers} exists in Nexus, nothing to do"
-    } else {
-     sh """mvn -X --settings ~/.m2/settings.xml deploy:deploy-file -Dfile=${root}/pz-ingest.jar \
-        -DrepositoryId=nexus \
-        -Durl="${env.ARTIFACT_STORAGE_DEPLOY_URL}" \
-        -DgroupId="org.venice.piazza" \
-        -DgeneratePom=false \
-        -Dpackaging=jar \
+    dir("${root}/${artifactDirectory}") {
+      def getDependencyStatus = sh(script: """mvn -X --settings ~/.m2/settings.xml dependency:get \
         -Dmaven.repo.local="${root}/.m2/repository" \
+        -DrepositoryId=nexus \
         -DartifactId=pz-ingest \
-        -Dversion=${appvers}
-      """
+        -Dversion=${appvers} \
+        -DgroupId="org.venice.piazza" \
+        -Dpackaging=tar.gz \
+        -DremoteRepositories="nexus::default::${env.ARTIFACT_STORAGE_DEPLOY_URL}" \
+      """, returnStatus: true)
+      echo "dependency status = ${getDependencyStatus}"
+      if (getDependencyStatus == 0) {
+        echo "Artifact version ${appvers} exists in Nexus, nothing to do"
+      } else {
+       sh """mvn -X --settings ~/.m2/settings.xml deploy:deploy-file -Dfile=${root}/${artifactDirectory}/${tarball} \
+          -DrepositoryId=nexus \
+          -Durl="${env.ARTIFACT_STORAGE_DEPLOY_URL}" \
+          -DgroupId="org.venice.piazza" \
+          -DgeneratePom=false \
+          -Dpackaging=tar.gz \
+          -Dmaven.repo.local="${root}/.m2/repository" \
+          -DartifactId=pz-ingest \
+          -Dversion=${appvers}
+        """
+      }
     }
   }
 
@@ -60,24 +68,6 @@ node {
 		  sh "/jslave/dependency-check/dependency-check/bin/dependency-check.sh --version"
 		  sh '/jslave/dependency-check/dependency-check/bin/dependency-check.sh --project "pz-ingest" --scan "." --format "XML" --enableExperimental --disableBundleAudit'
 		  sh "/bin/curl -v --insecure -H 'Accept: application/json' -X POST --form file=@dependency-check-report.xml ${env.THREADFIX_URL}/rest/applications/${env.THREADFIX_ID}/upload?apiKey=${THREADFIX_KEY}"
-
-		  //ionConnect()
-		  /* TODO - Put back in. Ion connect is not working currently.
-		  def ionTool = tool 'ion-connect-latest'
-		  withEnv([
-			"ION_CONNECT_LATEST_HOME=${ionTool}",
-			"PATH+ION=${ionTool}/linux/bin",
-			"PATH+JQ=${tool 'jq1_5'}"
-		  ]) {
-			withCredentials([string(credentialsId: "${env.IONCHANNEL_SECRET_KEY}", variable: 'IONCHANNEL_SECRET_KEY')]) {
-			  def pomFile = "${root}/pom.xml"
-			  sh """
-				resp=\$(ion-connect dependency resolve-dependencies-in-file --flatten --type maven ${pomFile})
-				deps=\$(echo \${resp} | jq .dependencies)
-				ion-connect vulnerability get-vulnerabilities-for-list "\${deps}"
-			  """
-			}
-		  }*/
 
 		  sh """
 			mkdir -p ${root}/.m2/repository
