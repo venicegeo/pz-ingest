@@ -10,7 +10,6 @@ applications:
     - pz-rabbitmq
     - pz-blobstore
     - pz-postgres
-    - pz-elasticsearch
   env:
     SPRING_PROFILES_ACTIVE: cloud
     JBP_CONFIG_SPRING_AUTO_RECONFIGURATION: '{enabled: false}'
