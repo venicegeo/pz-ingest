@@ -72,12 +72,6 @@ public class IngestController {
 
 	@Value("${access.url}")
 	private String ACCESS_URL;
-	@Value("${search.url}")
-	private String SEARCH_URL;
-	@Value("${search.delete}")
-	private String SEARCH_DELETE_SUFFIX;
-	@Value("${search.update}")
-	private String SEARCH_UPDATE_SUFFIX;	
 
 	private static final Logger LOG = LoggerFactory.getLogger(IngestController.class);
 	private static final String LOADER = "Loader";
@@ -112,10 +106,6 @@ public class IngestController {
 
 			// Request that Access delete any Deployments for this Data ID
 			deleteDeploymentsByDataId(dataId);
-
-			// Delete from Elasticsearch
-			String searchUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_DELETE_SUFFIX, dataId);
-			ingestUtil.deleteElasticsearchByDataResource(data, searchUrl);
 
 			// Log the deletion
 			logger.log(String.format("Successfully Deleted Data Id %s", dataId), Severity.INFORMATIONAL,
@@ -170,10 +160,6 @@ public class IngestController {
 
 			// Update the Metadata
 			accessor.updateMetadata(dataId, metadata);
-			
-			//Update elastic search metadata
-			String searchUpdateUrl = String.format("%s/%s?dataId=%s", SEARCH_URL, SEARCH_UPDATE_SUFFIX, dataId);
-			ingestUtil.updateDataResourceInElasticsearch(data, searchUpdateUrl); 
 
 			// Return OK
 			return new ResponseEntity<PiazzaResponse>(new SuccessResponse("Metadata " + dataId + " was successfully updated.", LOADER),

@@ -16,7 +16,6 @@
 package ingest.messaging;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -25,23 +24,13 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import exception.DataInspectException;
@@ -61,11 +50,8 @@ import model.job.metadata.ResourceMetadata;
 import model.job.result.type.DataResult;
 import model.job.result.type.ErrorResult;
 import model.job.type.IngestJob;
-import model.job.type.SearchMetadataIngestJob;
 import model.logger.AuditElement;
 import model.logger.Severity;
-import model.response.EventTypeListResponse;
-import model.response.PiazzaResponse;
 import model.status.StatusUpdate;
 import util.PiazzaLogger;
 import util.UUIDFactory;
@@ -80,10 +66,6 @@ import util.UUIDFactory;
 public class IngestWorker {
 	@Value("${SPACE}")
 	private String SPACE;
-	@Value("${search.url}")
-	private String SEARCH_URL;
-	@Value("${search.ingest.endpoint}")
-	private String SEARCH_ENDPOINT;
 	@Value("${vcap.services.pz-blobstore.credentials.bucket}")
 	private String AMAZONS3_BUCKET_NAME;
 
@@ -191,9 +173,6 @@ public class IngestWorker {
 			// Console Logging
 			logger.log(String.format("Successful Load of Data %s for Job %s", dataResource.getDataId(), job.getJobId()),
 					Severity.INFORMATIONAL, new AuditElement(job.getJobId(), "loadedData", dataResource.getDataId()));
-
-			// Fire Events
-			fireEvents(job, dataResource);
 		} catch (AmazonClientException amazonException) {
 			String systemError = String.format("Error interacting with S3: %s", amazonException.getMessage());
 			String userError = "There was an issue with S3 during Data Load. Please contact a Piazza administrator for details.";
@@ -246,44 +225,6 @@ public class IngestWorker {
 				ingestUtilities.copyS3Source(dataResource);
 			}
 		}
-	}
-
-	private void fireEvents(final Job job, final DataResource dataResource) {
-		// Fire the Event to Pz-Search that new metadata has been ingested
-		try {
-			dispatchMetadataIngestMessage(dataResource, String.format("%s/%s/", SEARCH_URL, SEARCH_ENDPOINT));
-		} catch (HttpClientErrorException | HttpServerErrorException exception) {
-			String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-					dataResource.getDataId(), job.getJobId(), exception.getResponseBodyAsString());
-			LOG.error(error, exception);
-			logger.log(error, Severity.ERROR);
-		} catch (Exception genException) {
-			String error = String.format("Metadata Load for %s for Job %s could not be sent to the Search Service: %s",
-					dataResource.getDataId(), job.getJobId(), genException.getMessage());
-			LOG.error(error, genException);
-			logger.log(error, Severity.ERROR);
-		}
-	}
-
-	/**
-	 * Dispatches the REST POST request to the pz-search service for the ingestion of metadata for the newly ingested
-	 * data resource.
-	 * 
-	 * @param dataResource
-	 *            The Data Resource to ingest metadata for
-	 */
-	private void dispatchMetadataIngestMessage(DataResource dataResource, String searchUrl) {
-		// Create the Ingest Job that the Search Service Expects
-		SearchMetadataIngestJob job = new SearchMetadataIngestJob();
-		job.data = dataResource;
-
-		// Create Request Objects
-		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		HttpEntity<SearchMetadataIngestJob> entity = new HttpEntity<SearchMetadataIngestJob>(job, headers);
-
-		// Send the Request
-		restTemplate.postForObject(searchUrl, entity, PiazzaResponse.class);
 	}
 
 	/**
