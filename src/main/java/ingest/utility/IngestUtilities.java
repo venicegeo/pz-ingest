@@ -49,12 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
@@ -81,8 +76,6 @@ import model.data.type.ShapefileDataType;
 import model.job.metadata.SpatialMetadata;
 import model.logger.AuditElement;
 import model.logger.Severity;
-import model.response.ErrorResponse;
-import model.response.PiazzaResponse;
 import util.GeoToolsUtil;
 import util.PiazzaLogger;
 
@@ -180,20 +173,20 @@ public class IngestUtilities {
 			ZipEntry zipEntry = zipInputStream.getNextEntry();
 			while (zipEntry != null) {
 				extractZipEntry(zipEntry.getName(), zipInputStream, zipPath, extractPath);
-				
+
 				zipEntry = zipInputStream.getNextEntry();
 			}
 
 			zipInputStream.closeEntry();
-		} 
-		catch (IOException ex) {
+		} catch (IOException ex) {
 			String error = "Unable to extract zip: " + zipPath + " to path " + extractPath;
 			LOG.error(error, ex, new AuditElement(INGEST, "failedExtractShapefileZip", extractPath));
 			throw new IOException(error);
 		}
 	}
 
-	private void extractZipEntry(final String fileName, final ZipInputStream zipInputStream, final String zipPath, final String extractPath) throws IOException {
+	private void extractZipEntry(final String fileName, final ZipInputStream zipInputStream, final String zipPath, final String extractPath)
+			throws IOException {
 		byte[] buffer = new byte[1024];
 
 		String extension = FilenameUtils.getExtension(fileName);
@@ -201,23 +194,21 @@ public class IngestUtilities {
 
 		// Sanitize - blacklist
 		if (filePath.contains("..") || (fileName.contains("/")) || (fileName.contains("\\"))) {
-			logger.log(
-					String.format(
-							"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
-							fileName, zipPath),
-					Severity.WARNING, new AuditElement(INGEST, "restrictedPathDetected", zipPath));
+			logger.log(String.format(
+					"Cannot extract Zip entry %s because it contains a restricted path reference. Characters such as '..' or slashes are disallowed. The initial zip path was %s. This was blocked to prevent a vulnerability.",
+					fileName, zipPath), Severity.WARNING, new AuditElement(INGEST, "restrictedPathDetected", zipPath));
 			zipInputStream.closeEntry();
 			return;
 		}
 		// Sanitize - whitelist
 		boolean filePathContainsExtension = false;
-		for( final String ext : Arrays.asList(".shp", ".prj", ".shx", ".dbf", ".sbn")) { 
-			if( filePath.contains(ext) ) {
+		for (final String ext : Arrays.asList(".shp", ".prj", ".shx", ".dbf", ".sbn")) {
+			if (filePath.contains(ext)) {
 				filePathContainsExtension = true;
 				break;
 			}
 		}
-		
+
 		if (filePathContainsExtension) {
 			File newFile = new File(filePath).getCanonicalFile();
 
@@ -232,12 +223,11 @@ public class IngestUtilities {
 			}
 
 			zipInputStream.closeEntry();
-		} 
-		else {
+		} else {
 			zipInputStream.closeEntry();
-		}	
+		}
 	}
-	
+
 	/**
 	 * Gets the GeoTools Feature Store for the Shapefile.
 	 * 
@@ -284,7 +274,7 @@ public class IngestUtilities {
 			// Get the features from the FeatureCollection and add to the PostGIS store
 			SimpleFeatureCollection features = (SimpleFeatureCollection) featureSource.getFeatures();
 			postGisFeatureStore.addFeatures(features);
-			
+
 			transaction.commit();
 
 		} catch (IOException exception) {
@@ -424,8 +414,8 @@ public class IngestUtilities {
 	}
 
 	/**
-	 * Deletes all persistent files for a Data Resource item. This will not remove the entry from DB. That is
-	 * handled separately.
+	 * Deletes all persistent files for a Data Resource item. This will not remove the entry from DB. That is handled
+	 * separately.
 	 * 
 	 * <p>
 	 * This will delete files from S3 for rasters/vectors, and for vectors this will also delete the PostGIS table.
