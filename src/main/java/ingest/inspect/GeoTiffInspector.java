@@ -73,7 +73,8 @@ public class GeoTiffInspector implements InspectorType {
 	private static final String INGEST = "ingest";
 
 	@Override
-	public DataResource inspect(DataResource dataResource, boolean host) throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
+	public DataResource inspect(DataResource dataResource, boolean host)
+			throws DataInspectException, AmazonClientException, InvalidInputException, IOException, FactoryException {
 		// Gather GeoTIFF relevant metadata
 		String fileName = String.format("%s%s%s.%s", DATA_TEMP_PATH, File.separator, dataResource.getDataId(), "tif");
 
@@ -142,7 +143,8 @@ public class GeoTiffInspector implements InspectorType {
 	 *            The DataResource to gather GeoTIFF source info
 	 * @return GridCoverage2D grid coverage
 	 */
-	private GridCoverage2DReader getGridCoverage(DataResource dataResource, File file) throws AmazonClientException, InvalidInputException, IOException {
+	private GridCoverage2DReader getGridCoverage(DataResource dataResource, File file)
+			throws AmazonClientException, InvalidInputException, IOException {
 		// Get the file from S3
 		FileAccessFactory fileFactory = ingestUtilities.getFileFactoryForDataResource(dataResource);
 		InputStream tiffFileStream = fileFactory.getFile(((RasterDataType) dataResource.getDataType()).getLocation());

@@ -29,7 +29,6 @@ import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.referencing.CRS;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -72,8 +71,8 @@ public class WfsInspectTests {
 	 * the SL61 issue is resolved, this Unit test MUST be re-included into the suite.
 	 * </p>
 	 */
-	// @Before
-	@Ignore
+	@Before
+	//@Ignore
 	public void init() throws Exception {
 		MockitoAnnotations.initMocks(this);
 
@@ -105,7 +104,7 @@ public class WfsInspectTests {
 	 * </p>
 	 */
 	@Test
-	@Ignore
+	//@Ignore
 	public void testWfsInspector() throws Exception {
 		// Mock a WFS DataResource
 		WfsDataType wfsResource = new WfsDataType();

@@ -20,14 +20,15 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import ingest.inspect.GeoTiffInspector;
+import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.data.location.FolderShare;
 import model.data.type.RasterDataType;
@@ -43,6 +44,8 @@ import util.PiazzaLogger;
 public class GeoTiffInspectorTests {
 	@Mock
 	private PiazzaLogger logger;
+	@Spy
+	private IngestUtilities ingestUtilities;
 	@InjectMocks
 	private GeoTiffInspector inspector;
 
@@ -77,7 +80,7 @@ public class GeoTiffInspectorTests {
 	 * </p>
 	 */
 	@Test
-	@Ignore
+	// @Ignore
 	public void testInspector() throws Exception {
 		// Mock
 		ReflectionTestUtils.setField(inspector, "DATA_TEMP_PATH", "tmp");
