@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -89,8 +88,6 @@ import util.PiazzaLogger;
 public class IngestUtilities {
 	@Autowired
 	private PiazzaLogger logger;
-	@Autowired
-	private RestTemplate restTemplate;
 
 	@Value("${vcap.services.pz-postgres.credentials.db_host}")
 	private String POSTGRES_HOST;
@@ -130,22 +127,22 @@ public class IngestUtilities {
 	 */
 	public boolean deleteDirectoryRecursive(File directory) throws IOException {
 		boolean result = false;
-
 		if (directory.isDirectory()) {
 			File[] files = directory.listFiles();
-
 			for (int i = 0; i < files.length; i++) {
-				if (files[i].isDirectory()) {
-					deleteDirectoryRecursive(files[i]);
+				if (files[i].exists()) {
+					if (files[i].isDirectory()) {
+						deleteDirectoryRecursive(files[i]);
+					}
+					if (files[i].exists()) {
+						if (!files[i].delete()) {
+							throw new IOException("Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
+						}
+					}
 				}
-
-				if (!files[i].delete())
-					throw new IOException("Unable to delete file " + files[i].getName() + " from " + directory.getAbsolutePath());
 			}
-
 			result = directory.delete();
 		}
-
 		return result;
 	}
 

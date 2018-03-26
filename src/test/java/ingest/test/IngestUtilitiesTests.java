@@ -16,16 +16,21 @@
 package ingest.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 
+import org.geotools.data.FeatureSource;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.operation.TransformException;
@@ -52,6 +57,78 @@ public class IngestUtilitiesTests {
 	@Before
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
+
+		new File("mockZipDirectory").delete();
+		new File("mockDirectory").delete();
+	}
+
+	/**
+	 * Test directory deletion (cleaning up ingested temp files)
+	 */
+	@Test
+	public void testDeleteRecursive() throws Exception {
+		// Mock a directory containing a directory and some files
+		File mockDir = new File("mockDirectory");
+		assertTrue(mockDir.mkdir());
+		File mockInnerDir = new File(mockDir.getAbsolutePath() + File.separator + "mockInnerDirectory");
+		assertTrue(mockInnerDir.mkdir());
+		File mockFile = new File(mockInnerDir.getAbsolutePath() + File.separator + "mockFile");
+		assertTrue(mockFile.createNewFile());
+		assertTrue(mockFile.exists());
+		// Test
+		boolean success = utilities.deleteDirectoryRecursive(mockDir);
+		// Verify
+		assertTrue(success);
+		assertFalse(mockDir.exists());
+		assertFalse(mockInnerDir.exists());
+		assertFalse(mockFile.exists());
+	}
+
+	/**
+	 * Tests ZIP extraction
+	 */
+	@Test
+	public void testExtractZip() throws Exception {
+		// Test
+		String zipFilePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator + "TestShape.zip";
+		String extractPath = "mockZipDirectory";
+		utilities.extractZip(zipFilePath, extractPath);
+		// No Errors Thrown
+		boolean success = utilities.deleteDirectoryRecursive(new File(extractPath));
+		assertTrue(success);
+	}
+
+	/**
+	 * Test GeoTools Shapefile Data Store parsing. Test is failing due to a GeoTools interaction with local file names.
+	 * TODO: Investigate.
+	 */
+	@Test
+	@Ignore
+	public void testShapefileDataStore() throws Exception {
+		// Mock
+		String zipFilePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator + "TestShape.zip";
+		// Test
+		FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = utilities.getShapefileDataStore(zipFilePath);
+		// Verify
+		assertNotNull(featureSource);
+	}
+
+	/**
+	 * Test Shapefile name extraction
+	 */
+	@Test
+	public void testShapefileName() throws Exception {
+		// Mock
+		String zipFilePath = "src" + File.separator + "test" + File.separator + "resources" + File.separator + "TestShape.zip";
+		String extractPath = "mockZipDirectory";
+		utilities.extractZip(zipFilePath, extractPath);
+		// Test
+		String shapeFileName = utilities.findShapeFileName(extractPath);
+		// Verify
+		assertEquals("ShapefileData.shp", shapeFileName);
+		// Cleanup
+		boolean success = utilities.deleteDirectoryRecursive(new File(extractPath));
+		assertTrue(success);
 	}
 
 	/**
