@@ -108,7 +108,7 @@ public class Application extends SpringBootServletInitializer implements AsyncCo
 								return Long.parseLong(value) * 1000;
 							}
 						}
-						return 5 * 1000;
+						return (long) 5 * 1000;
 					}
 				}).build();
 		restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
