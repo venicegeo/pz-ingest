@@ -16,27 +16,24 @@
 package ingest.test;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import ingest.inspect.ShapefileInspector;
-import ingest.utility.IngestUtilities;
 
 import java.io.File;
 
-import model.data.DataResource;
-import model.data.location.FolderShare;
-import model.data.type.ShapefileDataType;
-import model.job.metadata.ResourceMetadata;
-
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import ingest.inspect.ShapefileInspector;
+import ingest.utility.IngestUtilities;
+import model.data.DataResource;
+import model.data.location.FolderShare;
+import model.data.type.ShapefileDataType;
+import model.job.metadata.ResourceMetadata;
 import util.PiazzaLogger;
 
 /**
@@ -48,7 +45,7 @@ import util.PiazzaLogger;
 public class ShapefileInspectorTests {
 	@Mock
 	private PiazzaLogger logger;
-	@Mock
+	@Spy
 	private IngestUtilities ingestUtilities;
 	@InjectMocks
 	private ShapefileInspector inspector;
@@ -85,13 +82,9 @@ public class ShapefileInspectorTests {
 	 * </p>
 	 */
 	@Test
-	@Ignore
 	public void testInspector() throws Exception {
-		// Mock - run certain real methods. The rest will be mocked.
-		Mockito.doCallRealMethod().when(ingestUtilities).extractZip(anyString(), anyString());
-		Mockito.doCallRealMethod().when(ingestUtilities).findShapeFileName(anyString());
-		Mockito.doCallRealMethod().when(ingestUtilities).getShapefileDataStore(anyString());
-		Mockito.doCallRealMethod().when(ingestUtilities).deleteDirectoryRecursive(any(File.class));
+		// Mock
+		Mockito.doNothing().when(ingestUtilities).persistFeatures(Mockito.any(), Mockito.any(), Mockito.any());
 
 		// Test
 		DataResource data = inspector.inspect(mockData, true);

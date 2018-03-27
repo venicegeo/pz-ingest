@@ -15,6 +15,7 @@
  **/
 package ingest.test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -31,7 +32,10 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import ingest.inspect.PointCloudInspector;
+import ingest.model.PointCloudResponse;
 import ingest.utility.IngestUtilities;
 import model.data.DataResource;
 import model.data.location.FolderShare;
@@ -100,5 +104,30 @@ public class PointCloudInspectorTests {
 		assertTrue(data.getSpatialMetadata().getMaxX().equals(1.0));
 		assertTrue(data.getSpatialMetadata().getMaxY().equals(2.0));
 		assertTrue(data.getSpatialMetadata().getMaxZ().equals(3.0));
+	}
+
+	@Test
+	public void testResponseSerialization() throws Exception {
+		// Mock
+		PointCloudResponse response = new PointCloudResponse();
+		response.setSpatialreference("EPSG:4326");
+		response.setMaxx(1.0);
+		response.setMaxy(2.0);
+		response.setMaxz(3.0);
+		response.setMinx(4.0);
+		response.setMiny(5.0);
+		response.setMinz(6.0);
+		// Test
+		ObjectMapper mapper = new ObjectMapper();
+		String responseString = mapper.writeValueAsString(response);
+		PointCloudResponse deserializedResponse = mapper.readValue(responseString, PointCloudResponse.class);
+		// Verify
+		assertEquals(response.getMaxx(), deserializedResponse.getMaxx());
+		assertEquals(response.getMaxy(), deserializedResponse.getMaxy());
+		assertEquals(response.getMaxz(), deserializedResponse.getMaxz());
+		assertEquals(response.getMinx(), deserializedResponse.getMinx());
+		assertEquals(response.getMiny(), deserializedResponse.getMiny());
+		assertEquals(response.getMinz(), deserializedResponse.getMinz());
+		assertEquals(response.toString(), deserializedResponse.toString());
 	}
 }

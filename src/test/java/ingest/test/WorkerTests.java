@@ -16,8 +16,6 @@
 package ingest.test;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -30,22 +28,25 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ingest.inspect.Inspector;
 import ingest.messaging.IngestWorker;
+import ingest.utility.IngestUtilities;
 import messaging.job.JobMessageFactory;
 import model.data.DataResource;
 import model.data.type.GeoJsonDataType;
 import model.job.Job;
 import model.job.metadata.SpatialMetadata;
 import model.job.type.IngestJob;
+import model.logger.AuditElement;
+import model.logger.Severity;
 import util.PiazzaLogger;
 import util.UUIDFactory;
 
@@ -68,8 +69,10 @@ public class WorkerTests {
 	private RabbitTemplate rabbitTemplate;
 	@Mock
 	private Queue updateJobsQueue;
-	@Mock
+	@Spy
 	private ObjectMapper mapper;
+	@Spy
+	private IngestUtilities ingestUtilities;
 	@InjectMocks
 	private IngestWorker worker;
 
@@ -95,6 +98,12 @@ public class WorkerTests {
 		mockJob.setJobType(mockIngest);
 		mockJob.setCreatedOnString(new DateTime().toString());
 		mockJob.setCreatedBy("Test User");
+
+		// Ensure we get a GUID for the Data Resource
+		when(uuidFactory.getUUID()).thenReturn("654321");
+		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
+		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("654321"),
+				Mockito.anyString());
 	}
 
 	/**
@@ -102,13 +111,7 @@ public class WorkerTests {
 	 */
 	@Test
 	public void testWorker() throws Exception {
-		// Ensure we get a GUID for the Data Resource
-		when(uuidFactory.getUUID()).thenReturn("654321");
-		when(updateJobsQueue.getName()).thenReturn("Update-Job-Unit-Test");
-		Mockito.doNothing().when(rabbitTemplate).convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), eq("654321"),
-				Mockito.anyString());
-
-		// Format a correct message and re-test
+		// Format a correct message and test
 		Future<DataResource> workerFuture = worker.run(mockJob, null);
 
 		// Verify
@@ -117,5 +120,27 @@ public class WorkerTests {
 		assertTrue(inspectedData.getMetadata() != null);
 		assertTrue(inspectedData.getMetadata().createdBy.equals("Test User"));
 		assertTrue(inspectedData.getSpatialMetadata() != null);
+	}
+
+	@Test
+	public void testWorkerException() throws Exception {
+		// Test Errors being thrown
+		Mockito.doThrow(new AmqpException("Test")).doNothing().when(rabbitTemplate)
+				.convertAndSend(eq(JobMessageFactory.PIAZZA_EXCHANGE_NAME), Mockito.anyString(), Mockito.anyString());
+		// Test
+		worker.run(mockJob, null);
+		// Verify
+		Mockito.verify(logger, Mockito.times(1)).log(Mockito.anyString(), Mockito.eq(Severity.ERROR), Mockito.isA(AuditElement.class));
+	}
+
+	@Test
+	public void testWorkerInterruptedException() throws Exception {
+		// Test Errors being thrown
+		Mockito.doThrow(new InterruptedException()).when(inspector).inspect(Mockito.isA(DataResource.class), Mockito.anyBoolean());
+		// Test
+		worker.run(mockJob, null);
+		// Verify
+		Mockito.verify(logger, Mockito.times(1)).log(Mockito.eq("Thread interrupt received for Job 123456"),
+				Mockito.eq(Severity.INFORMATIONAL), Mockito.isA(AuditElement.class));
 	}
 }
