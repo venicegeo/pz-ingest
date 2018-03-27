@@ -82,7 +82,6 @@ public class ShapefileInspectorTests {
 	 * </p>
 	 */
 	@Test
-	// @Ignore
 	public void testInspector() throws Exception {
 		// Mock
 		Mockito.doNothing().when(ingestUtilities).persistFeatures(Mockito.any(), Mockito.any(), Mockito.any());

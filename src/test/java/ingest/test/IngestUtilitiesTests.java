@@ -179,7 +179,6 @@ public class IngestUtilitiesTests {
 	 * </p>
 	 */
 	@Test
-	@Ignore
 	public void testProjectionMetadata() throws NoSuchAuthorityCodeException, FactoryException, TransformException {
 		// Mock
 		SpatialMetadata mockMetadata = new SpatialMetadata();
