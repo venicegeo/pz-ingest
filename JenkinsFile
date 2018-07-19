@@ -153,13 +153,28 @@ node {
         sh "cf api ${env.PCF_API_ENDPOINT}"
         sh "cf auth ${CFUSER} ${CFPASS}"
         sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_ONE_PCF_SPACE}"
+        
+        // Define Routes
         def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest \" | awk '{print \$4}'", returnStdout: true)
         sh "cf map-route ${appName} ${env.PHASE_ONE_PCF_DOMAIN} --hostname pz-ingest"
+        sh "cf map-route ${appName} apps.internal --hostname pz-ingest-${env.PHASE_ONE_PCF_SPACE}"
+        
+        // Define Policies
+        try {
+          def gateway = sh(script: "cf routes | grep \"pz-gateway \" | awk '{print \$4}'", returnStdout: true).trim()
+          sh "cf add-network-policy ${gateway} --destination-app ${appName} --protocol tcp --port 8080"
+          def access = sh(script: "cf routes | grep \"pz-access \" | awk '{print \$4}'", returnStdout: true).trim()
+          sh "cf add-network-policy ${appName} --destination-app ${access} --protocol tcp --port 8080"
+        } catch (Exception ex) {
+          echo "Could not establish network policies. The network policy tool should be run post-build to ensure functionality."
+        }
+        
         // Remove Legacy applications
         for (Object legacyApp : legacyAppNames.trim().tokenize(',')) {
           def legacyAppName = legacyApp.toString().trim()
           if (legacyAppName != appName) {
             sh "cf unmap-route ${legacyAppName} ${env.PHASE_ONE_PCF_DOMAIN} --hostname pz-ingest"
+            sh "cf unmap-route ${legacyAppName} apps.internal --hostname pz-ingest-${env.PHASE_ONE_PCF_SPACE}"
             sh "cf delete -f ${legacyAppName} -r"
           }
         }
@@ -230,13 +245,28 @@ node {
         sh "cf api ${env.PCF_API_ENDPOINT}"
         sh "cf auth ${CFUSER} ${CFPASS}"
         sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_TWO_PCF_SPACE}"
+        
+        // Define Routes 
         def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest \" | awk '{print \$4}'", returnStdout: true)
         sh "cf map-route ${appName} ${env.PHASE_TWO_PCF_DOMAIN} --hostname pz-ingest"
+        sh "cf map-route ${appName} apps.internal --hostname pz-ingest-${env.PHASE_TWO_PCF_SPACE}"
+        
+        // Define Policies
+        try {
+          def gateway = sh(script: "cf routes | grep \"pz-gateway \" | awk '{print \$4}'", returnStdout: true).trim()
+          sh "cf add-network-policy ${gateway} --destination-app ${appName} --protocol tcp --port 8080"
+          def access = sh(script: "cf routes | grep \"pz-access \" | awk '{print \$4}'", returnStdout: true).trim()
+          sh "cf add-network-policy ${appName} --destination-app ${access} --protocol tcp --port 8080"
+        } catch (Exception ex) {
+          echo "Could not establish network policies. The network policy tool should be run post-build to ensure functionality."
+        }
+        
           // Remove Legacy applications
           for (Object legacyApp : legacyAppNames.trim().tokenize(',')) {
             def legacyAppName = legacyApp.toString().trim()
             if (legacyAppName != appName) {
               sh "cf unmap-route ${legacyAppName} ${env.PHASE_TWO_PCF_DOMAIN} --hostname pz-ingest"
+              sh "cf unmap-route ${legacyAppName} apps.internal --hostname pz-ingest-${env.PHASE_TWO_PCF_SPACE}"
               sh "cf delete -f ${legacyAppName} -r"
             }
           }
