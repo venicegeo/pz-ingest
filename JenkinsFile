@@ -155,14 +155,14 @@ node {
         sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_ONE_PCF_SPACE}"
         
         // Define Routes
-        def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest \" | awk '{print \$4}'", returnStdout: true)
+        def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest\" | awk '{print \$4}'", returnStdout: true)
         sh "cf map-route ${appName} apps.internal --hostname pz-ingest-${env.PHASE_ONE_PCF_SPACE}"
         
         // Define Policies
         try {
-          def gateway = sh(script: "cf routes | grep \"pz-gateway \" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
+          def gateway = sh(script: "cf routes | grep \"pz-gateway\" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
           sh "cf add-network-policy ${gateway} --destination-app ${appName} --protocol tcp --port 8080"
-          def access = sh(script: "cf routes | grep \"pz-access \" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
+          def access = sh(script: "cf routes | grep \"pz-access\" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
           sh "cf add-network-policy ${appName} --destination-app ${access} --protocol tcp --port 8080"
         } catch (Exception ex) {
           echo "Could not establish network policies. The network policy tool should be run post-build to ensure functionality."
@@ -245,14 +245,14 @@ node {
         sh "cf target -o ${env.PCF_ORG} -s ${env.PHASE_TWO_PCF_SPACE}"
         
         // Define Routes 
-        def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest \" | awk '{print \$4}'", returnStdout: true)
+        def legacyAppNames = sh(script: "cf routes | grep \"pz-ingest\" | awk '{print \$4}'", returnStdout: true)
         sh "cf map-route ${appName} apps.internal --hostname pz-ingest-${env.PHASE_TWO_PCF_SPACE}"
         
         // Define Policies
         try {
-          def gateway = sh(script: "cf routes | grep \"pz-gateway \" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
+          def gateway = sh(script: "cf routes | grep \"pz-gateway\" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
           sh "cf add-network-policy ${gateway} --destination-app ${appName} --protocol tcp --port 8080"
-          def access = sh(script: "cf routes | grep \"pz-access \" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
+          def access = sh(script: "cf routes | grep \"pz-access\" | awk '{print \$4}' | head -n1", returnStdout: true).trim()
           sh "cf add-network-policy ${appName} --destination-app ${access} --protocol tcp --port 8080"
         } catch (Exception ex) {
           echo "Could not establish network policies. The network policy tool should be run post-build to ensure functionality."
