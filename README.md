@@ -17,7 +17,7 @@ Ensure that the nexus url environment variable `ARTIFACT_STORAGE_URL` is set:
 
 	$ export ARTIFACT_STORAGE_URL={Artifact Storage URL}
 
-For additional details on prerequisites, please refer to the Piazza Developer's Guide [Core Overview](https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/02-pz-core.md) or [Piazza Ingest](https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/10-pz-ingest.md) sections. Also refer to the [prerequisites for using Piazza]https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/03-jobs.md) section for additional details.
+For additional details on prerequisites, please refer to the Piazza Developer's Guide [Core Overview](https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/02-pz-core.md) or [Piazza Ingest](https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/10-pz-ingest.md) sections. Also refer to the [prerequisites for using Piazza](https://github.com/venicegeo/pz-docs/blob/master/documents/devguide/03-jobs.md) section for additional details.
 
 
 ***
