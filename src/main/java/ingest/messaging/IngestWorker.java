@@ -138,6 +138,11 @@ public class IngestWorker {
 			statusUpdate.setJobId(job.getJobId());
 			rabbitTemplate.convertAndSend(JobMessageFactory.PIAZZA_EXCHANGE_NAME, updateJobsQueue.getName(),
 					mapper.writeValueAsString(statusUpdate));
+			// Hack hack hack
+			Thread.sleep(100);
+			// This sleep gets around a RabbitMQ/SpringAMQP race condition where the two messages being sent are
+			// received at the same time, which causes a DB race condition where a Successful Job message gets handled
+			// first and THEN gets its status sent to running.
 
 			if (ingestJob.getData().getDataType() instanceof FileRepresentation) {
 				processFileRepresentation(ingestJob, dataResource);
